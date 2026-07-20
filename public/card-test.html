@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Card Visual Test</title>
+    <link rel="stylesheet" href="./styles/card.css">
+    <style>
+        body { color: white; }
+        main { text-align: center; padding: var(--container-spacing); background: #1a1a2e; min-height: 100vh; }
+        h1 { font-weight: 300; margin-bottom: var(--container-spacing); }
+        section { display: block; text-wrap: nowrap; overflow: auto; padding: var(--container-spacing); border-radius: var(--container-radius); }
+    </style>
+</head>
+<body>
+<playing-card data-value="a" data-suit="spades" data-is-face-down="false"><div class="playing-card-center"></div></playing-card>
+<main>
+    <h1>Card Visual Test</h1>
+    <section class="playing-card-list">
+        <playing-card data-value="10" data-suit="hearts" data-is-face-down="false">
+
+            <div class="playing-card-center"></div>
+        </playing-card>
+        <playing-card data-value="9" data-suit="spades" data-is-face-down="false">
+            <section class="playing-card-drag-handle">
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+            </section>
+            <div class="playing-card-center">
+        </div></playing-card>
+        <playing-card data-value="8" data-suit="hearts" data-is-face-down="false"><div class="playing-card-center"></div></playing-card>
+        <playing-card data-value="7" data-suit="diamonds" data-is-face-down="false"><div class="playing-card-center"></div></playing-card>
+        <playing-card data-value="6" data-suit="clubs" data-is-face-down="false"><div class="playing-card-center"></div></playing-card>
+        <playing-card data-value="5" data-suit="spades" data-is-face-down="false"><div class="playing-card-center"></div></playing-card>
+        <playing-card data-value="4" data-suit="hearts" data-is-face-down="false"><div class="playing-card-center"></div></playing-card>
+        <playing-card data-value="3" data-suit="spades" data-is-face-down="false"><div class="playing-card-center"></div></playing-card>
+        <playing-card data-value="2" data-suit="spades" data-is-face-down="true"><div class="playing-card-center"></div></playing-card>
+    </section>
+    <section >
+        <playing-card data-value="joker" data-suit="black" data-is-face-down="false">
+            <section class="playing-card-drag-handle">
+                <div></div>
+                <div></div>
+                <div></div>
+                <div></div>
+            </section>
+            <div class="playing-card-center"></div>
+        </playing-card>
+        <playing-card data-value="joker" data-suit="red" data-is-face-down="false"><div class="playing-card-center"></div></playing-card>
+        <playing-card data-value="a" data-suit="hearts" data-is-face-down="false"><div class="playing-card-center"></div></playing-card>
+        <playing-card data-value="k" data-suit="diamonds" data-is-face-down="false"><div class="playing-card-center"></div></playing-card>
+        <playing-card data-value="q" data-suit="clubs" data-is-face-down="false"><div class="playing-card-center"></div></playing-card>
+        <playing-card data-value="j" data-suit="spades" data-is-face-down="false"><div class="playing-card-center"></div></playing-card>
+    </section>
+</main>
+</body>
+</html>

@@ -1,0 +1,930 @@
+/* public/styles/app.css */
+
+@import url("./tokens.css");
+
+/* ========================================
+   RESET & BASE
+   ======================================== */
+
+* {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+}
+
+html,
+body {
+    min-height: 100%;
+}
+
+body {
+    display: grid;
+    grid-template-rows: auto 1fr auto auto;
+    align-items: start;
+    gap: calc(2 * var(--container-spacing));
+    padding: var(--container-spacing);
+    background: radial-gradient(circle at top, #443126 0%, #2d211a 55%, #201813 100%);
+    color: white;
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Arial, sans-serif;
+    line-height: 1.5;
+}
+
+button,
+select,
+input {
+    font: inherit;
+    color: inherit;
+}
+
+label {
+    border-radius: var(--container-radius);
+}
+
+button {
+    cursor: pointer;
+    border: 0;
+    padding: var(--control-padding);
+    border-radius: var(--container-radius);
+    background: rgba(255, 255, 255, .1);
+    font-weight: 700;
+    transition: background .2s ease, transform .15s ease;
+}
+
+button:hover {
+    background: rgba(255, 255, 255, .18);
+}
+
+button:active {
+    transform: scale(.97);
+}
+
+input,
+select {
+    background: rgba(255, 255, 255, .08);
+    border: 1px solid rgba(255, 255, 255, .15);
+    border-radius: var(--container-radius);
+    padding: var(--control-padding);
+    width: 100%;
+    transition: border-color .2s ease, background .2s ease;
+}
+
+input:hover,
+select:hover {
+    background: rgba(255, 255, 255, .12);
+}
+
+input:focus,
+select:focus {
+    outline: none;
+    border-color: #58a6ff;
+    background: rgba(255, 255, 255, .12);
+}
+
+input::placeholder {
+    color: rgba(255, 255, 255, .4);
+}
+
+[hidden] {
+    display: none !important;
+}
+
+/* ========================================
+   HEADER & NAVIGATION
+   ======================================== */
+
+#app-navigation-actions {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--container-spacing);
+    padding: var(--container-spacing);
+}
+
+#app-title {
+    line-height: 1;
+}
+
+#app-home-link {
+    display: inline-block;
+    color: #fde68a;
+    font-size: large;
+    font-weight: 900;
+    letter-spacing: .02em;
+    text-decoration: none;
+    transition: color .2s ease;
+}
+
+#app-home-link:hover,
+#app-home-link:focus-visible {
+    color: white;
+    outline: 2px solid transparent;
+    text-decoration: underline;
+    text-underline-offset: .18em;
+}
+
+/* ========================================
+   CONNECTION STATUS
+   ======================================== */
+
+#connection-status {
+    display: grid;
+    grid-template-columns: max-content max-content;
+    justify-self: end;
+    align-items: center;
+    gap: var(--container-spacing);
+    padding: var(--container-spacing);
+    border-radius: var(--container-radius);
+    background: rgba(255, 255, 255, .08);
+    font-size: small;
+    font-weight: 800;
+    text-transform: uppercase;
+    transition: background 0.3s ease;
+}
+
+#connection-status-indicator {
+    width: .75rem;
+    height: .75rem;
+    border-radius: var(--container-radius);
+    background: gray;
+    transition: background 0.3s ease;
+}
+
+#connection-status[data-status="connecting"] #connection-status-indicator {
+    background: gold;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+#connection-status[data-status="connected"] #connection-status-indicator {
+    background: #22c55e;
+}
+
+#connection-status[data-status="disconnected"],
+#connection-status[data-status="error"] {
+    background: rgba(220, 38, 38, .18);
+}
+
+#connection-status[data-status="disconnected"] #connection-status-indicator,
+#connection-status[data-status="error"] #connection-status-indicator {
+    background: #ef4444;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+main {
+    display: grid;
+    grid-template-rows: auto 1fr;
+    gap: var(--container-spacing);
+    padding: var(--container-spacing);
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    border-radius: var(--container-radius);
+    background: linear-gradient(to bottom, rgba(18, 92, 44, .95), rgba(10, 60, 28, .95));
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .08), 0 .5rem 2rem rgba(0, 0, 0, .35);
+}
+
+/* ========================================
+   LOBBY VIEW
+   ======================================== */
+
+#lobby-view {
+    background: linear-gradient(to bottom, rgba(18, 92, 44, .95), rgba(10, 60, 28, .95));
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .08), 0 .5rem 2rem rgba(0, 0, 0, .35);
+}
+
+#room-registration-form {
+    border-radius: var(--container-radius);
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--container-spacing);
+}
+
+@media (min-width: 768px) {
+    #room-registration-form {
+        grid-template-columns: auto auto auto;
+    }
+}
+
+/* ----- field-group: 3-column grid (horizontal) ----- */
+#field-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--container-spacing);
+    color: grey;
+    text-transform: uppercase;
+}
+
+#field-group input {
+    color: #fde68a;
+    font-weight: 450;
+    border: 1px solid grey;
+    outline: none;
+    display: block;
+    transition: border-color 0.15s;
+}
+
+
+#mode-group {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    border: 1px solid rgba(255, 255, 255, .15);
+    border-radius: var(--container-radius);
+    background: rgba(0, 0, 0, .16);
+}
+
+#mode-group label:hover {
+    color: white;
+}
+
+#mode-group label:has(input:checked) {
+    color: #fde68a;
+    background: rgba(251, 191, 36, .14);
+    box-shadow: inset 0 0 0 1px rgba(251, 191, 36, .32);
+}
+
+#mode-group label:has(input:focus-visible) {
+    outline: 2px solid #fde68a;
+    outline-offset: 2px;
+}
+
+#mode-group label:has(input):has(span) {
+    display: grid;
+    place-items: center;
+    text-align: center;
+    vertical-align: middle;
+    padding: var(--control-padding);
+    color: rgba(255, 255, 255, .68);
+    background: transparent;
+    cursor: pointer;
+    font-weight: 700;
+    transition: background .2s ease, color .2s ease, box-shadow .2s ease;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+#mode-group input[type="radio"] {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+
+#room-registration-submit-button {
+    width: 100%;
+    border: 1px solid rgba(251, 191, 36, .5);
+    color: #2d211a;
+    background: #fbbf24;
+    box-shadow: 0 .35rem 1rem rgba(0, 0, 0, .22);
+    font-weight: 800;
+    transition: background .2s ease, transform .15s ease, box-shadow .2s ease;
+}
+
+#room-registration-submit-button:hover {
+    background: #fde68a;
+    box-shadow: 0 .45rem 1.25rem rgba(0, 0, 0, .28);
+}
+
+#room-registration-submit-button:active {
+    transform: scale(.97);
+}
+
+#room-registration-submit-button:focus-visible {
+    outline: 2px solid white;
+    outline-offset: 2px;
+}
+
+#room-list-panel {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: var(--container-spacing);
+    padding: var(--container-spacing);
+    min-height: 0;
+    border-radius: var(--container-radius);
+    background: rgba(255, 255, 255, .05);
+    backdrop-filter: blur(10px);
+    box-shadow: inset 0 1px rgba(255, 255, 255, .08), 0 .5rem 1.5rem rgba(0, 0, 0, .25);
+    overflow: hidden;
+}
+
+#room-list-panel > header {
+    display: grid;
+    grid-template-columns: 1fr max-content;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--container-spacing);
+}
+
+#room-filter-control {
+    display: grid;
+    grid-template-columns: max-content minmax(120px, auto);
+    align-items: center;
+    gap: var(--container-spacing);
+}
+
+#room-filter-control span {
+    font-weight: 600;
+    color: rgba(255, 255, 255, .75);
+}
+
+#room-status-filter {
+    min-width: 120px;
+}
+
+#room-status-filter option {
+    background: #2d211a;
+    color: white;
+}
+
+.table-container {
+    width: 100%;
+    min-width: 0;
+    min-height: 0;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-gutter: stable;
+    border: 1px solid rgba(255, 255, 255, .08);
+    border-radius: var(--container-radius);
+}
+
+#room-list-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#room-list-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: rgba(255, 255, 255, .08);
+    backdrop-filter: blur(8px);
+}
+
+#room-list-table th,
+#room-list-table td {
+    padding: var(--container-spacing);
+    white-space: nowrap;
+    text-align: left;
+}
+
+#room-list-table th {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: rgba(255, 255, 255, .7);
+}
+
+#room-list-table tbody tr {
+    cursor: pointer;
+    transition: background .15s ease;
+}
+
+#room-list-table tbody tr:hover {
+    background: rgba(255, 255, 255, .06);
+}
+
+#room-list-table tbody tr + tr {
+    border-top: 1px solid rgba(255, 255, 255, .05);
+}
+
+/* ========================================
+   ROOM VIEW
+   ======================================== */
+
+#room-header {
+    display: grid;
+    gap: var(--container-spacing);
+}
+
+#room-actions {
+    display: grid;
+    gap: var(--container-spacing);
+    grid-template-columns: repeat(3, minmax(80px, 1fr));
+}
+
+@media (min-width: 768px) {
+    #room-actions {
+        grid-template-columns: repeat(3, 100px);
+    }
+}
+
+#evict-occupant-button {
+    background: #b91c1c;
+}
+
+#evict-occupant-button:hover {
+    background: #dc2626;
+}
+
+#promote-visitor-button {
+    background: #2563eb;
+}
+
+#promote-visitor-button:hover {
+    background: #3b82f6;
+}
+
+#copy-invite-button {
+    background: #15803d;
+}
+
+#copy-invite-button:hover {
+    background: #16a34a;
+}
+
+#room-info-table {
+    width: 100%;
+    min-width: max-content;
+    border-collapse: collapse;
+    background: rgba(0, 0, 0, .22);
+    overflow: hidden;
+}
+
+#room-info-table caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+#room-info-table th,
+#room-info-table td {
+    padding: var(--container-spacing);
+    text-align: left;
+    white-space: nowrap;
+}
+
+#room-info-table thead {
+    background: rgba(255, 255, 255, .08);
+}
+
+#room-info-table th {
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: rgba(255, 255, 255, .7);
+}
+
+#room-game-session {
+    display: grid;
+    grid-template-rows: auto minmax(var(--card-min-height), 1fr) auto;
+    gap: var(--container-spacing);
+    padding: var(--container-spacing);
+    min-height: 0;
+    border-radius: var(--container-radius);
+    background: rgba(255, 255, 255, .07);
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .08), 0 .5rem 2rem rgba(0, 0, 0, .35);
+}
+
+#room-game-session[data-room-status="finished"] {
+    filter: grayscale(.2);
+}
+
+#opponent-player-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(0, max-content));
+    gap: var(--container-spacing);
+    justify-content: center;
+    align-items: start;
+}
+
+#discard-pile {
+    background: transparent;
+    position: relative;
+    align-self: stretch;
+    justify-self: stretch;
+    width: 100%;
+    height: 100%;
+    min-height: var(--card-min-height);
+}
+
+#discard-pile::before {
+    content: "";
+    position: absolute;
+    top: -.5rem;
+    bottom: -.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, .05);
+    color: rgba(255, 255, 255, .45);
+    border: 1px dashed;
+    border-radius: var(--container-radius);
+    display: grid;
+    align-items: center;
+    justify-content: center;
+    width: min(100%, calc(2 * var(--card-min-height)));
+    pointer-events: none;
+    transition: border-color .3s ease, background .3s ease;
+}
+
+#discard-pile:empty::before {
+    content: "Discard Here";
+}
+
+#discard-pile[data-is-drag-over="true"]::before {
+    color: yellow;
+    content: "\1F44D";
+}
+
+#local-player-region {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    min-height: 0;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, .12);
+    border-radius: var(--container-radius);
+    background: rgba(255, 255, 255, .07);
+}
+
+#local-player-region > header {
+    padding: var(--container-spacing) 0;
+    text-align: center;
+    font-weight: 700;
+}
+
+#local-player-region > header:empty::before {
+    content: "press '+' to draw a card";
+}
+
+#local-player-region > header:not([data-card-count="0"]):empty::before {
+    content: attr(data-card-count) " Cards";
+}
+
+#local-player-region > header[data-card-count="1"]:empty::before {
+    content: "1 Card";
+}
+
+#local-player-region[data-is-active="true"] {
+    border-color: limegreen;
+    box-shadow: inset 0 0 0 2px rgba(50, 205, 50, .25), 0 0 12px rgba(50, 205, 50, .25);
+}
+
+#local-player-region[data-is-active="true"] > header {
+    color: limegreen;
+}
+
+#local-player-region[data-is-active="true"] > header:empty::before {
+    content: "Your Turn. Drag a Card";
+}
+
+#local-player-region[data-is-winner="true"] {
+    border-color: gold;
+    box-shadow: inset 0 0 0 2px rgba(255, 215, 0, .35), 0 0 14px rgba(255, 215, 0, .4);
+}
+
+#local-player-region[data-is-winner="true"] > header {
+    color: gold;
+}
+
+#local-player-region[data-is-winner="true"] > header:empty::before {
+    content: "Winner";
+}
+
+#local-player-idle-warning {
+    padding-top: var(--container-spacing);
+    color: rgba(255, 255, 255, .65);
+    font-size: small;
+    text-align: center;
+}
+
+#local-player-idle-warning > em::before {
+    content: attr(data-idle-seconds) " seconds";
+}
+
+#local-player-hand {
+    width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    white-space: nowrap;
+    text-align: center;
+}
+
+#local-player-hand > * {
+    display: inline-block;
+    vertical-align: top;
+}
+
+#local-player-hand > playing-card,
+#draw-card-button {
+    margin-right: var(--container-spacing);
+    position: sticky;
+    left: 0;
+    z-index: 0;
+}
+
+#draw-card-button {
+    z-index: 1;
+}
+
+#local-player-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(80px, 1fr));
+    gap: var(--container-spacing);
+    padding: var(--container-spacing) 0;
+}
+
+@media (min-width: 768px) {
+    #local-player-actions {
+        grid-template-columns: repeat(2, minmax(auto, 200px));
+        justify-content: center;
+    }
+}
+
+
+#local-player-actions > button {
+    display: inline-grid;
+    grid-auto-flow: column;
+    justify-content: center;
+    align-items: center;
+    gap: var(--container-spacing);
+    min-height: 2.75rem;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, .2);
+    background: rgba(255, 255, 255, .09);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .16);
+    font-weight: 700;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    transition: background .2s ease, border-color .2s ease, box-shadow .2s ease, transform .15s ease;
+    min-width: 80px;
+}
+
+#card-sort-control-button > select {
+    min-width: 0;
+    max-width: 100%;
+    width: auto;
+    padding: 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font-weight: inherit;
+    text-transform: inherit;
+    cursor: pointer;
+}
+
+#local-player-actions > button:hover {
+    border-color: rgba(255, 255, 255, .35);
+    background: rgba(255, 255, 255, .15);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, .22);
+}
+
+#local-player-actions > button:focus-within,
+#local-player-actions > button:focus-visible {
+    outline: 2px solid #93c5fd;
+    outline-offset: 2px;
+}
+
+#card-sort-control-button {
+    border-color: rgba(96, 165, 250, .55);
+    background: rgba(37, 99, 235, .2);
+}
+
+#start-game-button {
+    border-color: rgba(74, 222, 128, .55);
+    background: rgba(22, 163, 74, .28);
+}
+
+#pass-turn-button {
+    border-color: rgba(251, 191, 36, .6);
+    background: rgba(217, 119, 6, .3);
+}
+
+#local-player-region[data-status="playing"] #start-game-button {
+    display: none;
+}
+
+#local-player-region:not([data-status="playing"]) #pass-turn-button {
+    display: none;
+}
+
+/* ========================================
+   GAME GUIDE
+   ======================================== */
+
+#game-guide-section {
+    display: grid;
+    overflow: hidden;
+    border: 1px solid;
+    border-radius: var(--container-radius);
+    color: rgba(255, 255, 255, .55);
+}
+
+details {
+    color: inherit;
+    overflow: hidden;
+    transition: border-color .2s ease, background .2s ease, box-shadow .2s ease;
+    border-top: 1px solid rgba(251, 191, 36, .62);;
+}
+
+details[open] {
+    background: rgba(255, 255, 255, .05);
+}
+
+details[open] > summary::before {
+    content: "−";
+}
+
+details > summary::before {
+    content: "+";
+    float: right;
+    font-size: x-large;
+    line-height: 1;
+}
+
+details > summary::-webkit-details-marker {
+    display: none;
+}
+
+details > summary:hover,
+details > summary:focus-visible {
+    background: rgba(255, 255, 255, .06);
+    color: #fde68a;
+}
+
+details > summary {
+    color: rgba(251, 191, 36, .65);
+    display: block;
+    padding: var(--container-spacing);
+    cursor: pointer;
+    list-style: none;
+    transition: background .2s ease, color .2s ease;
+}
+
+details > summary#game-guide-header > span {
+    display: block;
+}
+
+details > summary#game-guide-header > span:last-child {
+    color: rgba(255, 255, 255, .55);
+}
+
+details > summary > span:first-child {
+    margin-right: var(--container-spacing);
+    font-size: x-small;
+    letter-spacing: .08em;
+    font-weight: 750;
+    text-transform: uppercase;
+}
+
+details > div {
+    display: grid;
+    padding: var(--container-spacing);
+    border-top: 1px solid rgba(255, 255, 255, .12);
+}
+
+details > div:has(details) {
+    padding: 0;
+}
+
+#game-guide-section > div > details:nth-child(-n + 2) > div {
+    display: grid;
+    gap: var(--container-spacing);
+}
+
+@media (min-width: 768px) {
+    #game-guide-section > div > details:nth-child(-n + 2) > div {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+details strong {
+    display: block;
+    margin-bottom: var(--container-spacing);
+    color: rgba(255, 255, 255, .92);
+}
+
+details > div#special-cards {
+    display: grid;
+    gap: var(--container-spacing);
+    padding: var(--container-spacing);
+    list-style: none;
+}
+
+@media (min-width: 768px) {
+    details > div#special-cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+details > div > article,
+details > div > table {
+    padding: var(--container-spacing);
+    border: 1px solid rgba(255, 255, 255, .09);
+    border-radius: var(--container-radius);
+    background: rgba(255, 255, 255, .035);
+}
+
+details > div#special-cards > article {
+    display: grid;
+    grid-template-rows: auto auto minmax(var(--card-min-height), 1fr);
+    gap: var(--container-spacing);
+}
+
+details > div#special-cards > article > .playing-card-area {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    gap: var(--container-spacing);
+    overflow-x: auto;
+}
+
+details > div#special-cards b {
+    color: rgba(255, 255, 255, .92);
+}
+
+details > div#scores-tables {
+    display: grid;
+    gap: var(--container-spacing);
+}
+
+@media (min-width: 768px) {
+    details > div#scores-tables {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+details > div#scores-tables > table {
+    width: 100%;
+    overflow: hidden;
+    border-collapse: collapse;
+}
+
+details > div#scores-tables thead {
+    color: rgba(255, 255, 255, .92);
+}
+
+details > div#scores-tables th,
+details > div#scores-tables td {
+    padding: var(--container-spacing);
+    border-top: 1px solid rgba(255, 255, 255, .08);
+    text-align: left;
+}
+
+details > div#scores-tables th:last-child,
+details > div#scores-tables td:last-child {
+    text-align: right;
+}
+
+details em {
+    font-weight: bold;
+}
+
+/* ========================================
+   APPLICATION FOOTER
+   ======================================== */
+
+#app-footer {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: var(--container-spacing);
+    align-items: center;
+    border-top: 1px solid rgba(255, 255, 255, .1);
+    color: rgba(255, 255, 255, .68);
+    font-size: small;
+    padding: var(--container-spacing);
+}
+
+#app-footer-brand {
+    display: grid;
+    gap: var(--container-spacing);
+}
+
+#app-footer-brand strong {
+    color: #fde68a;
+    letter-spacing: .02em;
+}
+
+#app-footer-navigation {
+    display: grid;
+    grid-auto-flow: column;
+    gap: var(--container-spacing);
+    align-items: center;
+    justify-content: center;
+}
+
+#app-footer-navigation a {
+    padding: var(--container-spacing);
+    border-radius: var(--container-radius);
+    color: rgba(255, 255, 255, .78);
+    font-weight: 750;
+    text-decoration: none;
+    transition: background .2s ease, color .2s ease;
+}
+
+#app-footer-navigation a:hover,
+#app-footer-navigation a:focus-visible {
+    outline: none;
+    background: rgba(255, 255, 255, .09);
+    color: #fde68a;
+}
+
+#app-footer-note {
+    display: grid;
+    gap: var(--container-spacing);
+    justify-self: end;
+    text-align: right;
+}

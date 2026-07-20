@@ -1,0 +1,360 @@
+/* public/styles/card.css */
+
+@import url("./tokens.css");
+
+:root {
+    --card-aspect-ratio: 170 / 240;
+    --card-min-height: 90px;
+    --card-max-height: 280px;
+}
+
+@media (min-width: 641px) {
+    :root {
+        --card-min-height: 110px;
+    }
+}
+
+/* CONTAINERS */
+
+.playing-card-area {
+    container-type: size;
+    min-height: var(--card-min-height);
+}
+
+#discard-pile {
+    container-type: size;
+    position: relative;
+    background: rgba(255, 255, 255, .04);
+}
+
+#discard-pile > playing-card {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(var(--card-rotation));
+    transform-origin: center center;
+
+    transition:
+            transform .25s cubic-bezier(.34,1.56,.64,1),
+            box-shadow .3s ease,
+            opacity .3s ease,
+            background .3s ease;
+}
+
+body > playing-card {
+    /* The additional style for the drag-image */
+    position: fixed;
+    pointer-events: none;
+    z-Index: 9999;
+}
+
+/* CONTAINER ELEMENTS */
+
+playing-card,
+#draw-card-button {
+    display: inline-block;
+    text-align: center;
+
+    height: clamp(var(--card-min-height), 100cqh, var(--card-max-height));
+    aspect-ratio: var(--card-aspect-ratio);
+    width: auto;
+
+    --card-height: clamp(var(--card-min-height), 100cqh, var(--card-max-height));
+    --card-width: calc(var(--card-height) * (170 / 240));
+    border-radius: var(--container-radius);
+    box-sizing: border-box;
+    flex: 0 0 auto;
+}
+
+.playing-card-drag-handle {
+    cursor: grab;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+
+    position: absolute;
+    top: 7px;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.playing-card-drag-handle > div {
+    justify-self: center;
+}
+
+.playing-card-drag-handle > div::before,
+.playing-card-drag-handle > div::after {
+    content: "";
+    display: block;
+    width: 0;
+    height: 0;
+    border: 1px solid lightslategray;
+    border-radius: var(--container-radius);
+}
+
+playing-card {
+    --symbol: "";
+    --color: black;
+    --card-rotation: 0deg;
+    --corner-font-size: calc(var(--card-width) / 4);
+    --center-symbol-size: calc(var(--card-height) / 1.7);
+    --joker-font-size: calc(var(--card-width) / 7);
+    --joker-size: 73%;
+    --shadow: 0 8px 24px rgba(0,0,0,.18);
+    --shadow-hover: 0 12px 36px rgba(0,0,0,.28);
+    --card-back-primary: #c41e3a;
+    --card-back-secondary: #f0f0f0;
+    --card-back-pattern:
+            repeating-linear-gradient(45deg, var(--card-back-secondary) 0 1px, transparent 1px 10px),
+            repeating-linear-gradient(-45deg, var(--card-back-secondary) 0 1px, transparent 1px 10px),
+            var(--card-back-primary);
+
+    position: relative;
+    display: inline-block;
+    vertical-align: top;
+    background: #FFFFFF; /* same color as the joker image background */
+    border: 2px solid #1a1a1a;
+    box-shadow: var(--shadow);
+    color: var(--color);
+
+    user-select: none;
+    cursor: pointer;
+    transition:
+            box-shadow .3s ease,
+            opacity .3s ease,
+            background .3s ease;
+}
+
+playing-card[data-is-face-down="true"] {
+    background: var(--card-back-pattern);
+    background-size: calc(var(--card-width) / 8) calc(var(--card-width) / 8);
+}
+
+playing-card[data-is-face-down="true"] > * {
+    display: none;
+}
+
+playing-card[data-is-face-down="false"]:hover {
+    box-shadow: var(--shadow-hover);
+}
+
+playing-card:hover > .playing-card-center::before {
+    transform: scale(1.05);
+}
+
+playing-card > .playing-card-center {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+playing-card > .playing-card-center::before {
+    content: var(--symbol);
+    font-size: var(--center-symbol-size);
+    line-height: 1;
+    transition: transform .4s ease;
+}
+
+playing-card[data-value="joker"] > .playing-card-center::before {
+    content: "";
+    display: block;
+    width: var(--joker-size);
+    height: var(--joker-size);
+    background-image: url("../images/joker.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+playing-card[data-suit="hearts"],
+playing-card[data-suit="diamonds"],
+playing-card[data-suit="red"] {
+    --color: #c41e3a;
+}
+
+playing-card[data-suit="clubs"],
+playing-card[data-suit="spades"],
+playing-card[data-suit="black"] {
+    --color: #1a1a1a;
+}
+
+playing-card[data-suit="hearts"] {
+    --symbol: "♥";
+}
+
+playing-card[data-suit="diamonds"] {
+    --symbol: "♦";
+}
+
+playing-card[data-suit="clubs"] {
+    --symbol: "♣";
+}
+
+playing-card[data-suit="spades"] {
+    --symbol: "♠";
+}
+
+playing-card::before,
+playing-card::after {
+    content: attr(data-value) "\A" var(--symbol);
+    position: absolute;
+    z-index: 2;
+    white-space: pre;
+    line-height: .9;
+    font-family: "Segoe UI", Roboto, system-ui, sans-serif;
+    font-size: var(--corner-font-size);
+    font-weight: 800;
+    text-transform: uppercase;
+    text-shadow: 0 1px 1px rgba(255,255,255,.3);
+    letter-spacing: -.02em;
+}
+
+playing-card::before {
+    top: calc(var(--card-height) / 17);
+    left: calc(var(--card-width) / 17);
+}
+
+playing-card::after {
+    right: calc(var(--card-width) / 17);
+    bottom: calc(var(--card-height) / 17);
+    transform: rotate(180deg);
+}
+
+playing-card[data-is-face-down="true"]::before,
+playing-card[data-is-face-down="true"]::after,
+playing-card[data-is-face-down="true"] > .playing-card-center {
+    display: none;
+}
+
+playing-card[data-value="joker"]::before,
+playing-card[data-value="joker"]::after {
+    content: "J\A O\A K\A E\A R";
+    --corner-font-size: var(--joker-font-size);
+    letter-spacing: .05em;
+    line-height: 1.1;
+}
+
+playing-card[data-is-dragging="true"] {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+#draw-card-button {
+    --plus-length: calc(var(--card-width) * .50);
+    --plus-length-hover: calc(var(--card-width) * .70);
+    --plus-thickness: calc(var(--card-width) * .035);
+
+    position: relative;
+    display: grid;
+    place-items: center;
+    border: 1px dashed;
+    background: rgb(28, 50, 45);
+    color: rgba(255,255,255,.5);
+    cursor: pointer;
+    transition:
+            box-shadow .3s ease,
+            background .3s ease,
+            border-color .3s ease,
+            color .3s ease;
+}
+
+#draw-card-button::before,
+#draw-card-button::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    background: currentColor;
+    transform: translate(-50%, -50%);
+    transition: width .3s ease, height .3s ease;
+}
+
+#draw-card-button::before {
+    width: var(--plus-length);
+    height: var(--plus-thickness);
+}
+
+#draw-card-button::after {
+    width: var(--plus-thickness);
+    height: var(--plus-length);
+}
+
+#draw-card-button > span {
+    position: absolute;
+    right: calc(var(--card-width) / 14);
+    bottom: calc(var(--card-height) / 17);
+    font-size: calc(var(--card-height) / 8);
+    font-weight: 700;
+    line-height: 1;
+    opacity: .7;
+    pointer-events: none;
+}
+
+#draw-card-button > span::before {
+    content: attr(data-draw-allowance);
+}
+
+#draw-card-button:hover {
+    color: white;
+    box-shadow: 0 4px 20px rgba(0,0,0,.5);
+}
+
+#draw-card-button:hover::before {
+    width: var(--plus-length-hover);
+}
+
+#draw-card-button:hover::after {
+    height: var(--plus-length-hover);
+}
+
+#draw-card-button:disabled {
+    opacity: .3;
+    cursor: not-allowed;
+}
+
+#draw-card-button:disabled:hover {
+    box-shadow: none;
+}
+
+#draw-card-button:disabled:hover::before {
+    width: var(--plus-length);
+}
+
+#draw-card-button:disabled:hover::after {
+    height: var(--plus-length);
+}
+
+@media print {
+    playing-card,
+    #draw-card-button {
+        height: 240px;
+        width: 170px;
+
+        --card-height: 240px;
+        --card-width: 170px;
+    }
+
+    playing-card {
+        box-shadow: 0 1px 4px rgba(0,0,0,.1);
+        break-inside: avoid;
+    }
+
+    #draw-card-button {
+        border: 1px solid rgba(0,0,0,.2);
+        background: #f5f5f5;
+        color: #333;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    playing-card,
+    #discard-pile > playing-card,
+    playing-card > .playing-card-center::before,
+    #draw-card-button,
+    #draw-card-button::before,
+    #draw-card-button::after {
+        transition: none;
+    }
+}

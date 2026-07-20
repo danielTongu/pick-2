@@ -1,0 +1,442 @@
+/* public/styles/overlays.css */
+
+/* ========================================
+   OVERLAY BASE
+   ======================================== */
+
+.dialog-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: var(--container-spacing);
+    background: rgba(0, 0, 0, .55);
+    animation: fadeIn .25s ease;
+}
+
+.dialog-overlay[hidden] {
+    display: none;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* ========================================
+   DIALOG BASE
+   ======================================== */
+
+.dialog-panel {
+    width: min(98vw, 100%);
+    max-height: 94vh;
+    overflow: auto;
+    display: grid;
+    gap: var(--container-spacing);
+    padding: var(--container-spacing);
+    border: 1px solid rgba(255, 255, 255, .14);
+    border-radius: var(--container-radius);
+    background: rgba(0, 0, 0, .86);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, .5);
+    animation: slideUp .3s ease;
+}
+
+.dialog-panel-large {
+    max-width: 980px;
+}
+
+.dialog-panel > header {
+    display: grid;
+    gap: var(--container-spacing);
+    text-align: center;
+}
+
+.dialog-panel h1 {
+    font-size: x-large;
+    font-weight: 800;
+}
+
+.dialog-panel h2 {
+    font-size: large;
+    font-weight: 700;
+}
+
+.dialog-panel button {
+    border: 0;
+    background: rgba(255, 255, 255, .10);
+    font-weight: 800;
+    transition: background .2s ease, transform .15s ease;
+}
+
+.dialog-panel button:hover {
+    background: rgba(255, 255, 255, .18);
+}
+
+.dialog-panel button:active {
+    transform: scale(.97);
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========================================
+   ALERT DIALOG
+   ======================================== */
+
+#alert-dialog {
+    --accent: #3b82f6;
+}
+
+#alert-dialog .dialog-panel {
+    width: min(92vw, 460px);
+    text-align: center;
+    border-color: color-mix(in srgb, var(--accent) 55%, white 10%);
+    box-shadow:
+            0 24px 70px rgba(0, 0, 0, .5),
+            0 0 34px color-mix(in srgb, var(--accent) 26%, transparent);
+}
+
+#alert-dialog[data-status="info"] {
+    --accent: #3b82f6;
+}
+
+#alert-dialog[data-status="warning"] {
+    --accent: #f59e0b;
+}
+
+#alert-dialog[data-status="error"] {
+    --accent: #dc2626;
+}
+
+#alert-dialog[data-status="success"] {
+    --accent: #22c55e;
+}
+
+#alert-icon {
+    display: grid;
+    place-items: center;
+    width: 4rem;
+    aspect-ratio: 1;
+    justify-self: center;
+    border-radius: var(--container-radius);
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--accent);
+    font-size: xx-large;
+    font-weight: 900;
+}
+
+#alert-icon[data-icon="info"]::before {
+    content: "ℹ";
+}
+
+#alert-icon[data-icon="warning"]::before {
+    content: "⚠";
+}
+
+#alert-icon[data-icon="error"]::before {
+    content: "✕";
+}
+
+#alert-icon[data-icon="success"]::before {
+    content: "✓";
+}
+
+#alert-title:empty::before {
+    content: "title not provided";
+}
+
+#alert-message:empty::before {
+    content: "message not provided";
+}
+
+#alert-message {
+    color: rgba(255, 255, 255, .72);
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+#alert-confirm-button {
+    width: 100%;
+    background: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+#alert-confirm-button:hover {
+    background: color-mix(in srgb, var(--accent) 85%, white);
+}
+
+/* ========================================
+   COUNTDOWN DIALOG
+   ======================================== */
+
+#countdown-dialog .dialog-panel {
+    width: min(92vw, 420px);
+    text-align: center;
+}
+
+#countdown-dialog header p {
+    color: rgba(255, 255, 255, .6);
+}
+
+#countdown-value {
+    display: grid;
+    place-items: center;
+    width: min(40vw, 140px);
+    aspect-ratio: 1;
+    justify-self: center;
+    border-radius: var(--container-radius);
+    background: rgba(255, 255, 255, .08);
+    color: #edbb99;
+    font-size: xxx-large;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow:
+            inset 0 0 0 2px rgba(255, 255, 255, .08),
+            0 0 32px rgba(237, 187, 153, .25);
+}
+
+#countdown-dialog button {
+    justify-self: center;
+    min-width: 8rem;
+}
+
+#countdown-confirm-button {
+    background: #238636;
+}
+
+#countdown-confirm-button:hover {
+    background: #2ea043;
+}
+
+/* ========================================
+   SUIT SELECTION DIALOG
+   ======================================== */
+
+#suit-selection-dialog .dialog-panel {
+    width: min(92vw, 460px);
+}
+
+#suit-selection-dialog header p {
+    color: rgba(255, 255, 255, .6);
+}
+
+#suit-selection-dialog fieldset {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--container-spacing);
+    border: 0;
+    padding: var(--container-spacing);
+}
+
+#suit-selection-dialog legend {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+#suit-selection-dialog label {
+    display: grid;
+    place-items: center;
+    aspect-ratio: 1;
+    border: 2px solid rgba(255, 255, 255, .12);
+    border-radius: var(--container-radius);
+    background: rgba(255, 255, 255, .06);
+    cursor: pointer;
+    transition: all .2s ease;
+}
+
+#suit-selection-dialog label:hover {
+    background: rgba(255, 255, 255, .12);
+    transform: scale(1.05);
+}
+
+#suit-selection-dialog input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+#suit-selection-dialog label > span {
+    font-size: xx-large;
+    line-height: 1;
+}
+
+#suit-selection-dialog label[data-suit="hearts"],
+#suit-selection-dialog label[data-suit="diamonds"] {
+    color: #e11d48;
+}
+
+#suit-selection-dialog label[data-suit="clubs"],
+#suit-selection-dialog label[data-suit="spades"] {
+    color: white;
+}
+
+#suit-selection-dialog label:has(input:checked) {
+    border-color: currentColor;
+    background: rgba(255, 255, 255, .12);
+    box-shadow: 0 0 20px color-mix(in srgb, currentColor 40%, transparent);
+    transform: scale(1.05);
+}
+
+#suit-selection-dialog .dialog-panel footer {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--container-spacing);
+}
+
+#suit-selection-submit-button {
+    background: #238636;
+}
+
+#suit-selection-submit-button:hover {
+    background: #2ea043;
+}
+
+#suit-selection-cancel-button {
+    background: rgba(255, 255, 255, .08);
+}
+
+#suit-selection-cancel-button:hover {
+    background: rgba(255, 255, 255, .15);
+}
+
+/* ========================================
+   GAME END DIALOG
+   ======================================== */
+
+#game-end-dialog .dialog-panel {
+    max-width: 980px;
+}
+
+#game-end-message,
+#game-end-player-cards-panel p {
+    color: rgba(255, 255, 255, .65);
+}
+
+#game-end-stats-panel,
+#game-end-player-cards-panel {
+    display: grid;
+    gap: var(--container-spacing);
+    min-height: 0;
+    padding: var(--container-spacing);
+    border-radius: var(--container-radius);
+    background: rgba(255, 255, 255, .05);
+}
+
+#game-end-stats-panel {
+    overflow: auto;
+}
+
+#game-end-player-stats-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+#game-end-player-stats-table caption {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+#game-end-player-stats-table th,
+#game-end-player-stats-table td {
+    padding: var(--container-spacing);
+    text-align: left;
+    white-space: nowrap;
+}
+
+#game-end-player-stats-table thead {
+    background: rgba(255, 255, 255, .08);
+}
+
+#game-end-player-stats-table thead th {
+    font-weight: 700;
+    font-size: small;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: rgba(255, 255, 255, .7);
+}
+
+#game-end-player-stats-table tbody tr {
+    cursor: pointer;
+    border-top: 1px solid rgba(255, 255, 255, .07);
+    transition: background .2s ease;
+}
+
+#game-end-player-stats-table tbody tr:hover,
+#game-end-player-stats-table tbody tr[data-is-selected="true"] {
+    background: rgba(255, 255, 255, .10);
+}
+
+#game-end-player-stats-table tbody tr[data-is-winner="true"] {
+    color: gold;
+}
+
+#game-end-player-cards-panel {
+    grid-template-rows: auto minmax(0, 1fr);
+}
+
+#game-end-selected-player-hand {
+    min-height: calc(var(--card-min-height, 8rem) * .7);
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+}
+
+#game-end-selected-player-hand:empty::before {
+    content: "No Cards To Show";
+    display: grid;
+    place-items: center;
+    height: 100%;
+    color: rgba(255, 255, 255, .45);
+    font-style: italic;
+}
+
+#game-end-selected-player-hand > playing-card {
+    display: inline-block;
+    margin-right: var(--container-spacing);
+    vertical-align: top;
+}
+
+#game-end-confirm-button {
+    background: #238636;
+}
+
+#game-end-confirm-button:hover {
+    background: #2ea043;
+}
+
+/* ========================================
+   RESPONSIVE OVERLAYS
+   ======================================== */
+
+@media (min-width: 641px) {
+    .dialog-panel {
+        width: min(96vw, 980px);
+    }
+
+    #suit-selection-dialog fieldset {
+        grid-template-columns: repeat(4, 1fr);
+        gap: var(--container-spacing);
+    }
+
+    #suit-selection-dialog .dialog-panel footer {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    #countdown-value {
+        width: min(45vw, 180px);
+    }
+}

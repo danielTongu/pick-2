@@ -1,0 +1,8 @@
+/* Shared interface design tokens. */
+
+:root {
+    --container-spacing: 1rem;
+    --control-padding: .5rem 1rem;
+    --container-radius: 1rem;
+    font-size: medium;
+}

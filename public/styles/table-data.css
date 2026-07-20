@@ -1,0 +1,71 @@
+/* public/styles/table-data.css */
+
+td:empty::before {
+    content: "--";
+    display: inline-block;
+    font-style: italic;
+}
+
+td::before {
+    transition: content .2s ease-in-out;
+}
+
+td[data-name]::before {
+    content: attr(data-name);
+}
+
+td[data-status]::before {
+    content: attr(data-status);
+}
+
+td[data-status] > .room-status-indicator {
+    display: inline-block;
+    width: .8rem;
+    height: .8rem;
+    margin-left: var(--container-spacing);
+    border-radius: var(--container-radius);
+    vertical-align: middle;
+    background: gray;
+
+    transition: background .2s ease-in-out;
+}
+
+td[data-status="waiting"] > .room-status-indicator {
+    background: orange;
+}
+
+td[data-status="playing"] > .room-status-indicator {
+    background: limegreen;
+}
+
+td[data-status="finished"] > .room-status-indicator {
+    background: gold;
+}
+
+td[data-status="closed"] > .room-status-indicator {
+    background: gray;
+}
+
+td[data-status="error"] > .room-status-indicator {
+    background: crimson;
+}
+
+td[data-player-count]::before {
+    content: attr(data-player-count);
+}
+
+td[data-visitor-count]::before {
+    content: attr(data-visitor-count);
+}
+
+td[data-capacity]::before {
+    content: attr(data-capacity);
+}
+
+td[data-last-active-at]::before {
+    content: attr(data-last-active-at);
+}
+
+td[data-created-at]::before {
+    content: attr(data-created-at);
+}
