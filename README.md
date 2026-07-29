@@ -11,7 +11,7 @@ The application uses a dependency-free JavaScript client, an Express server, and
 - Room creation, browsing, filtering, promotion, demotion, and eviction
 - Automatic reconnection using a browser-tab session identifier
 - Server-authoritative turns, card rules, scoring, and game completion
-- Local hand sorting by value, suit, or score, committed on the next move
+- Local hand sorting by rank, value, suit, or score, committed on the next move
 - Click-to-flip and pointer-based card dragging
 - Mobile-first interface with tablet and desktop support
 - Player-only game-start and game-end overlays
@@ -89,7 +89,7 @@ Each player starts with seven cards. While a game is not playing, card-placement
 | Ace, except spades | Allows the player to declare the active suit. | 14 |
 | Ace of spades | Wild card and special draw defense. | 40 |
 | Joker | Wild card that makes the next player draw four. | 50 |
-| 7 of hearts | Ends the game immediately. | 27 |
+| 7 of hearts | Ends the game immediately. | 30 |
 
 Other standard cards use their natural rank as their score.
 

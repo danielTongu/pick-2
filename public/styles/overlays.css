@@ -224,6 +224,7 @@
 
 #suit-selection-dialog .dialog-panel {
     width: min(92vw, 460px);
+    --submit-btn-background: #238636;
 }
 
 #suit-selection-dialog header p {
@@ -251,7 +252,6 @@
     aspect-ratio: 1;
     border: 2px solid rgba(255, 255, 255, .12);
     border-radius: var(--container-radius);
-    background: rgba(255, 255, 255, .06);
     cursor: pointer;
     transition: all .2s ease;
 }
@@ -268,7 +268,7 @@
 }
 
 #suit-selection-dialog label > span {
-    font-size: xx-large;
+    font-size: 5rem;
     line-height: 1;
 }
 
@@ -284,8 +284,7 @@
 
 #suit-selection-dialog label:has(input:checked) {
     border-color: currentColor;
-    background: rgba(255, 255, 255, .12);
-    box-shadow: 0 0 20px color-mix(in srgb, currentColor 40%, transparent);
+    background: rgba(255, 255, 255, .21);
     transform: scale(1.05);
 }
 
@@ -389,7 +388,6 @@
 }
 
 #game-end-selected-player-hand {
-    min-height: calc(var(--card-min-height, 8rem) * .7);
     overflow-x: auto;
     overflow-y: hidden;
     white-space: nowrap;

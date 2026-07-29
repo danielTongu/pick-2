@@ -68,27 +68,25 @@ playing-card,
 
 .playing-card-drag-handle {
     cursor: grab;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-
     position: absolute;
-    top: 7px;
+    z-index: 3;
+    top: 0;
     left: 50%;
     transform: translateX(-50%);
+    display: grid;
+    place-items: center;
+    width: calc(var(--card-width) / 2);
+    height: 1rem;
 }
 
-.playing-card-drag-handle > div {
-    justify-self: center;
-}
-
-.playing-card-drag-handle > div::before,
-.playing-card-drag-handle > div::after {
+.playing-card-drag-handle::before {
     content: "";
     display: block;
-    width: 0;
-    height: 0;
-    border: 1px solid lightslategray;
+    width: 60%;
+    height: .25rem;
     border-radius: var(--container-radius);
+    background: currentColor;
+    opacity: .3;
 }
 
 playing-card {
@@ -108,6 +106,7 @@ playing-card {
             repeating-linear-gradient(-45deg, var(--card-back-secondary) 0 1px, transparent 1px 10px),
             var(--card-back-primary);
 
+    font-family: "Segoe UI", Roboto, system-ui, sans-serif;
     position: relative;
     display: inline-block;
     vertical-align: top;
@@ -142,10 +141,10 @@ playing-card:hover > .playing-card-center::before {
 }
 
 playing-card > .playing-card-center {
-    display: grid;
-    place-items: center;
-    width: 100%;
-    height: 100%;
+    position:absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     pointer-events: none;
 }
 
@@ -165,6 +164,13 @@ playing-card[data-value="joker"] > .playing-card-center::before {
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;
+}
+
+playing-card[data-value="joker"] > .playing-card-center {
+    display: grid;
+    place-items: center;
+    width: var(--card-width);
+    height: var(--card-height);
 }
 
 playing-card[data-suit="hearts"],
@@ -202,7 +208,6 @@ playing-card::after {
     z-index: 2;
     white-space: pre;
     line-height: .9;
-    font-family: "Segoe UI", Roboto, system-ui, sans-serif;
     font-size: var(--corner-font-size);
     font-weight: 800;
     text-transform: uppercase;
@@ -268,7 +273,9 @@ playing-card[data-is-dragging="true"] {
     top: 50%;
     background: currentColor;
     transform: translate(-50%, -50%);
-    transition: width .3s ease, height .3s ease;
+    transition:
+            width .3s ease,
+            height .3s ease;
 }
 
 #draw-card-button::before {

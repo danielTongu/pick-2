@@ -36,6 +36,8 @@ export class CardSortUtils {
      */
     static comparator(sortKey) {
         const comparators = {
+            rank: (left, right) => CardSortUtils.#rank(left) - CardSortUtils.#rank(right) ||
+                String(left.suit).localeCompare(String(right.suit)),
             score: (left, right) => CardSortUtils.#calculateCardScore(left) - CardSortUtils.#calculateCardScore(right),
             suit: (left, right) => String(left.suit).localeCompare(String(right.suit)) ||
                 CardSortUtils.#rank(left) - CardSortUtils.#rank(right),

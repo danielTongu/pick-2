@@ -38,6 +38,7 @@ test("cards validate standard cards and joker suits", () => {
 
 test("special cards use the expected scores", () => {
     assert.equal(new Card(VALUE.TWO.id, SUIT.CLUBS).score, 20);
+    assert.equal(new Card(VALUE.SEVEN.id, SUIT.HEARTS).score, 30);
     assert.equal(new Card(VALUE.ACE.id, SUIT.SPADES).score, 40);
     assert.equal(new Card(VALUE.JOKER.id, SUIT.BLACK).score, 50);
     assert.equal(new Card(VALUE.KING.id, SUIT.DIAMONDS).score, 13);
@@ -45,7 +46,7 @@ test("special cards use the expected scores", () => {
 
 test("card scores come from the shared constants source", () => {
     assert.equal(Constants.getCardScore(VALUE.TWO.id, SUIT.HEARTS), Constants.CARD.SCORE.TWO);
-    assert.equal(Constants.getCardScore(VALUE.SEVEN.id, SUIT.HEARTS), 27);
+    assert.equal(Constants.getCardScore(VALUE.SEVEN.id, SUIT.HEARTS), Constants.CARD.SCORE.SEVEN_OF_HEARTS);
     assert.equal(Constants.getCardScore(VALUE.ACE.id, SUIT.SPADES), Constants.CARD.SCORE.ACE_OF_SPADES);
     assert.equal(Constants.getCardScore(VALUE.JOKER.id, SUIT.RED), Constants.CARD.SCORE.JOKER);
     assert.equal(Constants.getCardScore(VALUE.QUEEN.id, SUIT.CLUBS), VALUE.QUEEN.rank);
@@ -61,7 +62,7 @@ test("emoji constants provide reusable silly and winner groups", () => {
 });
 
 test("player inactivity timeout is a positive whole-second duration", () => {
-    assert.equal(Constants.MAX_IDLE_MS, 5_000);
+    assert.equal(Constants.MAX_IDLE_MS, 30_000);
     assert.equal(Constants.MAX_IDLE_MS > 0, true);
     assert.equal(Constants.MAX_IDLE_MS % 1_000, 0);
 });

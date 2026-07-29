@@ -57,7 +57,7 @@ The client does not normalize different player variants. Every player has one DT
 - action names;
 - room, game, connection, and notification statuses;
 - initial hand size, room capacity, default rooms, and idle duration;
-- standard values, standard suits, joker suits, sort options, and score overrides;
+- standard values, standard suits, joker suits, rank/value/suit/score sort options, and score overrides;
 - card score calculation;
 - reusable emoji groups and random emoji selection.
 

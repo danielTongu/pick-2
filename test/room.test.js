@@ -319,6 +319,50 @@ test("AI preserves the ace of spades when no draw attack is active", async (t) =
     assert.equal(ai.hand.cards.length, 1);
 });
 
+test("AI preserves an ace when another legal card is available", async (t) => {
+    const ai = new AIPlayer("Bot");
+    const opponent = new Player("Alice");
+    const circle = new PlayerCircle();
+    const originalSetTimeout = globalThis.setTimeout;
+    const discardedCardIds = [];
+
+    globalThis.setTimeout = (callback) => {
+        callback();
+        return 0;
+    };
+    t.after(() => {
+        globalThis.setTimeout = originalSetTimeout;
+    });
+
+    ai.hand.drawMany([
+        new Card(Constants.CARD.VALUE.ACE.id, Constants.CARD.SUIT.HEARTS),
+        new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.CLUBS)
+    ]);
+    circle.addPlayer(ai);
+    circle.addPlayer(opponent);
+    circle.setCurrentPlayer(ai.name);
+
+    const room = {
+        circle,
+        declaredSuit: null,
+        getCurrentPlayer: () => ai,
+        getTopDiscard: () => new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS),
+        drawCards: async () => {},
+        discardCard: async (playerName, value, suit) => {
+            discardedCardIds.push(new Card(value, suit).getId());
+        }
+    };
+
+    await ai.takeTurn(room);
+    assert.deepEqual(discardedCardIds, ["5-clubs"]);
+
+    ai.hand.clear();
+    ai.hand.draw(new Card(Constants.CARD.VALUE.ACE.id, Constants.CARD.SUIT.HEARTS));
+    await ai.takeTurn(room);
+
+    assert.deepEqual(discardedCardIds, ["5-clubs", "a-hearts"]);
+});
+
 test("AI accepts draw two when its ace of spades is the only defense and the next player cannot finish", async (t) => {
     const ai = new AIPlayer("Bot");
     const nextPlayer = new Player("Alice");

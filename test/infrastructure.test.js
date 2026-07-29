@@ -1,6 +1,7 @@
 "use strict";
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { Constants } from "../public/scripts/Constants.js";
@@ -11,6 +12,8 @@ import { Serializable } from "../server/Serializable.js";
 import { StateMapper } from "../server/StateMapper.js";
 import { ThrottleGuard } from "../server/ThrottleGuard.js";
 import { UserNotification } from "../server/UserNotification.js";
+
+const INDEX_HTML = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 
 test("NormalizeUtils validates integer categories without coercion", () => {
     assert.equal(NormalizeUtils.integer(-2, "Count"), -2);
@@ -161,10 +164,32 @@ test("CardSortUtils supports every sort mode without mutating its input", () => 
 
     assert.deepEqual(CardSortUtils.sorted(cards, "none"), cards);
     assert.notEqual(CardSortUtils.sorted(cards, "none"), cards);
+    assert.deepEqual(CardSortUtils.sorted(cards, "rank").map((card) => card.value), ["2", "5", "k"]);
     assert.deepEqual(CardSortUtils.sorted(cards, "value").map((card) => card.value), ["2", "5", "k"]);
     assert.deepEqual(CardSortUtils.sorted(cards, "suit").map((card) => card.suit), ["clubs", "diamonds", "hearts"]);
     assert.deepEqual(CardSortUtils.sorted(cards, "score").map((card) => card.value), ["5", "k", "2"]);
     assert.throws(() => CardSortUtils.sorted(cards, "unknown"), /Invalid card sort key/);
+});
+
+test("card-sort HTML initializes every canonical option", () => {
+    const selectMarkup = INDEX_HTML.match(/<select id="card-sort-key-select">([\s\S]*?)<\/select>/)?.[1] ?? "";
+    const optionValues = Array.from(selectMarkup.matchAll(/<option value="([^"]+)">/g), function (match) {
+        return match[1];
+    });
+
+    assert.deepEqual(optionValues.sort(), [...Constants.CARD.SORT_OPTIONS].sort());
+});
+
+test("game-guide score cells initialize from canonical card scores", () => {
+    const scoreCells = Array.from(
+        INDEX_HTML.matchAll(/<td data-card-value="([^"]+)" data-card-suit="([^"]+)">(\d+)<\/td>/g)
+    );
+
+    assert.equal(scoreCells.length, 8);
+
+    for (const [, value, suit, displayedScore] of scoreCells) {
+        assert.equal(Number(displayedScore), Constants.getCardScore(value, suit));
+    }
 });
 
 test("NotificationUtils produces one canonical notification shape", () => {

@@ -130,6 +130,7 @@
                     <label for="card-sort-key-select">sort:</label>
                     <select id="card-sort-key-select">
                         <option value="none">none</option>
+                        <option value="rank">rank</option>
                         <option value="score">score</option>
                         <option value="suit">suit</option>
                         <option value="value">value</option>
@@ -230,7 +231,7 @@
     </div>
 </section>
 
-<details id="game-guide-section">
+<details id="game-guide-section" open>
     <summary id="game-guide-header">
         <span>Game guide</span>
         <span>Learn the table in a minute, then open any section when you need a reminder.</span>
@@ -285,7 +286,7 @@
                 </article>
             </div>
         </details>
-        <details>
+        <details open>
             <summary>
                 <span>03</span>
                 <span>Special cards</span>
@@ -348,19 +349,19 @@
                     </tr>
                     <tr>
                         <td>Jack</td>
-                        <td>11</td>
+                        <td data-card-value="j" data-card-suit="clubs">11</td>
                     </tr>
                     <tr>
                         <td>Queen</td>
-                        <td>12</td>
+                        <td data-card-value="q" data-card-suit="clubs">12</td>
                     </tr>
                     <tr>
                         <td>King</td>
-                        <td>13</td>
+                        <td data-card-value="k" data-card-suit="clubs">13</td>
                     </tr>
                     <tr>
                         <td>Ace, except spades</td>
-                        <td>14</td>
+                        <td data-card-value="a" data-card-suit="hearts">14</td>
                     </tr>
                     </tbody>
                 </table>
@@ -374,19 +375,19 @@
                     <tbody>
                     <tr>
                         <td>Two</td>
-                        <td>20</td>
+                        <td data-card-value="2" data-card-suit="clubs">20</td>
                     </tr>
                     <tr>
                         <td>Seven of hearts</td>
-                        <td>27</td>
+                        <td data-card-value="7" data-card-suit="hearts">30</td>
                     </tr>
                     <tr>
                         <td>Ace of spades</td>
-                        <td>40</td>
+                        <td data-card-value="a" data-card-suit="spades">40</td>
                     </tr>
                     <tr>
                         <td>Joker</td>
-                        <td>50</td>
+                        <td data-card-value="joker" data-card-suit="red">50</td>
                     </tr>
                     </tbody>
                 </table>

@@ -46,9 +46,51 @@ export class AppController {
             this.#roomViewController.initialize()
         ]);
 
+        AppController.#synchronizeCardSortOptions();
+        AppController.#synchronizeGameGuideCardScores();
         AppController.#renderGameGuideSpecialCards();
         this.#showLobby();
         this.#connectionService.connect();
+    }
+
+    /**
+     * Synchronizes the card-sort control with the canonical sort options.
+     */
+    static #synchronizeCardSortOptions() {
+        const select = DomUtils.require("#card-sort-key-select", HTMLSelectElement);
+        const optionsByValue = new Map(Array.from(select.options, function (option) {
+            return [option.value, option];
+        }));
+
+        for (const sortKey of Constants.CARD.SORT_OPTIONS) {
+            let option = optionsByValue.get(sortKey);
+
+            if (!option) {
+                option = document.createElement("option");
+                option.value = sortKey;
+                select.appendChild(option);
+            }
+
+            option.textContent = sortKey;
+            optionsByValue.delete(sortKey);
+        }
+
+        for (const unsupportedOption of optionsByValue.values()) {
+            unsupportedOption.remove();
+        }
+    }
+
+    /**
+     * Synchronizes displayed guide scores with the canonical card-score rules.
+     */
+    static #synchronizeGameGuideCardScores() {
+        const scoreTables = DomUtils.require("#scores-tables");
+        const scoreCells = scoreTables.querySelectorAll("td[data-card-value][data-card-suit]");
+
+        for (const scoreCell of scoreCells) {
+            const { cardValue, cardSuit } = scoreCell.dataset;
+            scoreCell.textContent = String(Constants.getCardScore(cardValue, cardSuit));
+        }
     }
 
     /**

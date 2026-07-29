@@ -62,7 +62,7 @@ export class PlayingCardUtils extends TemplateComponentUtils {
     static #flipBoundElements = new WeakSet();
 
     /** @type {WeakSet<HTMLElement>} */
-    static #dragBoundElements = new WeakSet();
+    static #dragBoundHandles = new WeakSet();
 
     /** @type {WeakSet<HTMLElement>} */
     static #draggedElements = new WeakSet();
@@ -199,21 +199,26 @@ export class PlayingCardUtils extends TemplateComponentUtils {
     }
 
     /**
-     * Configures dragging and binds pointer-down behavior once.
+     * Configures the card's dedicated drag handle and binds pointer-down behavior once.
      *
      * @param {HTMLElement} element - Playing card element.
      * @throws {Error}
      */
     static #bindDragEvents(element) {
-        const target = PlayingCardUtils.#requireDropTarget();
+        PlayingCardUtils.#requireDropTarget();
 
-        element.style.touchAction = "none";
-        element.style.userSelect = "none";
-        element.style.cursor = "grab";
+        const handle = element.querySelector(".playing-card-drag-handle");
 
-        if (!PlayingCardUtils.#dragBoundElements.has(element)) {
-            PlayingCardUtils.#dragBoundElements.add(element);
-            element.addEventListener("pointerdown", PlayingCardUtils.#onPointerDown);
+        if (!(handle instanceof HTMLElement)) {
+            throw new Error("Playing card drag handle is missing.");
+        }
+
+        handle.style.touchAction = "none";
+        handle.style.userSelect = "none";
+
+        if (!PlayingCardUtils.#dragBoundHandles.has(handle)) {
+            PlayingCardUtils.#dragBoundHandles.add(handle);
+            handle.addEventListener("pointerdown", PlayingCardUtils.#onPointerDown);
         }
     }
 
@@ -276,12 +281,15 @@ export class PlayingCardUtils extends TemplateComponentUtils {
     }
 
     /**
-     * Handles pointer down on a draggable card.
+     * Handles pointer down on a playing card's drag handle.
      *
      * @param {PointerEvent} event - Pointer event.
      */
     static #onPointerDown(event) {
-        const element = event.currentTarget;
+        const handle = event.currentTarget;
+        const element = handle instanceof HTMLElement
+            ? handle.closest(PlayingCardUtils.rootTagName)
+            : null;
 
         if (element instanceof HTMLElement && event.button === 0) {
             PlayingCardUtils.#pendingCard = element;

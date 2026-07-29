@@ -289,10 +289,13 @@ export class AIPlayer extends Player {
 
         if (this.#shouldAcceptDrawTwo(room, legalCards)) return null;
 
+        const selectableCards = legalCards.some(card => !card.isAce())
+            ? legalCards.filter(card => !card.isAce())
+            : legalCards;
         const isUnderAttack = this.drawAllowance > 1;
-        const scored = legalCards.map((card, index) => ({
+        const scored = selectableCards.map((card, index) => ({
             card,
-            score: this.#calculateCardPriority(room, card, isUnderAttack, index, legalCards.length)
+            score: this.#calculateCardPriority(room, card, isUnderAttack, index, selectableCards.length)
         }));
 
         scored.sort((a, b) => b.score - a.score);

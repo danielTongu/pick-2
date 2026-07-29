@@ -13,7 +13,7 @@ export class Constants {
     /**
      * Maximum idle time before a client is considered disconnected.
      */
-    static MAX_IDLE_MS = 5 * 1000;
+    static MAX_IDLE_MS = 30 * 1000;
 
     /**
      * Number of cards dealt to each player when a game starts.
@@ -62,7 +62,7 @@ export class Constants {
         /**
          * Available card sorting options.
          */
-        SORT_OPTIONS: Object.freeze(["none", "value", "suit", "score"]),
+        SORT_OPTIONS: Object.freeze(["none", "rank", "value", "suit", "score"]),
 
         /**
          * Card values and their natural rank.
@@ -161,7 +161,7 @@ export class Constants {
          */
         SCORE: Object.freeze({
             TWO: 20,
-            SEVEN_OF_HEARTS: 27,
+            SEVEN_OF_HEARTS: 30,
             ACE_OF_SPADES: 40,
             JOKER: 50
         })
