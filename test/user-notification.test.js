@@ -17,9 +17,9 @@ test("actionable player and game-rule failures use UserNotification", async () =
     await room.admitPlayer("Bob");
     await room.startGame();
 
-    const currentPlayer = room.getCurrentPlayer();
+    const turnOwner = room.circle.getTurnOwner();
     const otherPlayer = [...room.circle.players.values()].find(
-        (player) => player.key !== currentPlayer.key
+        (player) => player.key !== turnOwner.key
     );
 
     await assert.rejects(room.passTurn(otherPlayer.name), UserNotification);

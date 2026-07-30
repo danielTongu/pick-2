@@ -31,6 +31,11 @@ export class Constants {
     static DEFAULT_ROOM_NAMES = Object.freeze(["Default-R0", "Default-R1", "Default-R2", "Default-R3"]);
 
     /**
+     * Number of default rooms initialized with two AI players.
+     */
+    static DEFAULT_DUAL_AI_ROOM_COUNT = 2;
+
+    /**
      * Emoji groups used by game messages.
      */
     static EMOJIS = Object.freeze({
@@ -212,13 +217,20 @@ export class Constants {
      * @throws {Error}
      */
     static getCardValue(id) {
+        let cardValue = null;
+
         for (const card of Object.values(Constants.CARD.VALUE)) {
             if (card.id === id) {
-                return card;
+                cardValue = card;
+                break;
             }
         }
 
-        throw new Error(`Invalid card value: ${id}`);
+        if (cardValue === null) {
+            throw new Error(`Invalid card value: ${id}`);
+        }
+
+        return cardValue;
     }
 
     /**

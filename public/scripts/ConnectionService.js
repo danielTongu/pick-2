@@ -6,14 +6,14 @@ import { Constants } from "./Constants.js";
 import { DomUtils } from "./utils/DomUtils.js";
 import { NormalizeUtils } from "./utils/NormalizeUtils.js";
 import { NotificationUtils } from "./utils/NotificationUtils.js";
-import { AlertOverlayController } from "./controllers/AlertOverlayController.js";
+import { AlertController } from "./controllers/AlertController.js";
 
 /**
  * Browser-tab service that owns websocket session state and server communication.
  */
 export class ConnectionService {
-    /** @type {AlertOverlayController} */
-    #alertOverlay = new AlertOverlayController("#alert-dialog");
+    /** @type {AlertController} */
+    #alertController = new AlertController("#alert-dialog");
 
     /** @type {string} */
     #tabId = ConnectionService.#getOrCreateTabId();
@@ -119,7 +119,7 @@ export class ConnectionService {
      * @param {*} message - Message payload.
      */
     showAlert(message) {
-        this.#alertOverlay.show(NotificationUtils.normalize(message));
+        this.#alertController.show(NotificationUtils.normalize(message));
     }
 
     /**

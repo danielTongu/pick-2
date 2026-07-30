@@ -1,4 +1,4 @@
-// public/scripts/LocalPlayerRegionController.js
+// public/scripts/controllers/LocalPlayerController.js
 
 "use strict";
 
@@ -6,19 +6,18 @@ import { Constants } from "../Constants.js";
 import { PlayingCardUtils } from "../utils/PlayingCardUtils.js";
 import { DomUtils } from "../utils/DomUtils.js";
 import { CardSortUtils } from "../utils/CardSortUtils.js";
+import { TurnUtils } from "../utils/TurnUtils.js";
+import { ViewController } from "./ViewController.js";
 
 /**
  * Controls the singleton local-player region already present in the page HTML.
  */
-export class LocalPlayerRegionController {
+export class LocalPlayerController extends ViewController {
     /** @type {Function|null} */
     #actionHandler = null;
 
     /** @type {Function|null} */
     #sortHandler = null;
-
-    /** @type {HTMLElement} */
-    #region;
 
     /** @type {HTMLElement} */
     #playerHeader;
@@ -51,15 +50,15 @@ export class LocalPlayerRegionController {
      * @throws {Error}
      */
     constructor(selector) {
-        this.#region = DomUtils.require(selector, HTMLElement);
-        this.#playerHeader = DomUtils.requireChild(this.#region, "header", HTMLElement);
-        this.#handElement = DomUtils.requireChild(this.#region, "#local-player-hand", HTMLDivElement);
-        this.#drawButton = DomUtils.requireChild(this.#region, "#draw-card-button", HTMLButtonElement);
-        this.#drawAllowanceOutput = DomUtils.requireChild(this.#region, "#draw-card-button > span", HTMLSpanElement);
-        this.#idleSecondsOutput = DomUtils.requireChild(this.#region, "#local-player-idle-warning > em", HTMLElement);
-        this.#sortControl = DomUtils.requireChild(this.#region, "#card-sort-key-select", HTMLSelectElement);
-        this.#startButton = DomUtils.requireChild(this.#region, "#start-game-button", HTMLButtonElement);
-        this.#passButton = DomUtils.requireChild(this.#region, "#pass-turn-button", HTMLButtonElement);
+        super(selector);
+        this.#playerHeader = DomUtils.requireChild(this.root, "header", HTMLElement);
+        this.#handElement = DomUtils.requireChild(this.root, "#local-player-hand", HTMLDivElement);
+        this.#drawButton = DomUtils.requireChild(this.root, "#draw-card-button", HTMLButtonElement);
+        this.#drawAllowanceOutput = DomUtils.requireChild(this.root, "#draw-card-button > span", HTMLSpanElement);
+        this.#idleSecondsOutput = DomUtils.requireChild(this.root, "#local-player-idle-warning > em", HTMLElement);
+        this.#sortControl = DomUtils.requireChild(this.root, "#card-sort-key-select", HTMLSelectElement);
+        this.#startButton = DomUtils.requireChild(this.root, "#start-game-button", HTMLButtonElement);
+        this.#passButton = DomUtils.requireChild(this.root, "#pass-turn-button", HTMLButtonElement);
 
         const idleSeconds = Constants.MAX_IDLE_MS / 1000;
         this.#idleSecondsOutput.dataset.idleSeconds = String(idleSeconds);
@@ -117,15 +116,16 @@ export class LocalPlayerRegionController {
     show(player, room, sortKey) {
         const data = {
             ...player,
-            status: room.status
+            status: room.status,
+            turnOwnerKey: room.circle?.turnOwnerKey ?? null
         };
 
-        DomUtils.show(this.#region);
+        super.show();
 
         this.#renderRootState(data);
         this.#renderHeader(data);
         this.#renderControls(data, sortKey);
-        this.#renderCards(data.cards, LocalPlayerRegionController.#isCardDiscardAllowed(data), sortKey);
+        this.#renderCards(data.hand.cards, LocalPlayerController.#isCardDiscardAllowed(data), sortKey);
     }
 
     /**
@@ -133,16 +133,16 @@ export class LocalPlayerRegionController {
      */
     hide() {
         this.#clear();
-        DomUtils.hide(this.#region);
+        super.hide();
     }
 
     /**
      * Clears local-player UI state.
      */
     #clear() {
-        this.#region.dataset.status = Constants.STATUS.WAITING;
-        this.#region.dataset.isActive = "false";
-        this.#region.dataset.isWinner = "false";
+        this.root.dataset.status = Constants.STATUS.WAITING;
+        this.root.dataset.isTurnOwner = "false";
+        this.root.dataset.isWinner = "false";
         this.#playerHeader.dataset.cardCount = "0";
         this.#drawAllowanceOutput.dataset.drawAllowance = "0";
         this.#drawButton.disabled = true;
@@ -188,10 +188,14 @@ export class LocalPlayerRegionController {
      * @param {Object} data - Normalized player state.
      */
     #renderRootState(data) {
-        this.#region.dataset.status = data.status;
+        this.root.dataset.status = data.status;
 
-        DomUtils.setBooleanState(this.#region, "isActive", data.isActive);
-        DomUtils.setBooleanState(this.#region, "isWinner", data.isWinner);
+        DomUtils.setBooleanState(
+            this.root,
+            "isTurnOwner",
+            TurnUtils.isTurnOwner(data.turnOwnerKey, data.key)
+        );
+        DomUtils.setBooleanState(this.root, "isWinner", data.isWinner);
     }
 
     /**
@@ -200,7 +204,7 @@ export class LocalPlayerRegionController {
      * @param {Object} data - Normalized player state.
      */
     #renderHeader(data) {
-        this.#playerHeader.dataset.cardCount = String(data.cardCount);
+        this.#playerHeader.dataset.cardCount = String(data.hand.cards.length);
     }
 
     /**
@@ -211,7 +215,7 @@ export class LocalPlayerRegionController {
      */
     #renderControls(data, sortKey) {
         this.#drawAllowanceOutput.dataset.drawAllowance = String(data.drawAllowance);
-        this.#drawButton.disabled = !LocalPlayerRegionController.#isDrawButtonUsable(data);
+        this.#drawButton.disabled = !LocalPlayerController.#isDrawButtonUsable(data);
         this.#sortControl.value = sortKey;
     }
 
@@ -241,14 +245,15 @@ export class LocalPlayerRegionController {
     /**
      * Checks whether the draw button should be enabled.
      *
-     * @param {{status:string,drawAllowance:number,isActive:boolean}} player - Player state.
+     * @param {{key:string,status:string,drawAllowance:number,turnOwnerKey:string|null}} player - Player state.
      * @returns {boolean} True when draw button should be enabled.
      */
     static #isDrawButtonUsable(player) {
         let isDrawAllowed = player.drawAllowance > 0;
 
         if (player.status === Constants.STATUS.PLAYING) {
-            isDrawAllowed = isDrawAllowed && player.isActive;
+            isDrawAllowed = !TurnUtils.hasTurnOwner(player.turnOwnerKey) ||
+                (isDrawAllowed && TurnUtils.isTurnOwner(player.turnOwnerKey, player.key));
         }
 
         if (player.status === Constants.STATUS.PENDING) {
@@ -261,14 +266,15 @@ export class LocalPlayerRegionController {
     /**
      * Checks whether cards may be discarded.
      *
-     * @param {{status:string,isActive:boolean}} player - Player state.
+     * @param {{key:string,status:string,turnOwnerKey:string|null}} player - Player state.
      * @returns {boolean} True when cards may be discarded.
      */
     static #isCardDiscardAllowed(player) {
         let isDiscardAllowed = true;
 
         if (player.status === Constants.STATUS.PLAYING) {
-            isDiscardAllowed = player.isActive;
+            isDiscardAllowed = !TurnUtils.hasTurnOwner(player.turnOwnerKey) ||
+                TurnUtils.isTurnOwner(player.turnOwnerKey, player.key);
         }
 
         if (player.status === Constants.STATUS.PENDING) {

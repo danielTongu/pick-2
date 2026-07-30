@@ -1,4 +1,4 @@
-// public/scripts/GameEndOverlayController.js
+// public/scripts/controllers/GameEndController.js
 
 "use strict";
 
@@ -6,16 +6,14 @@ import { Constants } from "../Constants.js";
 import { PlayingCardUtils } from "../utils/PlayingCardUtils.js";
 import { DomUtils } from "../utils/DomUtils.js";
 import { NormalizeUtils } from "../utils/NormalizeUtils.js";
+import { ViewController } from "./ViewController.js";
 
 /**
  * Controls the singleton game-end overlay already present in the page HTML.
  */
-export class GameEndOverlayController {
+export class GameEndController extends ViewController {
     /** @type {Object[]} */
     #players = [];
-
-    /** @type {HTMLElement} */
-    #dialog;
 
     /** @type {HTMLElement} */
     #message;
@@ -29,9 +27,6 @@ export class GameEndOverlayController {
     /** @type {HTMLElement} */
     #selectedPlayerCards;
 
-    /** @type {HTMLButtonElement} */
-    #confirmButton;
-
     /**
      * Creates a game-end overlay controller.
      *
@@ -39,14 +34,12 @@ export class GameEndOverlayController {
      * @throws {Error}
      */
     constructor(selector) {
-        this.#dialog = DomUtils.require(selector, HTMLElement);
-        this.#message = DomUtils.requireChild(this.#dialog, "#game-end-message", HTMLElement);
-        this.#statsBody = DomUtils.requireChild(this.#dialog, "#game-end-player-stats-body", HTMLTableSectionElement);
-        this.#playerCardsTitle = DomUtils.requireChild(this.#dialog, "#game-end-player-cards-panel h2", HTMLElement);
-        this.#selectedPlayerCards = DomUtils.requireChild(this.#dialog, "#game-end-selected-player-hand", HTMLElement);
-        this.#confirmButton = DomUtils.requireChild(this.#dialog, "#game-end-confirm-button", HTMLButtonElement);
-
-        this.#bindEvents();
+        super(selector);
+        this.#message = DomUtils.requireChild(this.root, "#game-end-message", HTMLElement);
+        this.#statsBody = DomUtils.requireChild(this.root, "#game-end-player-stats-body", HTMLTableSectionElement);
+        this.#playerCardsTitle = DomUtils.requireChild(this.root, "#game-end-player-cards-panel h2", HTMLElement);
+        this.#selectedPlayerCards = DomUtils.requireChild(this.root, "#game-end-selected-player-hand", HTMLElement);
+        this.bindDismissButton("#game-end-dismiss-button");
     }
 
     /**
@@ -56,29 +49,12 @@ export class GameEndOverlayController {
      * @throws {Error}
      */
     show(room) {
-        const data = GameEndOverlayController.#normalizeRoom(room);
+        const data = GameEndController.#normalizeRoom(room);
 
         this.#players = data.players;
         this.#render(data);
 
-        DomUtils.show(this.#dialog);
-    }
-
-    /**
-     * Hides the game-end overlay.
-     */
-    hide() {
-        DomUtils.hide(this.#dialog);
-    }
-
-    /**
-     * Binds overlay events.
-     */
-    #bindEvents() {
-        this.#confirmButton.addEventListener("click", function (event) {
-            event.preventDefault();
-            this.hide();
-        }.bind(this));
+        super.show();
     }
 
     /**
@@ -87,9 +63,9 @@ export class GameEndOverlayController {
      * @param {Object} room - Normalized room.
      */
     #render(room) {
-        const winners = GameEndOverlayController.#getWinnerNames(room.players);
+        const winners = GameEndController.#getWinnerNames(room.players);
 
-        this.#message.textContent = GameEndOverlayController.#getGameEndMessage(room.playerName, winners);
+        this.#message.textContent = GameEndController.#getGameEndMessage(room.playerName, winners);
         this.#renderStats(room.players);
 
         if (room.players.length > 0) {
@@ -127,8 +103,8 @@ export class GameEndOverlayController {
         DomUtils.setBooleanState(row, "isWinner", player.isWinner);
 
         row.appendChild(this.#createStatsCell(player.name));
-        row.appendChild(this.#createStatsCell(String(player.score)));
-        row.appendChild(this.#createStatsCell(String(player.cardCount)));
+        row.appendChild(this.#createStatsCell(String(player.hand.score)));
+        row.appendChild(this.#createStatsCell(String(player.hand.cards.length)));
         row.appendChild(this.#createStatsCell(player.isWinner ? "Winner" : "Lost"));
 
         row.addEventListener("click", function () {
@@ -149,7 +125,7 @@ export class GameEndOverlayController {
         if (player !== null) {
             this.#selectStatsRow(playerName);
             this.#playerCardsTitle.textContent = `${player.name}'s Cards`;
-            this.#renderPlayerCards(player.cards);
+            this.#renderPlayerCards(player.hand.cards);
         }
     }
 
@@ -224,7 +200,7 @@ export class GameEndOverlayController {
         const source = NormalizeUtils.object(room, "Room");
 
         return {
-            players: Array.isArray(source.players) ? source.players : [],
+            players: Array.isArray(source.circle?.players) ? source.circle.players : [],
             playerName: NormalizeUtils.optionalString(source.session?.playerName, "")
         };
     }

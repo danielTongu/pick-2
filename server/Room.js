@@ -9,6 +9,7 @@ import { UserNotification } from "./UserNotification.js";
 import { Serializable } from "./Serializable.js";
 import { AIPlayer, Player } from "./Player.js";
 import { PlayerCircle } from "./PlayerCircle.js";
+import { TurnUtils } from "../public/scripts/utils/TurnUtils.js";
 
 /**
  * Owns one game room and enforces game rules.
@@ -54,6 +55,7 @@ export class Room extends Serializable {
 
         this.isAwaitingSuit = false;
         this.declaredSuit = null;
+        this._lastDiscardPlayerKey = null;
 
         // Server-supplied callbacks.
         this.onAnyChange = null;
@@ -101,7 +103,7 @@ export class Room extends Serializable {
      * @returns {boolean} True when the room has no players.
      */
     isEmpty() {
-        return this.circle.getPlayerCount() === 0;
+        return this.circle.players.size === 0;
     }
 
     /**
@@ -326,19 +328,20 @@ export class Room extends Serializable {
      * @returns {boolean} True when full.
      */
     isFull() {
-        return this.circle.getPlayerCount() >= this.capacity;
+        return this.circle.players.size >= this.capacity;
     }
 
     /**
      * Refreshes idle watches for all human players.
      */
     #refreshPlayerIdleMonitoring() {
-        const currentPlayerKey = this.circle.getCurrentPlayerKey();
-        const isTrackingOnlyCurrentPlayer = this.isGameActive();
+        const isTrackingOnlyTurnOwner = this.isGameActive() &&
+            TurnUtils.hasTurnOwner(this.circle.turnOwnerKey);
 
         for (const player of this.circle.players.values()) {
             const isHumanPlayer = !(player instanceof AIPlayer);
-            const isTrackedTurn = !isTrackingOnlyCurrentPlayer || player.key === currentPlayerKey;
+            const isTrackedTurn = !isTrackingOnlyTurnOwner ||
+                TurnUtils.isTurnOwner(this.circle.turnOwnerKey, player.key);
             const shouldTrack = isHumanPlayer && isTrackedTurn;
 
             if (shouldTrack) {
@@ -386,13 +389,13 @@ export class Room extends Serializable {
         this.deck.shuffle();
 
         if (this.isGameActive()) {
-            if (this.circle.getPlayerCount() < 2) {
+            if (this.circle.players.size < 2) {
                 this.#resetActiveGameState();
             } else {
-                const currentPlayerKey = this.circle.getCurrentPlayerKey();
-                const isCurrentPlayerRemoved = currentPlayerKey === null || currentPlayerKey === player.key;
+                const isTurnOwnerRemoved = !TurnUtils.hasTurnOwner(this.circle.turnOwnerKey) ||
+                    TurnUtils.isTurnOwner(this.circle.turnOwnerKey, player.key);
 
-                if (isCurrentPlayerRemoved) {
+                if (isTurnOwnerRemoved) {
                     this.#advanceTurn(1, 1);
                 }
             }
@@ -407,13 +410,15 @@ export class Room extends Serializable {
         this.scores = {};
         this.isAwaitingSuit = false;
         this.declaredSuit = null;
+        this._lastDiscardPlayerKey = null;
         this.discardPile = [];
 
         this.deck.reset(true);
         this.status = Constants.STATUS.WAITING;
 
+        this.circle.reset();
+
         for (const player of this.circle.players.values()) {
-            player.reset();
             player.recordActivity();
         }
     }
@@ -425,15 +430,13 @@ export class Room extends Serializable {
      * @param {number} steps - Number of players to advance.
      */
     #advanceTurn(drawAllowance = 1, steps = 1) {
-        const moved = this.circle.moveCurrentPlayer(steps);
+        const moved = this.circle.moveTurnOwner(steps);
 
         if (moved) {
-            const player = this.circle.getCurrentPlayer();
+            const player = this.circle.requireTurnOwner();
 
-            if (player !== null && player !== undefined) {
-                player.drawAllowance = drawAllowance;
-                player.recordActivity();
-            }
+            player.drawAllowance = drawAllowance;
+            player.recordActivity();
         }
     }
 
@@ -476,7 +479,7 @@ export class Room extends Serializable {
      * Asserts the room has enough players to start.
      */
     #assertMinimumPlayerCount() {
-        if (this.circle.getPlayerCount() < 2) {
+        if (this.circle.players.size < 2) {
             throw new UserNotification("Need at least two players.");
         }
     }
@@ -540,7 +543,7 @@ export class Room extends Serializable {
      * Deals initial hands to all players.
      */
     #dealInitialHands() {
-        const totalNeeded = this.circle.getPlayerCount() * Constants.PLAYER_INITIAL_CARD_COUNT;
+        const totalNeeded = this.circle.players.size * Constants.PLAYER_INITIAL_CARD_COUNT;
 
         this.#ensureDeckCapacity(totalNeeded);
 
@@ -562,7 +565,7 @@ export class Room extends Serializable {
         const playerKeys = Array.from(this.circle.players.keys());
         const randomIndex = Math.floor(Math.random() * playerKeys.length);
 
-        this.circle.setCurrentPlayer(playerKeys[randomIndex]);
+        this.circle.setTurnOwner(playerKeys[randomIndex]);
     }
 
     /**
@@ -579,10 +582,12 @@ export class Room extends Serializable {
             if (!this.#resetFinishedGame()) {
                 const player = this.circle.getPlayer(playerName);
 
-                this.#assertPlayerCanAct(player);
+                this.#assertCanAct(player);
                 player.hand.sortBy(sortKey);
 
-                const drawCount = this.status === Constants.STATUS.PLAYING ? player.drawAllowance : 1;
+                const usesPlayingRules = this.status === Constants.STATUS.PLAYING &&
+                    TurnUtils.hasTurnOwner(this.circle.turnOwnerKey);
+                const drawCount = usesPlayingRules ? player.drawAllowance : 1;
 
                 if (drawCount <= 0) {
                     throw new UserNotification("No draw allowance remaining.");
@@ -590,7 +595,7 @@ export class Room extends Serializable {
 
                 drawnCards = this.#drawCardsForPlayer(player, drawCount);
 
-                if (this.status === Constants.STATUS.PLAYING) {
+                if (usesPlayingRules) {
                     player.drawAllowance = 0;
 
                     if (drawCount > 1) {
@@ -629,7 +634,7 @@ export class Room extends Serializable {
      *
      * @param {Player|null} player - Acting player.
      */
-    #assertPlayerCanAct(player) {
+    #assertCanAct(player) {
         if (player === null || player === undefined) {
             throw new UserNotification("Player not found.");
         }
@@ -638,7 +643,9 @@ export class Room extends Serializable {
             throw new UserNotification("Room is waiting for suit declaration.");
         }
 
-        const isAnotherPlayersTurn = this.status === Constants.STATUS.PLAYING && this.circle.getCurrentPlayerKey() !== player.key;
+        const isAnotherPlayersTurn = this.status === Constants.STATUS.PLAYING &&
+            TurnUtils.hasTurnOwner(this.circle.turnOwnerKey) &&
+            !TurnUtils.isTurnOwner(this.circle.turnOwnerKey, player.key);
 
         if (isAnotherPlayersTurn) {
             throw new UserNotification("Not your turn.");
@@ -677,10 +684,13 @@ export class Room extends Serializable {
             if (!this.#resetFinishedGame()) {
                 const player = this.circle.getPlayer(playerName);
 
-                this.#assertPlayerCanAct(player);
+                this.#assertCanAct(player);
                 player.hand.sortBy(sortKey);
 
-                if (this.status === Constants.STATUS.PLAYING) {
+                if (
+                    this.status === Constants.STATUS.PLAYING &&
+                    TurnUtils.hasTurnOwner(this.circle.turnOwnerKey)
+                ) {
                     const remainingDrawAllowance = Math.max(0, player.drawAllowance);
 
                     if (remainingDrawAllowance > 0) {
@@ -719,7 +729,7 @@ export class Room extends Serializable {
                 const player = this.circle.getPlayer(playerName);
                 const card = new Card(value, suit);
 
-                this.#assertPlayerCanAct(player);
+                this.#assertCanAct(player);
                 player.hand.sortBy(sortKey);
                 this.#assertPlayerHasCard(player, card);
                 this.#assertCardIsPlayable(card);
@@ -765,17 +775,17 @@ export class Room extends Serializable {
      * @param {Card} card - Card to check.
      */
     #assertCardIsPlayable(card) {
-        if (this.status !== Constants.STATUS.PLAYING) {
-            return;
-        }
+        const usesPlayingRules = this.status === Constants.STATUS.PLAYING &&
+            TurnUtils.hasTurnOwner(this.circle.turnOwnerKey);
 
-        const currentPlayer = this.getCurrentPlayer();
-        const drawAllowance = currentPlayer === null ? 1 : currentPlayer.drawAllowance;
+        if (usesPlayingRules) {
+            const turnOwner = this.circle.requireTurnOwner();
+            const drawAllowance = turnOwner.drawAllowance;
+            const isLegal = card.isLegalOn(this.getTopDiscard(), this.declaredSuit, drawAllowance);
 
-        const isLegal = card.isLegalOn(this.getTopDiscard(), this.declaredSuit, drawAllowance);
-
-        if (!isLegal) {
-            throw new UserNotification("Card cannot be played.");
+            if (!isLegal) {
+                throw new UserNotification("Card cannot be played.");
+            }
         }
     }
 
@@ -799,12 +809,18 @@ export class Room extends Serializable {
     }
 
     /**
-     * Gets the current player.
+     * Gets the player who most recently discarded during the active game.
      *
-     * @returns {Player|null} Current player.
+     * @returns {Player|null} Last discarding player.
      */
-    getCurrentPlayer() {
-        return this.circle.getCurrentPlayer() ?? null;
+    getLastDiscardPlayer() {
+        let player = null;
+
+        if (this._lastDiscardPlayerKey !== null) {
+            player = this.circle.players.get(this._lastDiscardPlayerKey) ?? null;
+        }
+
+        return player;
     }
 
     /**
@@ -816,32 +832,31 @@ export class Room extends Serializable {
     #applyDiscard(player, card) {
         this.discardPile.push(player.hand.discard(card));
 
-        if (this.status !== Constants.STATUS.PLAYING) {
-            return;
-        }
+        if (this.status === Constants.STATUS.PLAYING) {
+            this._lastDiscardPlayerKey = player.key;
+            player.drawAllowance = 0;
+            this.declaredSuit = null;
 
-        player.drawAllowance = 0;
-        this.declaredSuit = null;
-
-        if (card.isGameEndingMove(player.hand.cards.length)) {
-            this.#completeGame();
-        } else if (card.isSuitChange()) {
-            this.status = Constants.STATUS.PENDING;
-            this.isAwaitingSuit = true;
-        } else {
-            const playerCount = this.circle.getPlayerCount();
-
-            if (card.isSkip(playerCount)) {
-                this.#advanceTurn(1, 2);
-            } else if (card.isReverse(playerCount)) {
-                this.circle.reverseTurnDirection();
-                this.#advanceTurn(1, 1);
-            } else if (card.isDrawFour()) {
-                this.#advanceTurn(4, 1);
-            } else if (card.isDrawTwo()) {
-                this.#advanceTurn(2, 1);
+            if (card.isGameEndingMove(player.hand.cards.length)) {
+                this.#completeGame();
+            } else if (card.isSuitChange()) {
+                this.status = Constants.STATUS.PENDING;
+                this.isAwaitingSuit = true;
             } else {
-                this.#advanceTurn(1, 1);
+                const playerCount = this.circle.players.size;
+
+                if (card.isSkip(playerCount)) {
+                    this.#advanceTurn(1, 2);
+                } else if (card.isReverse(playerCount)) {
+                    this.circle.reverseTurnDirection();
+                    this.#advanceTurn(1, 1);
+                } else if (card.isDrawFour()) {
+                    this.#advanceTurn(4, 1);
+                } else if (card.isDrawTwo()) {
+                    this.#advanceTurn(2, 1);
+                } else {
+                    this.#advanceTurn(1, 1);
+                }
             }
         }
     }

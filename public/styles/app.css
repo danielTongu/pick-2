@@ -38,6 +38,11 @@ input {
 
 label {
     border-radius: var(--container-radius);
+    text-transform: uppercase;
+}
+
+label:has(input[type="radio"]) {
+    text-transform: lowercase;
 }
 
 button {
@@ -46,7 +51,8 @@ button {
     padding: var(--control-padding);
     border-radius: var(--container-radius);
     background: rgba(255, 255, 255, .1);
-    font-weight: 700;
+    font-weight: 600;
+    text-transform: uppercase;
     transition: background .2s ease, transform .15s ease;
 }
 
@@ -197,6 +203,8 @@ main {
 }
 
 #room-registration-form {
+    --active-color: #fde68a;
+    color: grey;
     border-radius: var(--container-radius);
     display: grid;
     grid-template-columns: 1fr;
@@ -206,6 +214,7 @@ main {
 @media (min-width: 768px) {
     #room-registration-form {
         grid-template-columns: auto auto auto;
+        align-items: end;
     }
 }
 
@@ -214,12 +223,10 @@ main {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: var(--container-spacing);
-    color: grey;
-    text-transform: uppercase;
 }
 
 #field-group input {
-    color: #fde68a;
+    color: var(--active-color);
     font-weight: 450;
     border: 1px solid grey;
     outline: none;
@@ -231,9 +238,10 @@ main {
 #mode-group {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    border: 1px solid rgba(255, 255, 255, .15);
+    border: 1px solid;
     border-radius: var(--container-radius);
     background: rgba(0, 0, 0, .16);
+    padding:1px;
 }
 
 #mode-group label:hover {
@@ -241,13 +249,13 @@ main {
 }
 
 #mode-group label:has(input:checked) {
-    color: #fde68a;
+    color: var(--active-color);
     background: rgba(251, 191, 36, .14);
-    box-shadow: inset 0 0 0 1px rgba(251, 191, 36, .32);
+    border: 1px solid;
 }
 
 #mode-group label:has(input:focus-visible) {
-    outline: 2px solid #fde68a;
+    outline: 2px solid var(--active-color);
     outline-offset: 2px;
 }
 
@@ -257,10 +265,9 @@ main {
     text-align: center;
     vertical-align: middle;
     padding: var(--control-padding);
-    color: rgba(255, 255, 255, .68);
     background: transparent;
     cursor: pointer;
-    font-weight: 700;
+    font-weight: 600;
     transition: background .2s ease, color .2s ease, box-shadow .2s ease;
     -webkit-tap-highlight-color: transparent;
     user-select: none;
@@ -285,7 +292,7 @@ main {
 }
 
 #room-registration-submit-button:hover {
-    background: #fde68a;
+    background: var(--active-color);
     box-shadow: 0 .45rem 1.25rem rgba(0, 0, 0, .28);
 }
 
@@ -372,7 +379,7 @@ main {
 }
 
 #room-list-table th {
-    font-weight: 700;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .05em;
     color: rgba(255, 255, 255, .7);
@@ -542,7 +549,7 @@ main {
 #local-player-region > header {
     padding: var(--container-spacing) 0;
     text-align: center;
-    font-weight: 700;
+    font-weight: 600;
 }
 
 #local-player-region > header:empty::before {
@@ -557,16 +564,16 @@ main {
     content: "1 Card";
 }
 
-#local-player-region[data-is-active="true"] {
+#local-player-region[data-is-turn-owner="true"] {
     border-color: limegreen;
     box-shadow: inset 0 0 0 2px rgba(50, 205, 50, .25), 0 0 12px rgba(50, 205, 50, .25);
 }
 
-#local-player-region[data-is-active="true"] > header {
+#local-player-region[data-is-turn-owner="true"] > header {
     color: limegreen;
 }
 
-#local-player-region[data-is-active="true"] > header:empty::before {
+#local-player-region[data-is-turn-owner="true"] > header:empty::before {
     content: "Your Turn. Drag a Card";
 }
 
@@ -646,9 +653,8 @@ main {
     border: 1px solid rgba(255, 255, 255, .2);
     background: rgba(255, 255, 255, .09);
     box-shadow: 0 4px 12px rgba(0, 0, 0, .16);
-    font-weight: 700;
+    font-weight: 600;
     letter-spacing: .04em;
-    text-transform: uppercase;
     transition: background .2s ease, border-color .2s ease, box-shadow .2s ease, transform .15s ease;
     min-width: 80px;
 }

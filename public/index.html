@@ -43,15 +43,18 @@
                 <input id="room-capacity-input" type="number" min="2" max="12" value="4">
             </label>
         </div>
-        <div id="mode-group">
-            <label for="join-mode-input">
-                <input id="join-mode-input" name="mode" type="radio" value="join" checked>
-                <span>Join</span>
-            </label>
-            <label for="create-mode-input">
-                <input id="create-mode-input" name="mode" type="radio" value="create">
-                <span>Create</span>
-            </label>
+        <div>
+            <label for="mode-group">Req</label>
+            <div id="mode-group">
+                <label for="join-mode-input">
+                    <input id="join-mode-input" name="mode" type="radio" value="join" checked>
+                    <span>Join</span>
+                </label>
+                <label for="create-mode-input">
+                    <input id="create-mode-input" name="mode" type="radio" value="create">
+                    <span>Create</span>
+                </label>
+            </div>
         </div>
         <button id="room-registration-submit-button" type="button">Submit</button>
     </header>
@@ -116,7 +119,7 @@
     <section id="room-game-session" data-room-status="waiting">
         <div id="opponent-player-list"></div>
         <div id="discard-pile" class="playing-card-area" title="Discard Pile" data-is-drag-over="false"></div>
-        <div id="local-player-region" data-status="waiting" data-is-active="false" data-is-winner="false" hidden>
+        <div id="local-player-region" data-status="waiting" data-is-turn-owner="false" data-is-winner="false" hidden>
             <header data-card-count="0"></header>
             <div class="playing-card-area" id="local-player-hand" title="your cards">
                 <button id="draw-card-button" title="draw card" type="button">
@@ -171,7 +174,7 @@
             </label>
         </fieldset>
         <footer>
-            <button id="suit-selection-cancel-button" type="button">Back</button>
+            <button id="suit-selection-dismiss-button" type="button">Back</button>
             <button id="suit-selection-submit-button" type="button">Submit</button>
         </footer>
     </div>
@@ -205,7 +208,7 @@
             </header>
             <footer id="game-end-selected-player-hand" class="playing-card-area"></footer>
         </section>
-        <button id="game-end-confirm-button" type="button">OK</button>
+        <button id="game-end-dismiss-button" type="button">OK</button>
     </div>
 </section>
 
@@ -216,7 +219,7 @@
             <p>Get ready.</p>
         </header>
         <output id="countdown-value" aria-live="polite">5</output>
-        <button id="countdown-confirm-button" type="button">OK</button>
+        <button id="countdown-dismiss-button" type="button">OK</button>
     </div>
 </section>
 
@@ -227,7 +230,7 @@
             <h1 id="alert-title"></h1>
         </header>
         <output id="alert-message"></output>
-        <button id="alert-confirm-button" type="button">OK</button>
+        <button id="alert-dismiss-button" type="button">OK</button>
     </div>
 </section>
 

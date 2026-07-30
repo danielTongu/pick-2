@@ -1,25 +1,20 @@
-// public/scripts/CountdownOverlayController.js
+// public/scripts/controllers/CountdownController.js
 
 "use strict";
 
 import { DomUtils } from "../utils/DomUtils.js";
 import { NormalizeUtils } from "../utils/NormalizeUtils.js";
+import { ViewController } from "./ViewController.js";
 
 /**
  * Controls the singleton countdown overlay.
  */
-export class CountdownOverlayController {
+export class CountdownController extends ViewController {
     /** @type {number|null} */
     #countdownIntervalId = null;
 
-    /** @type {HTMLElement} */
-    #dialog;
-
     /** @type {HTMLOutputElement} */
     #remainingSecondsOutput;
-
-    /** @type {HTMLButtonElement} */
-    #confirmButton;
 
     /**
      * Creates a countdown overlay controller.
@@ -28,11 +23,9 @@ export class CountdownOverlayController {
      * @throws {Error}
      */
     constructor(selector) {
-        this.#dialog = DomUtils.require(selector, HTMLElement);
-        this.#remainingSecondsOutput = DomUtils.requireChild(this.#dialog, "#countdown-value", HTMLOutputElement);
-        this.#confirmButton = DomUtils.requireChild(this.#dialog, "#countdown-confirm-button", HTMLButtonElement);
-
-        this.#bindEvents();
+        super(selector);
+        this.#remainingSecondsOutput = DomUtils.requireChild(this.root, "#countdown-value", HTMLOutputElement);
+        this.bindDismissButton("#countdown-dismiss-button");
     }
 
     /**
@@ -41,12 +34,12 @@ export class CountdownOverlayController {
      * @param {number} seconds - Countdown duration.
      */
     show(seconds = 5) {
-        let remaining = CountdownOverlayController.#normalizeSeconds(seconds);
+        let remaining = CountdownController.#normalizeSeconds(seconds);
 
         this.#stopCountdown();
         this.#renderRemainingSeconds(remaining);
 
-        DomUtils.show(this.#dialog);
+        super.show();
 
         this.#countdownIntervalId = window.setInterval(function () {
             remaining -= 1;
@@ -63,17 +56,7 @@ export class CountdownOverlayController {
      */
     hide() {
         this.#stopCountdown();
-        DomUtils.hide(this.#dialog);
-    }
-
-    /**
-     * Binds overlay events.
-     */
-    #bindEvents() {
-        this.#confirmButton.addEventListener("click", function (event) {
-            event.preventDefault();
-            this.hide();
-        }.bind(this));
+        super.hide();
     }
 
     /**

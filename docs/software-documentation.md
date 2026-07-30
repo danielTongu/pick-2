@@ -11,9 +11,9 @@ This document describes the software as implemented. User-facing rules are summa
 ```text
 Browser
   AppController
-    LobbyViewController
-    RoomViewController
-      LocalPlayerRegionController
+    LobbyController
+    RoomController
+      LocalPlayerController
       overlay controllers
   ConnectionService
           │ WebSocket actions and response envelopes
@@ -45,7 +45,7 @@ The client does not normalize different player variants. Every player has one DT
 - `Server` starts HTTP and WebSocket services, registers rooms and sessions, routes actions, throttles requests, sends notifications, monitors connections, and closes abandoned rooms.
 - `Room` serializes state-changing operations, enforces membership and game rules, advances turns, manages idle players, and completes games.
 - `Player` contains player state and automated-player card selection.
-- `PlayerCircle` maintains circular turn links and direction.
+- `PlayerCircle` maintains circular turn links, direction, and the nullable turn-owner cursor.
 - `Card`, `Deck`, and `Hand` implement the card domain and collection behavior.
 - `StateMapper` is the boundary between serialized domain state and stable client-facing DTOs.
 - `Serializable` converts domain models and nested collections into plain transport-safe values.
@@ -72,7 +72,7 @@ Generic development validation belongs in the shared assertion and normalization
 1. `server/index.js` registers termination and fatal-error handlers.
 2. `Server` creates the Express application, HTTP server, and WebSocket server.
 3. Static files and `/health` are registered.
-4. Default rooms and their AI players are created.
+4. Default rooms and their AI players are created. The first two default rooms receive two AI players; the remaining rooms receive one.
 5. Heartbeat monitoring starts.
 6. The browser loads templates, establishes a WebSocket, and requests the lobby.
 
@@ -92,10 +92,12 @@ Membership is locked while the room is starting, playing, or awaiting a suit dec
 
 1. Starting requires at least two players.
 2. The room creates and shuffles the deck, deals seven cards per player, chooses a valid initial discard, and selects the first player.
-3. The active player may draw, discard, or pass subject to room rules.
+3. The turn owner may draw, discard, or pass subject to room rules.
 4. Draw and pass actions permanently commit the player's selected hand sort. A discard commits the order while removing the selected card.
 5. A newly drawn card resets the client's temporary sort to `none`, so it is visibly new until the player sorts again.
-6. Suit-changing aces move the room to `pending` until the active player declares a standard suit.
+6. Suit-changing aces move the room to `pending` until the turn owner declares a standard suit.
+
+While a room is `waiting`, `circle.turnOwnerKey` is `null`. With no turn owner, any seated player may draw one card or discard a card without turn-order or discard-legality checks. Starting a game assigns a random turn owner; resetting to `waiting` clears the cursor again.
 7. Emptying a hand or playing the seven of hearts finishes a playing game.
 8. Remaining hand scores determine the winner or tied winners.
 
@@ -137,24 +139,36 @@ The first meaningful statement is placed in `title`; the body contains only the 
 
 ### 5.3 Room payload
 
-The room sync contains room metadata, session identity, players, discard pile, deck count, winners, scores, and suit-selection state. Each player consistently has:
+The room sync contains room metadata, session identity, a browser-safe `circle`, discard pile, deck count, winners, scores, and suit-selection state. The circle preserves the server-side ownership field names and nesting:
 
 ```js
 {
-    name,
-    cards,
-    score,
-    cardCount,
-    drawAllowance,
-    isActive,
-    isWinner,
-    isConnected
+    players,
+    playerCount,
+    turnOwnerKey,
+    direction
 }
 ```
 
-The browser finds the local player by comparing `room.session.playerName` with `player.name`. Visitors have no local player match.
+Both server and browser code use the shared `TurnUtils.hasTurnOwner(turnOwnerKey)` and `TurnUtils.isTurnOwner(turnOwnerKey, playerKey)` predicates. No derived ownership aliases are added to the wire payload. Each browser-safe player consistently has:
 
-Boolean fields and boolean DOM dataset states use `is` names, such as `isActive`, `isWinner`, `data-is-selected`, and `data-is-face-down`.
+```js
+{
+    key,
+    name,
+    hand: {
+        cards,
+        score,
+        sortKey
+    },
+    drawAllowance,
+    isWinner
+}
+```
+
+The browser finds the local player by comparing `room.session.playerName` with `player.name`. Visitors have no local player match. Card count remains derived from `player.hand.cards.length` on both sides.
+
+Boolean fields and boolean DOM dataset states use `is` names, such as `isWinner`, `data-is-turn-owner`, `data-is-selected`, and `data-is-face-down`.
 
 ## 6. Card and hand model
 
@@ -166,7 +180,13 @@ Temporary browser sorting uses `CardSortUtils` and does not mutate the server fo
 
 ## 7. Automated-player policy
 
-The AI evaluates legal cards and avoids spending the ace of spades when there is no draw attack and its draw allowance is one. When defending against a draw-two attack, it may prefer drawing two over spending the ace of spades. If the next player has one card, the AI inspects whether that card would be legal on the prospective top discard and prefers a move that prevents the opponent from finishing when alternatives exist.
+The AI evaluates its own legal cards using only public game information: turn order, visible hand counts, card effects, and discard history. It never reads an opponent's card identities or hand score. For each candidate play, it subtracts its own cards and the current discard pile from the complete deck, then estimates the chance that the projected next player has a legal response. Opponent urgency rises sharply at three, two, and one remaining cards, so the AI begins applying pressure before the final-card emergency. It compares the actual players reached by ordinary, skip, and reverse candidates; prefers draw attacks that are unlikely to be countered; and favors plays with a lower estimated response probability.
+
+The AI also scores the structure of its remaining hand. It prefers candidate cards that leave more legal continuations and gives a decisive bonus to a two-player skip that returns a playable final card to itself. A suit-changing ace primarily declares the AI's strongest remaining suit. When multiple suits are equally strong, current discard history breaks the tie toward the suit with fewer unseen cards, reducing the estimated chance of an opponent response.
+
+The AI does not keep a duplicate per-opponent history. Discarded cards can return to the deck when the discard pile is recycled, so persistent memory would eventually treat playable cards as unavailable and make its estimates incorrect. It instead reads the live discard pile, which always represents the cards that are currently public and unavailable.
+
+The AI avoids spending the ace of spades when there is no draw attack, but uses legal defenses rather than accepting a draw penalty based on hidden knowledge. For the seven of hearts, it finishes immediately when that empties its hand. Otherwise, it considers ending only when the discard leaves it with fewer cards than every opponent. It then uses the scores of unseen cards and each opponent's visible card count to estimate the chance that its remaining score will tie or beat every opponent, ending the game only when that estimate reaches the configured confidence threshold. After an opponent discards the three of a standard suit—the lowest ordinary card—the AI treats that suit as potentially exhausted and prefers to continue pressing it only when the candidate card would make that same opponent the next actor.
 
 These decisions remain subordinate to the same `Room` and `Card` legality rules used for human players.
 

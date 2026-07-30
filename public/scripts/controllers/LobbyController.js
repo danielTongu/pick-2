@@ -1,4 +1,4 @@
-// public/scripts/LobbyViewController.js
+// public/scripts/controllers/LobbyController.js
 
 "use strict";
 
@@ -6,19 +6,14 @@ import { Constants } from "../Constants.js";
 import { RoomTableRowUtils } from "../utils/RoomTableRowUtils.js";
 import { DomUtils } from "../utils/DomUtils.js";
 import { NormalizeUtils } from "../utils/NormalizeUtils.js";
+import { ViewController } from "./ViewController.js";
 
 /**
  * Controls the lobby view UI.
  */
-export class LobbyViewController {
+export class LobbyController extends ViewController {
     /** @type {Object|null} */
     #lobby = null;
-
-    /** @type {import("../ConnectionService.js").ConnectionService} */
-    #connectionService;
-
-    /** @type {HTMLElement} */
-    #lobbyView;
 
     /** @type {HTMLTableSectionElement} */
     #roomTableBody;
@@ -44,9 +39,7 @@ export class LobbyViewController {
      * @param {import("../ConnectionService.js").ConnectionService} client - Browser-tab client.
      */
     constructor(client) {
-        this.#connectionService = client;
-
-        this.#lobbyView = DomUtils.require("#lobby-view", HTMLElement);
+        super("#lobby-view", client);
         this.#roomTableBody = DomUtils.require("#room-list-table-body", HTMLTableSectionElement);
 
         this.#submitButton = DomUtils.require("#room-registration-submit-button", HTMLButtonElement);
@@ -68,20 +61,6 @@ export class LobbyViewController {
     }
 
     /**
-     * Shows the lobby view.
-     */
-    show() {
-        DomUtils.show(this.#lobbyView);
-    }
-
-    /**
-     * Hides the lobby view.
-     */
-    hide() {
-        DomUtils.hide(this.#lobbyView);
-    }
-
-    /**
      * Stores and renders lobby state.
      *
      * @param {Object|null} lobby - Lobby payload.
@@ -91,7 +70,7 @@ export class LobbyViewController {
 
         this.#roomTableBody.replaceChildren();
 
-        for (const room of LobbyViewController.#getRooms(lobby)) {
+        for (const room of LobbyController.#getRooms(lobby)) {
             if (this.#isRoomVisible(room)) {
                 this.#roomTableBody.appendChild(
                     this.#createRoomTableRow(room)
@@ -138,7 +117,7 @@ export class LobbyViewController {
     #admitVisitor(room) {
         const source = NormalizeUtils.object(room, "Room");
 
-        const sent = this.#connectionService.send(
+        const sent = this.connectionService.send(
             Constants.ACTIONS.ADMIT_VISITOR,
             { roomName: NormalizeUtils.requiredString(source.name, "Room name") }
         );
@@ -180,7 +159,7 @@ export class LobbyViewController {
             body.capacity = payload.capacity;
         }
 
-        this.#connectionService.send(action, body);
+        this.connectionService.send(action, body);
     }
 
     /**
@@ -218,7 +197,7 @@ export class LobbyViewController {
      * Shows a disconnected alert.
      */
     #showDisconnectedAlert() {
-        this.#connectionService.showAlert({
+        this.connectionService.showAlert({
             status: Constants.STATUS.WARNING,
             title: "Disconnected",
             message: "Try again in a moment."
@@ -229,7 +208,7 @@ export class LobbyViewController {
      * Shows a missing-fields alert.
      */
     #showMissingFieldsAlert() {
-        this.#connectionService.showAlert({
+        this.connectionService.showAlert({
             status: Constants.STATUS.WARNING,
             title: "Missing Fields",
             message: "Player and room are required."

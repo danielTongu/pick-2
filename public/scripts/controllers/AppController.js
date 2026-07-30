@@ -13,23 +13,23 @@ export class AppController {
     /** @type {import("../ConnectionService.js").ConnectionService} */
     #connectionService;
 
-    /** @type {import("./LobbyViewController.js").LobbyViewController} */
-    #lobbyViewController;
+    /** @type {import("./LobbyController.js").LobbyController} */
+    #lobbyController;
 
-    /** @type {import("./RoomViewController.js").RoomViewController} */
-    #roomViewController;
+    /** @type {import("./RoomController.js").RoomController} */
+    #roomController;
 
     /**
      * Creates the application controller.
      *
      * @param {import("../ConnectionService.js").ConnectionService} client - Browser-tab client.
-     * @param {import("./LobbyViewController.js").LobbyViewController} lobbyView - Lobby view controller.
-     * @param {import("./RoomViewController.js").RoomViewController} roomView - Room view controller.
+     * @param {import("./LobbyController.js").LobbyController} lobbyController - Lobby controller.
+     * @param {import("./RoomController.js").RoomController} roomController - Room controller.
      */
-    constructor(client, lobbyView, roomView) {
+    constructor(client, lobbyController, roomController) {
         this.#connectionService = client;
-        this.#lobbyViewController = lobbyView;
-        this.#roomViewController = roomView;
+        this.#lobbyController = lobbyController;
+        this.#roomController = roomController;
         this.#connectionService.setAppController(this);
     }
 
@@ -42,8 +42,8 @@ export class AppController {
         AppController.#renderCopyrightYear();
 
         await Promise.all([
-            this.#lobbyViewController.initialize(),
-            this.#roomViewController.initialize()
+            this.#lobbyController.initialize(),
+            this.#roomController.initialize()
         ]);
 
         AppController.#synchronizeCardSortOptions();
@@ -160,8 +160,8 @@ export class AppController {
      * Shows the lobby view.
      */
     #showLobby() {
-        this.#roomViewController.hide();
-        this.#lobbyViewController.show();
+        this.#roomController.hide();
+        this.#lobbyController.show();
     }
 
     /**
@@ -194,7 +194,7 @@ export class AppController {
      * @param {Object} lobby - Lobby payload.
      */
     #handleLobbySync(lobby) {
-        this.#lobbyViewController.render(lobby);
+        this.#lobbyController.render(lobby);
         this.#showLobby();
     }
 
@@ -204,7 +204,7 @@ export class AppController {
      * @param {Object} room - Room payload.
      */
     #handleRoomSync(room) {
-        this.#roomViewController.render(room);
+        this.#roomController.render(room);
         this.#showRoom();
     }
 
@@ -212,7 +212,7 @@ export class AppController {
      * Shows the room view.
      */
     #showRoom() {
-        this.#lobbyViewController.hide();
-        this.#roomViewController.show();
+        this.#lobbyController.hide();
+        this.#roomController.show();
     }
 }

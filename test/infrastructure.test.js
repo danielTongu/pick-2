@@ -5,15 +5,69 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { Constants } from "../public/scripts/Constants.js";
+import { AlertController } from "../public/scripts/controllers/AlertController.js";
+import { CountdownController } from "../public/scripts/controllers/CountdownController.js";
+import { GameEndController } from "../public/scripts/controllers/GameEndController.js";
+import { LobbyController } from "../public/scripts/controllers/LobbyController.js";
+import { LocalPlayerController } from "../public/scripts/controllers/LocalPlayerController.js";
+import { RoomController } from "../public/scripts/controllers/RoomController.js";
+import { SuitSelectionController } from "../public/scripts/controllers/SuitSelectionController.js";
+import { ViewController } from "../public/scripts/controllers/ViewController.js";
 import { CardSortUtils } from "../public/scripts/utils/CardSortUtils.js";
 import { NormalizeUtils } from "../public/scripts/utils/NormalizeUtils.js";
 import { NotificationUtils } from "../public/scripts/utils/NotificationUtils.js";
+import { OpponentUtils } from "../public/scripts/utils/OpponentUtils.js";
+import { PlayingCardUtils } from "../public/scripts/utils/PlayingCardUtils.js";
+import { RoomTableRowUtils } from "../public/scripts/utils/RoomTableRowUtils.js";
+import { TemplateUtils } from "../public/scripts/utils/TemplateUtils.js";
+import { TurnUtils } from "../public/scripts/utils/TurnUtils.js";
 import { Serializable } from "../server/Serializable.js";
 import { StateMapper } from "../server/StateMapper.js";
 import { ThrottleGuard } from "../server/ThrottleGuard.js";
 import { UserNotification } from "../server/UserNotification.js";
 
 const INDEX_HTML = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+
+test("browser controller and template utility families share their intended APIs", () => {
+    const overlayTypes = [
+        AlertController,
+        CountdownController,
+        GameEndController,
+        SuitSelectionController
+    ];
+    const viewTypes = [LobbyController, RoomController];
+    const templateUtilityTypes = [
+        OpponentUtils,
+        PlayingCardUtils,
+        RoomTableRowUtils
+    ];
+
+    for (const Type of overlayTypes) {
+        assert.equal(Type.prototype instanceof ViewController, true);
+        assert.equal(typeof Type.prototype.show, "function");
+        assert.equal(typeof Type.prototype.hide, "function");
+    }
+
+    for (const Type of viewTypes) {
+        assert.equal(Type.prototype instanceof ViewController, true);
+        assert.equal(typeof Type.prototype.initialize, "function");
+        assert.equal(typeof Type.prototype.render, "function");
+        assert.equal(typeof Type.prototype.show, "function");
+        assert.equal(typeof Type.prototype.hide, "function");
+    }
+
+    for (const Type of templateUtilityTypes) {
+        assert.equal(Type.prototype instanceof TemplateUtils, true);
+        assert.equal(typeof Type.load, "function");
+        assert.equal(typeof Type.create, "function");
+        assert.equal(typeof Type.updateElement, "function");
+    }
+
+    assert.equal(LocalPlayerController.prototype instanceof ViewController, true);
+    assert.equal(typeof ViewController.prototype.show, "function");
+    assert.equal(typeof ViewController.prototype.hide, "function");
+    assert.equal(typeof ViewController.prototype.bindDismissButton, "function");
+});
 
 test("NormalizeUtils validates integer categories without coercion", () => {
     assert.equal(NormalizeUtils.integer(-2, "Count"), -2);
@@ -64,11 +118,16 @@ test("StateMapper builds immutable response, message, lobby, and detailed room p
         session: {playerName: "Alice"},
         circle: {
             playerCount: 1,
-            currentPlayerKey: "alice",
+            turnOwnerKey: "alice",
+            direction: 1,
             players: [{
                 key: "alice",
                 name: "Alice",
-                hand: {score: 5, cards: [{value: "5", suit: "clubs", score: 5, rotation: 10}]},
+                hand: {
+                    score: 5,
+                    sortKey: Constants.CARD.SORT_OPTIONS[0],
+                    cards: [{value: "5", suit: "clubs", score: 5, rotation: 10}]
+                },
                 drawAllowance: 2,
                 isWinner: true,
                 ws: {}
@@ -97,9 +156,13 @@ test("StateMapper builds immutable response, message, lobby, and detailed room p
     assert.equal(lobby.rooms[0].createdAt, "");
 
     const payload = StateMapper.toRoomPayload(room, "Alice");
-    assert.equal(payload.players[0].isActive, true);
-    assert.equal(payload.players[0].isConnected, true);
-    assert.equal(payload.players[0].cardCount, 1);
+    assert.equal(payload.circle.turnOwnerKey, "alice");
+    assert.equal(
+        TurnUtils.isTurnOwner(payload.circle.turnOwnerKey, payload.circle.players[0].key),
+        true
+    );
+    assert.equal(payload.circle.players[0].hand.cards.length, 1);
+    assert.equal(payload.circle.players[0].hand.score, 5);
     assert.equal(payload.discardPile.length, 2);
     assert.deepEqual(payload.discardPile[1], {suit: Constants.CARD.SUIT.SPADES, rotation: 0});
     assert.equal(payload.deckCount, 2);
@@ -128,11 +191,12 @@ test("StateMapper supplies safe defaults for incomplete room state", () => {
 
     assert.equal(payload.playerCount, 0);
     assert.equal(payload.visitorCount, 3);
-    assert.deepEqual(payload.players, []);
+    assert.deepEqual(payload.circle.players, []);
     assert.deepEqual(payload.discardPile, []);
     assert.deepEqual(payload.winners, []);
     assert.deepEqual(payload.scores, {});
     assert.equal(payload.deckCount, 0);
+    assert.equal(payload.circle.turnOwnerKey, null);
 });
 
 test("ThrottleGuard isolates scopes and supports reset, pruning, and validation", () => {

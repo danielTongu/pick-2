@@ -18,6 +18,14 @@ test("card-domain constants expose immutable canonical collections", () => {
     assert.equal(Object.isFrozen(Constants.CARD.STANDARD_VALUES), true);
 });
 
+test("default room configuration assigns two AI players to two rooms", () => {
+    assert.equal(Constants.DEFAULT_DUAL_AI_ROOM_COUNT, 2);
+    assert.equal(
+        Constants.DEFAULT_DUAL_AI_ROOM_COUNT <= Constants.DEFAULT_ROOM_NAMES.length,
+        true
+    );
+});
+
 test("card-domain suit operations share canonical suit definitions", () => {
     assert.equal(Constants.isStandardSuit(SUIT.HEARTS), true);
     assert.equal(Constants.isStandardSuit(SUIT.RED), false);

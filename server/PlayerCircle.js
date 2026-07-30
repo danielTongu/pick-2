@@ -30,7 +30,7 @@ export class PlayerCircle extends Serializable {
         this.lastKey = null;
 
         /** @type {string|null} */
-        this.currentPlayerKey = null;
+        this.turnOwnerKey = null;
 
         /** @type {number} */
         this.direction = 1;
@@ -54,15 +54,6 @@ export class PlayerCircle extends Serializable {
     }
 
     /**
-     * Returns player count.
-     *
-     * @returns {number} Player count.
-     */
-    getPlayerCount() {
-        return this.players.size;
-    }
-
-    /**
      * Returns whether there are no players.
      *
      * @returns {boolean} True when empty.
@@ -72,24 +63,31 @@ export class PlayerCircle extends Serializable {
     }
 
     /**
-     * Gets current player key.
+     * Gets turn owner.
      *
-     * @returns {string|null} Current player key.
+     * @returns {Player|null} Turn owner.
      */
-    getCurrentPlayerKey() {
-        return this.currentPlayerKey;
+    getTurnOwner() {
+        let player = null;
+
+        if (this.turnOwnerKey !== null) {
+            player = this.players.get(this.turnOwnerKey) ?? null;
+        }
+
+        return player;
     }
 
     /**
-     * Gets current player.
+     * Requires the assigned turn owner.
      *
-     * @returns {Player|null} Current player.
+     * @returns {Player} Turn owner.
+     * @throws {Error} When no turn owner is assigned.
      */
-    getCurrentPlayer() {
-        let player = null;
+    requireTurnOwner() {
+        const player = this.getTurnOwner();
 
-        if (this.currentPlayerKey !== null) {
-            player = this.players.get(this.currentPlayerKey) ?? null;
+        if (player === null) {
+            throw new Error("Turn owner is not assigned.");
         }
 
         return player;
@@ -162,39 +160,44 @@ export class PlayerCircle extends Serializable {
     }
 
     /**
-     * Sets current player.
+     * Sets or clears the turn owner.
      *
-     * @param {string} nameOrKey - Player name or key.
+     * @param {string|null} nameOrKey - Player name or key, or null to clear.
      * @throws {Error}
      */
-    setCurrentPlayer(nameOrKey) {
-        const key = Player.normalizeKey(nameOrKey);
+    setTurnOwner(nameOrKey) {
+        if (nameOrKey === null) {
+            this.turnOwnerKey = null;
+        } else {
+            const key = Player.normalizeKey(nameOrKey);
 
-        if (!this.players.has(key)) {
-            throw new Error(`Player does not exist: ${nameOrKey}`);
+            if (!this.players.has(key)) {
+                throw new Error(`Player does not exist: ${nameOrKey}`);
+            }
+
+            this.turnOwnerKey = key;
         }
 
-        this.currentPlayerKey = key;
         this.#recordActivity();
     }
 
     /**
-     * Moves current player by steps.
+     * Moves turn owner by steps.
      *
      * @param {number} steps - Number of steps to move.
      * @returns {boolean} True when moved.
      * @throws {Error}
      */
-    moveCurrentPlayer(steps = 1) {
+    moveTurnOwner(steps = 1) {
         NormalizeUtils.integer(steps, "Steps");
 
         let isMoved = false;
 
-        if (this.currentPlayerKey !== null && this.players.size > 0) {
-            const player = this.#findRelativePlayer(this.currentPlayerKey, steps);
+        if (this.turnOwnerKey !== null && this.players.size > 0) {
+            const player = this.#findRelativePlayer(this.turnOwnerKey, steps);
 
             if (player !== null) {
-                this.currentPlayerKey = player.key;
+                this.turnOwnerKey = player.key;
                 isMoved = true;
                 this.#recordActivity();
             }
@@ -204,7 +207,7 @@ export class PlayerCircle extends Serializable {
     }
 
     /**
-     * Peeks player relative to current player.
+     * Peeks player relative to turn owner.
      *
      * @param {number} steps - Number of steps to peek.
      * @returns {Player|null} Peeked player.
@@ -215,8 +218,8 @@ export class PlayerCircle extends Serializable {
 
         let player = null;
 
-        if (this.currentPlayerKey !== null) {
-            player = this.#findRelativePlayer(this.currentPlayerKey, steps);
+        if (this.turnOwnerKey !== null) {
+            player = this.#findRelativePlayer(this.turnOwnerKey, steps);
         }
 
         return player;
@@ -238,7 +241,7 @@ export class PlayerCircle extends Serializable {
      * Resets turn cursor and player round state.
      */
     reset() {
-        this.currentPlayerKey = this.firstKey;
+        this.turnOwnerKey = null;
         this.direction = 1;
 
         for (const player of this.players.values()) {
@@ -270,10 +273,10 @@ export class PlayerCircle extends Serializable {
                 currentKey = "";
                 remaining = 0;
             } else if (direction > 0) {
-                currentKey = current.getNextKey();
+                currentKey = current.nextKey;
                 remaining -= 1;
             } else {
-                currentKey = current.getPrevKey();
+                currentKey = current.prevKey;
                 remaining -= 1;
             }
         }
@@ -313,8 +316,7 @@ export class PlayerCircle extends Serializable {
      * @returns {{
      *     players:Object[],
      *     playerCount:number,
-     *     currentPlayerName:string|null,
-     *     currentPlayerKey:string|null,
+     *     turnOwnerKey:string|null,
      *     direction:number,
      *     createdAt:number,
      *     lastActiveAt:number
@@ -330,8 +332,7 @@ export class PlayerCircle extends Serializable {
         return {
             players,
             playerCount: this.players.size,
-            currentPlayerName: this.getCurrentPlayer()?.name ?? null,
-            currentPlayerKey: this.currentPlayerKey,
+            turnOwnerKey: this.turnOwnerKey,
             direction: this.direction,
             createdAt: this.createdAt,
             lastActiveAt: this.lastActiveAt
@@ -349,7 +350,7 @@ export class PlayerCircle extends Serializable {
         this.players.set(player.key, player);
         this.firstKey = player.key;
         this.lastKey = player.key;
-        this.currentPlayerKey = player.key;
+        this.turnOwnerKey = null;
     }
 
     /**
@@ -362,8 +363,8 @@ export class PlayerCircle extends Serializable {
         const last = this.#requirePlayerByKey(this.lastKey);
 
         player.setTurnLinks(first.key, last.key);
-        last.setTurnLinks(player.key, last.getPrevKey());
-        first.setTurnLinks(first.getNextKey(), player.key);
+        last.setTurnLinks(player.key, last.prevKey);
+        first.setTurnLinks(first.nextKey, player.key);
 
         this.players.set(player.key, player);
         this.lastKey = player.key;
@@ -378,7 +379,7 @@ export class PlayerCircle extends Serializable {
         this.players.delete(key);
         this.firstKey = null;
         this.lastKey = null;
-        this.currentPlayerKey = null;
+        this.turnOwnerKey = null;
     }
 
     /**
@@ -387,11 +388,11 @@ export class PlayerCircle extends Serializable {
      * @param {Player} player - Player to unlink.
      */
     #unlinkPlayerFromCircle(player) {
-        const prev = this.#requirePlayerByKey(player.getPrevKey());
-        const next = this.#requirePlayerByKey(player.getNextKey());
+        const prev = this.#requirePlayerByKey(player.prevKey);
+        const next = this.#requirePlayerByKey(player.nextKey);
 
-        prev.setTurnLinks(next.key, prev.getPrevKey());
-        next.setTurnLinks(next.getNextKey(), prev.key);
+        prev.setTurnLinks(next.key, prev.prevKey);
+        next.setTurnLinks(next.nextKey, prev.key);
 
         if (player.key === this.firstKey) {
             this.firstKey = next.key;
@@ -401,8 +402,8 @@ export class PlayerCircle extends Serializable {
             this.lastKey = prev.key;
         }
 
-        if (player.key === this.currentPlayerKey) {
-            this.currentPlayerKey = this.direction > 0 ? next.key : prev.key;
+        if (player.key === this.turnOwnerKey) {
+            this.turnOwnerKey = this.direction > 0 ? next.key : prev.key;
         }
 
         player.setTurnLinks(null, null);

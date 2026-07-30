@@ -1,4 +1,4 @@
-// public/utils/TemplateComponentUtils.js
+// public/scripts/utils/TemplateUtils.js
 
 "use strict";
 
@@ -9,7 +9,7 @@ import { NormalizeUtils } from "./NormalizeUtils.js";
 /**
  * Base class for HTML template-backed UI fragments.
  */
-export class TemplateComponentUtils {
+export class TemplateUtils {
     static template = null;
     static templateId = "";
     static templateFile = "index.html";
@@ -41,7 +41,7 @@ export class TemplateComponentUtils {
     static async loadTemplate(templateId, componentUrl, templateFile = "index.html") {
         const normalizedTemplateId = NormalizeUtils.requiredString(templateId, "Template id");
         const normalizedTemplateFile = NormalizeUtils.requiredString(templateFile, "Template file");
-        const htmlUrl = new URL(`../html-templates/${normalizedTemplateFile}`, location.href).href;
+        const htmlUrl = new URL(`../templates/${normalizedTemplateFile}`, location.href).href;
         const response = await fetch(htmlUrl);
 
         if (!response.ok) {
@@ -148,40 +148,4 @@ export class TemplateComponentUtils {
         return element;
     }
 
-    /**
-     * Finds a required child inside a root element.
-     *
-     * @param {*} scope - Parent search scope.
-     * @param {string} selector - CSS selector.
-     * @param {Function} Type - Expected element constructor.
-     * @returns {Element} Matching child element.
-     */
-    static requireChild(scope, selector, Type = HTMLElement) {
-        return DomUtils.requireChild(scope, selector, Type);
-    }
-
-    /**
-     * Validates a table row element.
-     *
-     * @param {*} element - Element to validate.
-     * @returns {HTMLTableRowElement} Valid table row.
-     */
-    static assertTableRow(element) {
-        return AssertUtils.instanceOf(element, HTMLTableRowElement, `${this.name} element`);
-    }
-
-    /**
-     * Assigns a boolean dataset state as its string representation.
-     *
-     * @param {HTMLElement} element - Target element.
-     * @param {string} name - Dataset state name.
-     * @param {boolean} isEnabled - Whether state is enabled.
-     */
-    static setBooleanDataState(element, name, isEnabled) {
-        DomUtils.setBooleanState(
-            element,
-            NormalizeUtils.requiredString(name, "Dataset state name"),
-            NormalizeUtils.boolean(isEnabled, "Dataset state value")
-        );
-    }
 }

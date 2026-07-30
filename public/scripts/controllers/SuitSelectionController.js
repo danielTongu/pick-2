@@ -1,21 +1,16 @@
-// public/scripts/SuitSelectionOverlayController.js
+// public/scripts/controllers/SuitSelectionController.js
 
 "use strict";
 
 import { DomUtils } from "../utils/DomUtils.js";
+import { ViewController } from "./ViewController.js";
 
 /**
  * Controls the singleton suit-selection overlay.
  */
-export class SuitSelectionOverlayController {
+export class SuitSelectionController extends ViewController {
     /** @type {Function|null} */
     #submitHandler = null;
-
-    /** @type {HTMLElement} */
-    #dialog;
-
-    /** @type {HTMLButtonElement} */
-    #cancelButton;
 
     /** @type {HTMLButtonElement} */
     #submitButton;
@@ -27,18 +22,14 @@ export class SuitSelectionOverlayController {
      * @throws {Error}
      */
     constructor(selector) {
-        this.#dialog = DomUtils.require(selector, HTMLElement);
-        this.#cancelButton = DomUtils.requireChild(
-            this.#dialog,
-            "#suit-selection-cancel-button",
-            HTMLButtonElement
-        );
+        super(selector);
         this.#submitButton = DomUtils.requireChild(
-            this.#dialog,
+            this.root,
             "#suit-selection-submit-button",
             HTMLButtonElement
         );
 
+        this.bindDismissButton("#suit-selection-dismiss-button");
         this.#bindEvents();
     }
 
@@ -57,28 +48,9 @@ export class SuitSelectionOverlayController {
     }
 
     /**
-     * Shows the overlay.
-     */
-    show() {
-        DomUtils.show(this.#dialog);
-    }
-
-    /**
-     * Hides the overlay.
-     */
-    hide() {
-        DomUtils.hide(this.#dialog);
-    }
-
-    /**
      * Binds overlay events.
      */
     #bindEvents() {
-        this.#cancelButton.addEventListener("click", function (event) {
-            event.preventDefault();
-            this.hide();
-        }.bind(this));
-
         this.#submitButton.addEventListener("click", function (event) {
             event.preventDefault();
             this.#submitSelectedSuit();
@@ -106,7 +78,7 @@ export class SuitSelectionOverlayController {
      * @returns {string|null} Selected suit.
      */
     #getSelectedSuit() {
-        const selected = this.#dialog.querySelector(
+        const selected = this.root.querySelector(
             "input[name='suit']:checked"
         );
 

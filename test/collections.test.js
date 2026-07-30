@@ -10,6 +10,7 @@ import { Hand } from "../server/Hand.js";
 import { Player } from "../server/Player.js";
 import { PlayerCircle } from "../server/PlayerCircle.js";
 import { CardSortUtils } from "../public/scripts/utils/CardSortUtils.js";
+import { TurnUtils } from "../public/scripts/utils/TurnUtils.js";
 
 const { VALUE, SUIT } = Constants.CARD;
 
@@ -96,22 +97,32 @@ test("shared sorting returns an ordered copy for browser rendering", () => {
 
 test("player circle moves, reverses, and remains linked after removal", () => {
     const circle = new PlayerCircle();
-    circle.addPlayer(new Player("Alice"));
-    circle.addPlayer(new Player("Bob"));
+    const alice = circle.addPlayer(new Player("Alice"));
+    const bob = circle.addPlayer(new Player("Bob"));
     circle.addPlayer(new Player("Casey"));
 
-    circle.setCurrentPlayer("Alice");
+    assert.equal(circle.turnOwnerKey, null);
+    assert.equal(TurnUtils.hasTurnOwner(circle.turnOwnerKey), false);
+    assert.equal(TurnUtils.isTurnOwner(circle.turnOwnerKey, alice.key), false);
+    assert.throws(() => circle.requireTurnOwner(), /Turn owner is not assigned/);
+
+    circle.setTurnOwner("Alice");
+    assert.equal(circle.turnOwnerKey, alice.key);
+    assert.equal(TurnUtils.hasTurnOwner(circle.turnOwnerKey), true);
+    assert.equal(TurnUtils.isTurnOwner(circle.turnOwnerKey, alice.key), true);
+    assert.equal(TurnUtils.isTurnOwner(circle.turnOwnerKey, bob.key), false);
+    assert.equal(circle.requireTurnOwner(), alice);
     assert.equal(circle.getRelativePlayer(1).name, "Bob");
 
-    circle.moveCurrentPlayer();
-    assert.equal(circle.getCurrentPlayer().name, "Bob");
+    circle.moveTurnOwner();
+    assert.equal(circle.getTurnOwner().name, "Bob");
 
     circle.reverseTurnDirection();
-    circle.moveCurrentPlayer();
-    assert.equal(circle.getCurrentPlayer().name, "Alice");
+    circle.moveTurnOwner();
+    assert.equal(circle.getTurnOwner().name, "Alice");
 
     circle.removePlayer("Alice");
-    assert.equal(circle.getCurrentPlayer().name, "Casey");
+    assert.equal(circle.getTurnOwner().name, "Casey");
     assert.equal(circle.getRelativePlayer(1).name, "Bob");
     assert.equal(circle.getRelativePlayer(2).name, "Casey");
 });

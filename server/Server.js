@@ -183,11 +183,15 @@ export default class Server {
      * Creates the default rooms and AI players.
      */
     #initializeDefaultRooms() {
-        for (const roomName of Constants.DEFAULT_ROOM_NAMES) {
+        for (const [roomIndex, roomName] of Constants.DEFAULT_ROOM_NAMES.entries()) {
             const roomKey = this.#normalizeRoomKey(roomName);
             const room = this.#registerRoom(roomName, Constants.ROOM_MAX_CAPACITY, roomKey);
 
             void room.admitPlayer("AI-Player", true);
+
+            if (roomIndex < Constants.DEFAULT_DUAL_AI_ROOM_COUNT) {
+                void room.admitPlayer("AI-Player-2", true);
+            }
         }
     }
 
@@ -819,11 +823,10 @@ export default class Server {
         } catch (error) {
             if (error instanceof UserNotification) {
                 this.#sendErrorNotification(ws, error.message);
-                return;
+            } else {
+                this.#sendErrorNotification(ws, "Server error occurred.");
+                throw error;
             }
-
-            this.#sendErrorNotification(ws, "Server error occurred.");
-            throw error;
         }
     }
 
@@ -1450,17 +1453,17 @@ export default class Server {
 
         if (room !== null) {
             if (room.status === Constants.STATUS.PENDING) {
-                const currentPlayer = room.getCurrentPlayer();
+                const turnOwner = room.circle.getTurnOwner();
 
-                if (currentPlayer instanceof AIPlayer) {
-                    await currentPlayer.chooseSuit(room);
+                if (turnOwner instanceof AIPlayer) {
+                    await turnOwner.chooseSuit(room);
                     await this.#runAutomatedTurn(roomKey);
                 }
             } else if (room.status === Constants.STATUS.PLAYING) {
-                const currentPlayer = room.getCurrentPlayer();
+                const turnOwner = room.circle.getTurnOwner();
 
-                if (currentPlayer instanceof AIPlayer) {
-                    await currentPlayer.takeTurn(room);
+                if (turnOwner instanceof AIPlayer) {
+                    await turnOwner.takeTurn(room);
                     await this.#runAutomatedTurn(roomKey);
                 }
             }

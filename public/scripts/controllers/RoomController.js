@@ -1,45 +1,41 @@
-// public/scripts/RoomViewController.js
+// public/scripts/controllers/RoomController.js
 
 "use strict";
 
 import { Constants } from "../Constants.js";
-import { OpponentAvatarCardUtils } from "../utils/OpponentAvatarCardUtils.js";
+import { OpponentUtils } from "../utils/OpponentUtils.js";
 import { PlayingCardUtils } from "../utils/PlayingCardUtils.js";
 import { RoomTableRowUtils } from "../utils/RoomTableRowUtils.js";
 import { DomUtils } from "../utils/DomUtils.js";
 import { NormalizeUtils } from "../utils/NormalizeUtils.js";
-import { LocalPlayerRegionController } from "./LocalPlayerRegionController.js";
-import { CountdownOverlayController } from "./CountdownOverlayController.js";
-import { GameEndOverlayController } from "./GameEndOverlayController.js";
-import { SuitSelectionOverlayController } from "./SuitSelectionOverlayController.js";
+import { LocalPlayerController } from "./LocalPlayerController.js";
+import { CountdownController } from "./CountdownController.js";
+import { GameEndController } from "./GameEndController.js";
+import { SuitSelectionController } from "./SuitSelectionController.js";
+import { TurnUtils } from "../utils/TurnUtils.js";
+import { ViewController } from "./ViewController.js";
 
 /**
  * Controls the room view UI.
  */
-export class RoomViewController {
+export class RoomController extends ViewController {
     /** @type {Object|null} */
     #room = null;
 
     /** @type {string} */
     #previousRoomStatus = "";
 
-    /** @type {import("../ConnectionService.js").ConnectionService} */
-    #connectionService;
+    /** @type {LocalPlayerController} */
+    #localPlayerController;
 
-    /** @type {HTMLElement} */
-    #roomView;
+    /** @type {SuitSelectionController} */
+    #suitSelectionController;
 
-    /** @type {LocalPlayerRegionController} */
-    #localPlayerRegionController;
+    /** @type {CountdownController} */
+    #countdownController;
 
-    /** @type {SuitSelectionOverlayController} */
-    #suitSelectionOverlayController;
-
-    /** @type {CountdownOverlayController} */
-    #countdownOverlayController;
-
-    /** @type {GameEndOverlayController} */
-    #gameEndOverlayController;
+    /** @type {GameEndController} */
+    #gameEndController;
 
     /**
      * Creates a room view controller.
@@ -47,12 +43,11 @@ export class RoomViewController {
      * @param {import("../ConnectionService.js").ConnectionService} client - Browser-tab client.
      */
     constructor(client) {
-        this.#connectionService = client;
-        this.#roomView = DomUtils.require("#room-view", HTMLElement);
-        this.#localPlayerRegionController = new LocalPlayerRegionController("#local-player-region");
-        this.#suitSelectionOverlayController = new SuitSelectionOverlayController("#suit-selection-dialog");
-        this.#countdownOverlayController = new CountdownOverlayController("#countdown-dialog");
-        this.#gameEndOverlayController = new GameEndOverlayController("#game-end-dialog");
+        super("#room-view", client);
+        this.#localPlayerController = new LocalPlayerController("#local-player-region");
+        this.#suitSelectionController = new SuitSelectionController("#suit-selection-dialog");
+        this.#countdownController = new CountdownController("#countdown-dialog");
+        this.#gameEndController = new GameEndController("#game-end-dialog");
     }
 
     /**
@@ -63,7 +58,7 @@ export class RoomViewController {
     async initialize() {
         await Promise.all([
             RoomTableRowUtils.load(),
-            OpponentAvatarCardUtils.load(),
+            OpponentUtils.load(),
             PlayingCardUtils.load()
         ]);
 
@@ -76,17 +71,10 @@ export class RoomViewController {
     }
 
     /**
-     * Shows the room view.
-     */
-    show() {
-        DomUtils.show(this.#roomView);
-    }
-
-    /**
      * Hides the room view.
      */
     hide() {
-        DomUtils.hide(this.#roomView);
+        super.hide();
         this.#hideTransientOverlays();
     }
 
@@ -98,7 +86,7 @@ export class RoomViewController {
     render(room) {
         const previousStatus = this.#previousRoomStatus;
         const nextStatus = NormalizeUtils.optionalString(room?.status, "");
-        const localPlayer = RoomViewController.#getLocalPlayer(room);
+        const localPlayer = RoomController.#getLocalPlayer(room);
 
         this.#room = room;
         this.#previousRoomStatus = nextStatus;
@@ -117,20 +105,20 @@ export class RoomViewController {
      * Initializes the local-player controller and its callbacks.
      */
     #initializeLocalPlayerController() {
-        this.#localPlayerRegionController.initialize();
+        this.#localPlayerController.initialize();
 
-        this.#localPlayerRegionController.setActionHandler(function (action) {
-            if (RoomViewController.#isCardMove(action)) {
+        this.#localPlayerController.setActionHandler(function (action) {
+            if (RoomController.#isCardMove(action)) {
                 this.#sendCardMove(action);
             } else {
-                this.#connectionService.send(action);
+                this.connectionService.send(action);
             }
         }.bind(this));
 
-        this.#localPlayerRegionController.setSortHandler(function (sortKey) {
+        this.#localPlayerController.setSortHandler(function (sortKey) {
             const normalizedSortKey = NormalizeUtils.requiredString(sortKey, "Sort key");
 
-            this.#connectionService.sortKey = normalizedSortKey;
+            this.connectionService.sortKey = normalizedSortKey;
             this.render(this.#room);
         }.bind(this));
     }
@@ -142,10 +130,10 @@ export class RoomViewController {
      * @param {Object} payload - Move payload.
      */
     #sendCardMove(action, payload = {}) {
-        const sent = this.#connectionService.send(action, payload);
+        const sent = this.connectionService.send(action, payload);
 
         if (sent) {
-            this.#connectionService.sortKey = Constants.CARD.SORT_OPTIONS[0];
+            this.connectionService.sortKey = Constants.CARD.SORT_OPTIONS[0];
             this.render(this.#room);
         }
     }
@@ -166,8 +154,8 @@ export class RoomViewController {
      * Binds suit-selection overlay callbacks.
      */
     #bindSuitSelectionOverlay() {
-        this.#suitSelectionOverlayController.setSubmitHandler(function (suit) {
-            this.#connectionService.send(Constants.ACTIONS.SUIT_CHANGE, {
+        this.#suitSelectionController.setSubmitHandler(function (suit) {
+            this.connectionService.send(Constants.ACTIONS.SUIT_CHANGE, {
                 suit: NormalizeUtils.requiredString(suit, "Suit")
             });
         }.bind(this));
@@ -219,7 +207,7 @@ export class RoomViewController {
         } else if (action === "invite") {
             this.#copyRoomInvite();
         } else {
-            this.#connectionService.send(action);
+            this.connectionService.send(action);
         }
     }
 
@@ -240,7 +228,7 @@ export class RoomViewController {
      * Hides overlays that should not persist across renders.
      */
     #hideTransientOverlays() {
-        this.#suitSelectionOverlayController.hide();
+        this.#suitSelectionController.hide();
     }
 
     /**
@@ -263,13 +251,13 @@ export class RoomViewController {
      */
     #renderOpponentPlayers(room) {
         const row = DomUtils.require("#opponent-player-list", HTMLElement);
-        const localPlayerName = RoomViewController.#getLocalPlayerName(room);
+        const localPlayerName = RoomController.#getLocalPlayerName(room);
 
         row.replaceChildren();
 
-        for (const player of RoomViewController.#getPlayers(room)) {
+        for (const player of RoomController.#getPlayers(room)) {
             if (player.name !== localPlayerName) {
-                row.appendChild(OpponentAvatarCardUtils.create(player));
+                row.appendChild(OpponentUtils.create(player, room.circle));
             }
         }
     }
@@ -298,9 +286,9 @@ export class RoomViewController {
      */
     #renderLocalPlayer(player, room) {
         if (player === null) {
-            this.#localPlayerRegionController.hide();
+            this.#localPlayerController.hide();
         } else {
-            this.#localPlayerRegionController.show(player, room, this.#connectionService.sortKey);
+            this.#localPlayerController.show(player, room, this.connectionService.sortKey);
         }
     }
 
@@ -317,7 +305,7 @@ export class RoomViewController {
             previousStatus === Constants.STATUS.WAITING &&
             nextStatus === Constants.STATUS.PLAYING
         ) {
-            this.#countdownOverlayController.show(5);
+            this.#countdownController.show(5);
         }
     }
 
@@ -331,9 +319,9 @@ export class RoomViewController {
         if (
             room?.status === Constants.STATUS.PENDING &&
             localPlayer !== null &&
-            localPlayer.isActive === true
+            TurnUtils.isTurnOwner(room.circle?.turnOwnerKey, localPlayer.key)
         ) {
-            this.#suitSelectionOverlayController.show();
+            this.#suitSelectionController.show();
         }
     }
 
@@ -345,7 +333,7 @@ export class RoomViewController {
      */
     #showGameEndIfNeeded(room, localPlayer) {
         if (localPlayer !== null && room?.status === Constants.STATUS.FINISHED) {
-            this.#gameEndOverlayController.show(room);
+            this.#gameEndController.show(room);
         }
     }
 
@@ -357,7 +345,7 @@ export class RoomViewController {
         const playerName = window.prompt("Enter your name:");
 
         if (roomName && playerName !== null && playerName.trim()) {
-            this.#connectionService.send(Constants.ACTIONS.PROMOTE_VISITOR, {
+            this.connectionService.send(Constants.ACTIONS.PROMOTE_VISITOR, {
                 roomName,
                 playerName: NormalizeUtils.requiredString(playerName, "Player name")
             });
@@ -375,14 +363,14 @@ export class RoomViewController {
 
             navigator.clipboard.writeText(url)
                 .then(function () {
-                    this.#connectionService.showAlert({
+                    this.connectionService.showAlert({
                         status: Constants.STATUS.INFO,
                         title: "Invite Copied",
                         message: "The room link is ready to share."
                     });
                 }.bind(this))
                 .catch(function () {
-                    this.#connectionService.showAlert({
+                    this.connectionService.showAlert({
                         status: Constants.STATUS.ERROR,
                         title: "Copy Failed",
                         message: "Copy the address from your browser instead."
@@ -398,7 +386,7 @@ export class RoomViewController {
      * @returns {Object[]} Player payloads.
      */
     static #getPlayers(room) {
-        return room.players;
+        return Array.isArray(room?.circle?.players) ? room.circle.players : [];
     }
 
     /**
@@ -418,10 +406,10 @@ export class RoomViewController {
      * @returns {Object|null} Local player payload.
      */
     static #getLocalPlayer(room) {
-        const playerName = RoomViewController.#getLocalPlayerName(room);
+        const playerName = RoomController.#getLocalPlayerName(room);
         let localPlayer = null;
 
-        for (const player of RoomViewController.#getPlayers(room)) {
+        for (const player of RoomController.#getPlayers(room)) {
             if (player.name === playerName) {
                 localPlayer = player;
                 break;

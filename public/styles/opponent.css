@@ -39,7 +39,7 @@
     font-style: italic;
 }
 
-.opponent-avatar-card {
+.opponent {
     --opponent-height: 100cqh;
     --opponent-width: calc(var(--opponent-height) * .72);
     --opponent-skin: #edbb99;
@@ -62,7 +62,7 @@
     user-select: none;
 }
 
-.opponent-avatar-card::before {
+.opponent::before {
     content: attr(data-player-name);
 
     display: block;
@@ -78,11 +78,11 @@
     line-height: 1.1;
 }
 
-.opponent-avatar-card[data-card-count="0"]::after {
+.opponent[data-card-count="0"]::after {
     display: none;
 }
 
-.opponent-avatar-card::after {
+.opponent::after {
     content: attr(data-card-count);
 
     position: absolute;
@@ -106,7 +106,7 @@
     line-height: 1;
 }
 
-.opponent-avatar-card > div {
+.opponent > div {
     position: relative;
     min-height: 0;
     display: grid;
@@ -114,36 +114,36 @@
     place-items: center;
 }
 
-.opponent-avatar-card > div::before,
-.opponent-avatar-card > div::after {
+.opponent > div::before,
+.opponent > div::after {
     content: "";
     display: block;
     background: var(--opponent-skin);
 }
 
-.opponent-avatar-card > div::before {
+.opponent > div::before {
     width: 50%;
     aspect-ratio: 1;
     border-radius: 50%;
     margin: 0 auto;
 }
 
-.opponent-avatar-card > div::after {
+.opponent > div::after {
     border-radius: 50% 50% 0 0;
     width: 100%;
     height: 100%;
 }
 
-.opponent-avatar-card[data-is-active="true"] {
+.opponent[data-is-turn-owner="true"] {
     border-color: limegreen;
     box-shadow: 0 0 10px rgba(50,205,50,.45);
 }
 
-.opponent-avatar-card[data-is-winner="true"] {
+.opponent[data-is-winner="true"] {
     border-color: gold;
     box-shadow: 0 0 12px rgba(255,215,0,.45);
 }
 
-.opponent-avatar-card[data-is-winner="true"]::before {
+.opponent[data-is-winner="true"]::before {
     content: "🏆 " attr(data-player-name);
 }

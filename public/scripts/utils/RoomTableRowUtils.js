@@ -1,14 +1,15 @@
 // public/utils/RoomTableRowUtils.js
 
 import { Constants } from "../Constants.js";
+import { AssertUtils } from "./AssertUtils.js";
 import { DomUtils } from "./DomUtils.js";
 import { NormalizeUtils } from "./NormalizeUtils.js";
-import { TemplateComponentUtils } from "./TemplateComponentUtils.js";
+import { TemplateUtils } from "./TemplateUtils.js";
 
 /**
  * Room row fragment.
  */
-export class RoomTableRowUtils extends TemplateComponentUtils {
+export class RoomTableRowUtils extends TemplateUtils {
     /** @type {HTMLTemplateElement|null} */
     static template = null;
 
@@ -32,7 +33,7 @@ export class RoomTableRowUtils extends TemplateComponentUtils {
      * @throws {Error}
      */
     static updateElement(element, room = {}) {
-        this.assertTableRow(element);
+        AssertUtils.instanceOf(element, HTMLTableRowElement, `${this.name} element`);
 
         const data = RoomTableRowUtils.#normalizeRoom(room);
 

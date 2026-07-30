@@ -70,10 +70,14 @@ export class CardSortUtils {
      * @returns {number} Score.
      */
     static #calculateCardScore(card) {
+        let score;
+
         if (Number.isFinite(card.score)) {
-            return card.score;
+            score = card.score;
+        } else {
+            score = Constants.getCardScore(card.value, card.suit);
         }
 
-        return Constants.getCardScore(card.value, card.suit);
+        return score;
     }
 }

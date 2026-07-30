@@ -73,7 +73,7 @@ The suite covers cards and scoring, collections, serialization, state mapping, t
 2. Enter an existing room as a player or visitor, or create a room.
 3. Visitors may join the game while room membership is unlocked.
 4. A game may start when at least two players are seated.
-5. On your turn, discard a legal card, draw, or pass when allowed.
+5. During a game, the turn owner may discard a legal card, draw, or pass when allowed. In a waiting room, no turn owner is assigned, so any seated player may draw or discard.
 6. Empty your hand, or play the seven of hearts, to finish the game.
 7. The player or tied players with the lowest remaining hand score win.
 
@@ -97,7 +97,7 @@ Other standard cards use their natural rank as their score.
 
 ```text
 public/
-  html-templates/       Reusable browser component templates
+  templates/            Reusable browser component templates
   images/               Card artwork
   scripts/
     controllers/        View and overlay controllers

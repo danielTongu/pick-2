@@ -4,12 +4,12 @@
 
 import { DomUtils } from "./DomUtils.js";
 import { NormalizeUtils } from "./NormalizeUtils.js";
-import { TemplateComponentUtils } from "./TemplateComponentUtils.js";
+import { TemplateUtils } from "./TemplateUtils.js";
 
 /**
  * Playing card fragment.
  */
-export class PlayingCardUtils extends TemplateComponentUtils {
+export class PlayingCardUtils extends TemplateUtils {
     /** @type {HTMLTemplateElement|null} */
     static template = null;
 
@@ -273,10 +273,9 @@ export class PlayingCardUtils extends TemplateComponentUtils {
             if (PlayingCardUtils.#draggedElements.has(element)) {
                 PlayingCardUtils.#draggedElements.delete(element);
                 event.preventDefault();
-                return;
+            } else {
+                PlayingCardUtils.toggleFace(element);
             }
-
-            PlayingCardUtils.toggleFace(element);
         }
     }
 
@@ -349,30 +348,27 @@ export class PlayingCardUtils extends TemplateComponentUtils {
         if (PlayingCardUtils.#originalCard === null && PlayingCardUtils.#pendingCard !== null) {
             const deltaX = event.clientX - PlayingCardUtils.#pointerDownX;
             const deltaY = event.clientY - PlayingCardUtils.#pointerDownY;
+            const hasReachedDragThreshold = Math.hypot(deltaX, deltaY) >= PlayingCardUtils.#dragThreshold;
 
-            if (Math.hypot(deltaX, deltaY) < PlayingCardUtils.#dragThreshold) {
-                return;
+            if (hasReachedDragThreshold) {
+                PlayingCardUtils.#startDrag(PlayingCardUtils.#pendingCard, {
+                    clientX: PlayingCardUtils.#pointerDownX,
+                    clientY: PlayingCardUtils.#pointerDownY
+                });
             }
-
-            PlayingCardUtils.#startDrag(PlayingCardUtils.#pendingCard, {
-                clientX: PlayingCardUtils.#pointerDownX,
-                clientY: PlayingCardUtils.#pointerDownY
-            });
         }
 
-        if (PlayingCardUtils.#originalCard === null) {
-            return;
-        }
+        if (PlayingCardUtils.#originalCard !== null) {
+            event.preventDefault();
+            PlayingCardUtils.#updateClonePosition(event.clientX, event.clientY);
 
-        event.preventDefault();
-        PlayingCardUtils.#updateClonePosition(event.clientX, event.clientY);
+            const dropTarget = PlayingCardUtils.#getDropTarget();
 
-        const dropTarget = PlayingCardUtils.#getDropTarget();
-
-        if (dropTarget instanceof HTMLElement && PlayingCardUtils.#isOriginalCardDiscardable()) {
-            PlayingCardUtils.#updateDropTargetState(dropTarget, event.clientX, event.clientY);
-        } else {
-            PlayingCardUtils.#clearDropTargetState(dropTarget);
+            if (dropTarget instanceof HTMLElement && PlayingCardUtils.#isOriginalCardDiscardable()) {
+                PlayingCardUtils.#updateDropTargetState(dropTarget, event.clientX, event.clientY);
+            } else {
+                PlayingCardUtils.#clearDropTargetState(dropTarget);
+            }
         }
     }
 

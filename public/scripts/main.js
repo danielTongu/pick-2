@@ -3,8 +3,8 @@
 "use strict";
 
 import { AppController } from "./controllers/AppController.js";
-import { LobbyViewController } from "./controllers/LobbyViewController.js";
-import { RoomViewController } from "./controllers/RoomViewController.js";
+import { LobbyController } from "./controllers/LobbyController.js";
+import { RoomController } from "./controllers/RoomController.js";
 import { ConnectionService } from "./ConnectionService.js";
 
 /**
@@ -43,9 +43,9 @@ function registerGlobalErrorHandlers() {
  */
 async function main() {
     const connection = new ConnectionService();
-    const lobbyView = new LobbyViewController(connection);
-    const roomView = new RoomViewController(connection);
-    const app = new AppController(connection, lobbyView, roomView);
+    const lobbyController = new LobbyController(connection);
+    const roomController = new RoomController(connection);
+    const app = new AppController(connection, lobbyController, roomController);
 
     await app.start();
 }

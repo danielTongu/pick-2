@@ -41,7 +41,7 @@ export class StateMapper {
     }
 
     /**
-     * Builds LobbyViewController-ready payload.
+     * Builds a LobbyController-ready payload.
      *
      * @param {Iterable<import("./Room.js").Room>} rooms - Rooms.
      * @returns {{rooms:Object[]}} Lobby payload.
@@ -80,7 +80,7 @@ export class StateMapper {
     }
 
     /**
-     * Builds RoomViewController-ready payload.
+     * Builds a RoomController-ready payload.
      *
      * @param {import("./Room.js").Room} room - Room.
      * @param {string|null} playerName - Session player name.
@@ -145,7 +145,7 @@ export class StateMapper {
      */
     static #toRoomGameplay(state) {
         return Object.freeze({
-            players: StateMapper.#toPlayers(state),
+            circle: StateMapper.#toCircle(state),
             discardPile: StateMapper.#toDiscardPile(state),
 
             deckCount: Array.isArray(state.deck?.cards) ? state.deck.cards.length : 0,
@@ -154,6 +154,24 @@ export class StateMapper {
 
             isAwaitingSuit: state.isAwaitingSuit === true,
             declaredSuit: state.declaredSuit ?? null
+        });
+    }
+
+    /**
+     * Builds the browser-safe player-circle shape.
+     *
+     * Field names match the server-side circle; only collection and player values are
+     * converted into JSON-safe representations.
+     *
+     * @param {Object} state - Serialized room state.
+     * @returns {Object} Player circle DTO.
+     */
+    static #toCircle(state) {
+        return Object.freeze({
+            players: StateMapper.#toPlayers(state),
+            playerCount: state.circle?.playerCount ?? 0,
+            turnOwnerKey: state.circle?.turnOwnerKey ?? null,
+            direction: state.circle?.direction ?? 1
         });
     }
 
@@ -174,14 +192,15 @@ export class StateMapper {
             const cards = StateMapper.#toCards(hand.cards);
 
             players.push(Object.freeze({
+                key: player.key,
                 name: player.name,
-                cards,
-                score: hand.score,
-                cardCount: cards.length,
+                hand: Object.freeze({
+                    cards,
+                    score: hand.score,
+                    sortKey: hand.sortKey ?? Constants.CARD.SORT_OPTIONS[0]
+                }),
                 drawAllowance: player.drawAllowance,
-                isActive: player.key === state.circle?.currentPlayerKey,
-                isWinner: player.isWinner === true,
-                isConnected: player.ws !== null
+                isWinner: player.isWinner === true
             }));
         }
 
