@@ -3,7 +3,7 @@
 "use strict";
 
 import { Constants } from "../Constants.js";
-import { PlayingCardUtils } from "../utils/PlayingCardUtils.js";
+import { PlayingCard } from "../elements/PlayingCard.js";
 import { DomUtils } from "../utils/DomUtils.js";
 import { NormalizeUtils } from "../utils/NormalizeUtils.js";
 import { ViewController } from "./ViewController.js";
@@ -172,9 +172,7 @@ export class GameEndController extends ViewController {
         this.#selectedPlayerCards.replaceChildren();
 
         for (const card of cards) {
-            this.#selectedPlayerCards.appendChild(
-                PlayingCardUtils.create(card)
-            );
+            this.#selectedPlayerCards.appendChild(PlayingCard.create(card));
         }
     }
 

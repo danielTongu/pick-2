@@ -2,18 +2,18 @@
 
 "use strict";
 
-import { Constants } from "../Constants.js";
-import { OpponentUtils } from "../utils/OpponentUtils.js";
-import { PlayingCardUtils } from "../utils/PlayingCardUtils.js";
-import { RoomTableRowUtils } from "../utils/RoomTableRowUtils.js";
-import { DomUtils } from "../utils/DomUtils.js";
-import { NormalizeUtils } from "../utils/NormalizeUtils.js";
-import { LocalPlayerController } from "./LocalPlayerController.js";
-import { CountdownController } from "./CountdownController.js";
-import { GameEndController } from "./GameEndController.js";
-import { SuitSelectionController } from "./SuitSelectionController.js";
-import { TurnUtils } from "../utils/TurnUtils.js";
-import { ViewController } from "./ViewController.js";
+import {Constants} from "../Constants.js";
+import {OpponentUtils} from "../utils/OpponentUtils.js";
+import {PlayingCard} from "../elements/PlayingCard.js";
+import {RoomRowUtils} from "../utils/RoomRowUtils.js";
+import {DomUtils} from "../utils/DomUtils.js";
+import {NormalizeUtils} from "../utils/NormalizeUtils.js";
+import {LocalPlayerController} from "./LocalPlayerController.js";
+import {CountdownController} from "./CountdownController.js";
+import {GameEndController} from "./GameEndController.js";
+import {SuitSelectionController} from "./SuitSelectionController.js";
+import {TurnUtils} from "../utils/TurnUtils.js";
+import {ViewController} from "./ViewController.js";
 
 /**
  * Controls the room view UI.
@@ -57,12 +57,11 @@ export class RoomController extends ViewController {
      */
     async initialize() {
         await Promise.all([
-            RoomTableRowUtils.load(),
-            OpponentUtils.load(),
-            PlayingCardUtils.load()
+            RoomRowUtils.load(),
+            OpponentUtils.load()
         ]);
 
-        PlayingCardUtils.setDiscardDropTarget("#discard-pile");
+        PlayingCard.setDiscardTarget("#discard-pile");
 
         this.#bindEvents();
         this.#bindCardDropEvent();
@@ -116,9 +115,7 @@ export class RoomController extends ViewController {
         }.bind(this));
 
         this.#localPlayerController.setSortHandler(function (sortKey) {
-            const normalizedSortKey = NormalizeUtils.requiredString(sortKey, "Sort key");
-
-            this.connectionService.sortKey = normalizedSortKey;
+            this.connectionService.sortKey = NormalizeUtils.requiredString(sortKey, "Sort key");
             this.render(this.#room);
         }.bind(this));
     }
@@ -241,7 +238,7 @@ export class RoomController extends ViewController {
         const session = DomUtils.require("#room-game-session", HTMLElement);
 
         session.dataset.roomStatus = NormalizeUtils.optionalString(room?.status, "");
-        body.replaceChildren(RoomTableRowUtils.create(room));
+        body.replaceChildren(RoomRowUtils.create(room));
     }
 
     /**
@@ -274,7 +271,7 @@ export class RoomController extends ViewController {
         pile.replaceChildren();
 
         for (const card of cards) {
-            pile.appendChild(PlayingCardUtils.create(card));
+            pile.appendChild(PlayingCard.create(card));
         }
     }
 

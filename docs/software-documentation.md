@@ -35,7 +35,8 @@ Express serves the static browser application and `/health`. The WebSocket serve
 - `AppController` starts component dependencies and switches between lobby and room views.
 - `ConnectionService` owns the WebSocket, reconnection, response parsing, the per-tab identifier, and the temporary hand sort key.
 - View controllers render server snapshots and translate user interactions into named actions.
-- Template utilities create reusable room rows, opponent panels, and playing cards.
+- Template utilities create reusable room rows and opponent panels.
+- The `PlayingCard` custom element owns card rendering, face state, accessibility, and drag interaction through explicit method APIs.
 - `DomUtils`, `NormalizeUtils`, `AssertUtils`, and `NotificationUtils` provide common contracts rather than repeating normalization or DOM-state logic.
 
 The client does not normalize different player variants. Every player has one DTO shape, and `room.session.playerName` identifies the local player.
@@ -74,7 +75,7 @@ Generic development validation belongs in the shared assertion and normalization
 3. Static files and `/health` are registered.
 4. Default rooms and their AI players are created. The first two default rooms receive two AI players; the remaining rooms receive one.
 5. Heartbeat monitoring starts.
-6. The browser loads templates, establishes a WebSocket, and requests the lobby.
+6. The browser registers custom elements, loads the remaining templates, establishes a WebSocket, and requests the lobby.
 
 ### 4.2 Room membership
 
@@ -217,7 +218,7 @@ Stylesheets are organized in page order and by responsibility:
 
 - `tokens.css`: common design values;
 - `app.css`: page, lobby, room, guide, and footer;
-- `card.css`: card containers and card faces;
+- `playing-card.css`: card containers and card faces;
 - `opponent.css`: opponent presentation;
 - `table-data.css`: tabular information;
 - `overlays.css`: alerts, countdown, suit selection, and game end.

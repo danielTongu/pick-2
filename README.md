@@ -101,7 +101,8 @@ public/
   images/               Card artwork
   scripts/
     controllers/        View and overlay controllers
-    utils/              Shared UI, validation, sorting, and component utilities
+    elements/            Interactive custom-element definitions
+    utils/               Shared UI, validation, sorting, and template utilities
     ConnectionService.js WebSocket connection and browser-session state
     Constants.js         Shared actions, statuses, rules, scores, and limits
   styles/               Tokens, layout, cards, tables, and overlays

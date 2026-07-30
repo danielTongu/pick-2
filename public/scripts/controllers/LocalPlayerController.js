@@ -3,7 +3,7 @@
 "use strict";
 
 import { Constants } from "../Constants.js";
-import { PlayingCardUtils } from "../utils/PlayingCardUtils.js";
+import { PlayingCard } from "../elements/PlayingCard.js";
 import { DomUtils } from "../utils/DomUtils.js";
 import { CardSortUtils } from "../utils/CardSortUtils.js";
 import { TurnUtils } from "../utils/TurnUtils.js";
@@ -125,7 +125,7 @@ export class LocalPlayerController extends ViewController {
         this.#renderRootState(data);
         this.#renderHeader(data);
         this.#renderControls(data, sortKey);
-        this.#renderCards(data.hand.cards, LocalPlayerController.#isCardDiscardAllowed(data), sortKey);
+        this.#renderCards(data.hand.cards, sortKey);
     }
 
     /**
@@ -223,10 +223,9 @@ export class LocalPlayerController extends ViewController {
      * Renders local-player hand cards.
      *
      * @param {Object[]} cards - Card payloads.
-     * @param {boolean} isCardDiscardAllowed - Whether cards may be discarded.
      * @param {string} sortKey - Current local sort key.
      */
-    #renderCards(cards, isCardDiscardAllowed, sortKey) {
+    #renderCards(cards, sortKey) {
         this.#handElement.replaceChildren(this.#drawButton);
         const orderedCards = CardSortUtils.sorted(cards, sortKey);
 
@@ -235,10 +234,7 @@ export class LocalPlayerController extends ViewController {
         for (let index = orderedCards.length - 1; index >= 0; index -= 1) {
             const card = orderedCards[index];
 
-            this.#handElement.appendChild(PlayingCardUtils.create({
-                ...card,
-                isDiscardable: isCardDiscardAllowed
-            }));
+            this.#handElement.appendChild(PlayingCard.create(card));
         }
     }
 
@@ -262,26 +258,4 @@ export class LocalPlayerController extends ViewController {
 
         return isDrawAllowed;
     }
-
-    /**
-     * Checks whether cards may be discarded.
-     *
-     * @param {{key:string,status:string,turnOwnerKey:string|null}} player - Player state.
-     * @returns {boolean} True when cards may be discarded.
-     */
-    static #isCardDiscardAllowed(player) {
-        let isDiscardAllowed = true;
-
-        if (player.status === Constants.STATUS.PLAYING) {
-            isDiscardAllowed = !TurnUtils.hasTurnOwner(player.turnOwnerKey) ||
-                TurnUtils.isTurnOwner(player.turnOwnerKey, player.key);
-        }
-
-        if (player.status === Constants.STATUS.PENDING) {
-            isDiscardAllowed = false;
-        }
-
-        return isDiscardAllowed;
-    }
-
 }

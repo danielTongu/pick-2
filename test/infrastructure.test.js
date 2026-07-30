@@ -5,20 +5,11 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { Constants } from "../public/scripts/Constants.js";
-import { AlertController } from "../public/scripts/controllers/AlertController.js";
-import { CountdownController } from "../public/scripts/controllers/CountdownController.js";
-import { GameEndController } from "../public/scripts/controllers/GameEndController.js";
-import { LobbyController } from "../public/scripts/controllers/LobbyController.js";
-import { LocalPlayerController } from "../public/scripts/controllers/LocalPlayerController.js";
-import { RoomController } from "../public/scripts/controllers/RoomController.js";
-import { SuitSelectionController } from "../public/scripts/controllers/SuitSelectionController.js";
-import { ViewController } from "../public/scripts/controllers/ViewController.js";
 import { CardSortUtils } from "../public/scripts/utils/CardSortUtils.js";
 import { NormalizeUtils } from "../public/scripts/utils/NormalizeUtils.js";
 import { NotificationUtils } from "../public/scripts/utils/NotificationUtils.js";
 import { OpponentUtils } from "../public/scripts/utils/OpponentUtils.js";
-import { PlayingCardUtils } from "../public/scripts/utils/PlayingCardUtils.js";
-import { RoomTableRowUtils } from "../public/scripts/utils/RoomTableRowUtils.js";
+import { RoomRowUtils } from "../public/scripts/utils/RoomRowUtils.js";
 import { TemplateUtils } from "../public/scripts/utils/TemplateUtils.js";
 import { TurnUtils } from "../public/scripts/utils/TurnUtils.js";
 import { Serializable } from "../server/Serializable.js";
@@ -28,45 +19,103 @@ import { UserNotification } from "../server/UserNotification.js";
 
 const INDEX_HTML = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
 
-test("browser controller and template utility families share their intended APIs", () => {
-    const overlayTypes = [
-        AlertController,
-        CountdownController,
-        GameEndController,
-        SuitSelectionController
-    ];
-    const viewTypes = [LobbyController, RoomController];
-    const templateUtilityTypes = [
-        OpponentUtils,
-        PlayingCardUtils,
-        RoomTableRowUtils
-    ];
+test("browser controller, custom element, and template utility families share their intended APIs", async () => {
+    const OriginalHTMLElement = globalThis.HTMLElement;
+    const originalCustomElements = globalThis.customElements;
+    const registeredElements = new Map();
 
-    for (const Type of overlayTypes) {
-        assert.equal(Type.prototype instanceof ViewController, true);
-        assert.equal(typeof Type.prototype.show, "function");
-        assert.equal(typeof Type.prototype.hide, "function");
+    globalThis.HTMLElement = class {};
+    globalThis.customElements = {
+        define(name, Type) {
+            registeredElements.set(name, Type);
+        },
+        get(name) {
+            return registeredElements.get(name);
+        }
+    };
+
+    try {
+        const [
+            { AlertController },
+            { CountdownController },
+            { GameEndController },
+            { LobbyController },
+            { LocalPlayerController },
+            { RoomController },
+            { SuitSelectionController },
+            { ViewController },
+            { PlayingCard }
+        ] = await Promise.all([
+            import("../public/scripts/controllers/AlertController.js"),
+            import("../public/scripts/controllers/CountdownController.js"),
+            import("../public/scripts/controllers/GameEndController.js"),
+            import("../public/scripts/controllers/LobbyController.js"),
+            import("../public/scripts/controllers/LocalPlayerController.js"),
+            import("../public/scripts/controllers/RoomController.js"),
+            import("../public/scripts/controllers/SuitSelectionController.js"),
+            import("../public/scripts/controllers/ViewController.js"),
+            import("../public/scripts/elements/PlayingCard.js")
+        ]);
+        const overlayTypes = [
+            AlertController,
+            CountdownController,
+            GameEndController,
+            SuitSelectionController
+        ];
+        const viewTypes = [LobbyController, RoomController];
+        const playingCardMethods = [
+            "update",
+            "getCard",
+            "setRotation",
+            "turnFaceUp",
+            "turnFaceDown",
+            "isFaceDown",
+            "toggleFace"
+        ];
+
+        for (const Type of overlayTypes) {
+            assert.equal(Type.prototype instanceof ViewController, true);
+            assert.equal(typeof Type.prototype.show, "function");
+            assert.equal(typeof Type.prototype.hide, "function");
+        }
+
+        for (const Type of viewTypes) {
+            assert.equal(Type.prototype instanceof ViewController, true);
+            assert.equal(typeof Type.prototype.initialize, "function");
+            assert.equal(typeof Type.prototype.render, "function");
+            assert.equal(typeof Type.prototype.show, "function");
+            assert.equal(typeof Type.prototype.hide, "function");
+        }
+
+        for (const Type of [OpponentUtils, RoomRowUtils]) {
+            assert.equal(Type.prototype instanceof TemplateUtils, true);
+            assert.equal(typeof Type.load, "function");
+            assert.equal(typeof Type.create, "function");
+            assert.equal(typeof Type.updateElement, "function");
+        }
+
+        for (const method of playingCardMethods) {
+            assert.equal(typeof PlayingCard.prototype[method], "function");
+        }
+
+        assert.equal(LocalPlayerController.prototype instanceof ViewController, true);
+        assert.equal(typeof ViewController.prototype.bindDismissButton, "function");
+        assert.equal(PlayingCard.prototype instanceof globalThis.HTMLElement, true);
+        assert.equal(registeredElements.get(PlayingCard.elementName), PlayingCard);
+        assert.equal(Object.getOwnPropertyDescriptor(PlayingCard.prototype, "card"), undefined);
+    } finally {
+        if (OriginalHTMLElement === undefined) {
+            delete globalThis.HTMLElement;
+        } else {
+            globalThis.HTMLElement = OriginalHTMLElement;
+        }
+
+        if (originalCustomElements === undefined) {
+            delete globalThis.customElements;
+        } else {
+            globalThis.customElements = originalCustomElements;
+        }
     }
-
-    for (const Type of viewTypes) {
-        assert.equal(Type.prototype instanceof ViewController, true);
-        assert.equal(typeof Type.prototype.initialize, "function");
-        assert.equal(typeof Type.prototype.render, "function");
-        assert.equal(typeof Type.prototype.show, "function");
-        assert.equal(typeof Type.prototype.hide, "function");
-    }
-
-    for (const Type of templateUtilityTypes) {
-        assert.equal(Type.prototype instanceof TemplateUtils, true);
-        assert.equal(typeof Type.load, "function");
-        assert.equal(typeof Type.create, "function");
-        assert.equal(typeof Type.updateElement, "function");
-    }
-
-    assert.equal(LocalPlayerController.prototype instanceof ViewController, true);
-    assert.equal(typeof ViewController.prototype.show, "function");
-    assert.equal(typeof ViewController.prototype.hide, "function");
-    assert.equal(typeof ViewController.prototype.bindDismissButton, "function");
 });
 
 test("NormalizeUtils validates integer categories without coercion", () => {

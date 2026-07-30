@@ -3,7 +3,7 @@
 "use strict";
 
 import { Constants } from "../Constants.js";
-import { RoomTableRowUtils } from "../utils/RoomTableRowUtils.js";
+import { RoomRowUtils } from "../utils/RoomRowUtils.js";
 import { DomUtils } from "../utils/DomUtils.js";
 import { NormalizeUtils } from "../utils/NormalizeUtils.js";
 import { ViewController } from "./ViewController.js";
@@ -56,7 +56,7 @@ export class LobbyController extends ViewController {
      * @returns {Promise<void>}
      */
     async initialize() {
-        await RoomTableRowUtils.load();
+        await RoomRowUtils.load();
         this.#bindEvents();
     }
 
@@ -100,7 +100,7 @@ export class LobbyController extends ViewController {
      * @returns {HTMLTableRowElement} Room row.
      */
     #createRoomTableRow(room) {
-        const row = RoomTableRowUtils.create(room);
+        const row = RoomRowUtils.create(room);
 
         row.addEventListener("click", function () {
             this.#admitVisitor(room);

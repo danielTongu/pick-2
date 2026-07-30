@@ -3,8 +3,8 @@
 "use strict";
 
 import { Constants } from "../Constants.js";
+import { PlayingCard } from "../elements/PlayingCard.js";
 import { DomUtils } from "../utils/DomUtils.js";
-import { PlayingCardUtils } from "../utils/PlayingCardUtils.js";
 
 /**
  * Coordinates application startup, server sync routing, and view switching.
@@ -117,7 +117,7 @@ export class AppController {
         for (const [listId, cards] of Object.entries(cardsByListId)) {
             const cardList = DomUtils.require(`#${listId}`, HTMLElement);
             cardList.replaceChildren(...cards.map(function (card) {
-                return PlayingCardUtils.create(card);
+                return PlayingCard.create(card);
             }));
             cardList.removeAttribute("id");
         }

@@ -1,4 +1,4 @@
-/* public/styles/card.css */
+/* public/styles/playing-card.css */
 
 @import url("./tokens.css");
 
@@ -68,6 +68,8 @@ playing-card,
 
 .playing-card-drag-handle {
     cursor: grab;
+    touch-action: none;
+    user-select: none;
     position: absolute;
     z-index: 3;
     top: 0;
@@ -111,7 +113,7 @@ playing-card {
     display: inline-block;
     vertical-align: top;
     background: #FFFFFF; /* same color as the joker image background */
-    border: 2px solid #1a1a1a;
+    border: 1px solid #1a1a1a;
     box-shadow: var(--shadow);
     color: var(--color);
 
@@ -123,13 +125,13 @@ playing-card {
             background .3s ease;
 }
 
+.playing-card-drag-handle:active {
+    cursor: grabbing;
+}
+
 playing-card[data-is-face-down="true"] {
     background: var(--card-back-pattern);
     background-size: calc(var(--card-width) / 8) calc(var(--card-width) / 8);
-}
-
-playing-card[data-is-face-down="true"] > * {
-    display: none;
 }
 
 playing-card[data-is-face-down="false"]:hover {

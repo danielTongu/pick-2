@@ -1,4 +1,4 @@
-// public/utils/RoomTableRowUtils.js
+// public/scripts/utils/RoomRowUtils.js
 
 import { Constants } from "../Constants.js";
 import { AssertUtils } from "./AssertUtils.js";
@@ -9,12 +9,12 @@ import { TemplateUtils } from "./TemplateUtils.js";
 /**
  * Room row fragment.
  */
-export class RoomTableRowUtils extends TemplateUtils {
+export class RoomRowUtils extends TemplateUtils {
     /** @type {HTMLTemplateElement|null} */
     static template = null;
 
     /** @type {string} */
-    static templateFile = "room-table-row.html";
+    static templateFile = "room-row.html";
 
     /** @type {string} */
     static templateId = "room-row-template";
@@ -35,15 +35,15 @@ export class RoomTableRowUtils extends TemplateUtils {
     static updateElement(element, room = {}) {
         AssertUtils.instanceOf(element, HTMLTableRowElement, `${this.name} element`);
 
-        const data = RoomTableRowUtils.#normalizeRoom(room);
+        const data = RoomRowUtils.#normalizeRoom(room);
 
-        RoomTableRowUtils.#setCellData(element, "[data-name]", "name", data.name);
-        RoomTableRowUtils.#setCellData(element, "[data-status]", "status", data.status);
-        RoomTableRowUtils.#setCellData(element, "[data-player-count]", "playerCount", String(data.playerCount));
-        RoomTableRowUtils.#setCellData(element, "[data-visitor-count]", "visitorCount", String(data.visitorCount));
-        RoomTableRowUtils.#setCellData(element, "[data-capacity]", "capacity", String(data.capacity));
-        RoomTableRowUtils.#setCellData(element, "[data-last-active-at]", "lastActiveAt", data.lastActiveAt);
-        RoomTableRowUtils.#setCellData(element, "[data-created-at]", "createdAt", data.createdAt);
+        RoomRowUtils.#setCellData(element, "[data-name]", "name", data.name);
+        RoomRowUtils.#setCellData(element, "[data-status]", "status", data.status);
+        RoomRowUtils.#setCellData(element, "[data-player-count]", "playerCount", String(data.playerCount));
+        RoomRowUtils.#setCellData(element, "[data-visitor-count]", "visitorCount", String(data.visitorCount));
+        RoomRowUtils.#setCellData(element, "[data-capacity]", "capacity", String(data.capacity));
+        RoomRowUtils.#setCellData(element, "[data-last-active-at]", "lastActiveAt", data.lastActiveAt);
+        RoomRowUtils.#setCellData(element, "[data-created-at]", "createdAt", data.createdAt);
     }
 
     /**
