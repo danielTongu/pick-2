@@ -3,14 +3,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Constants } from "../public/scripts/Constants.js";
-import { Card } from "../server/Card.js";
-import { Deck } from "../server/Deck.js";
-import { Hand } from "../server/Hand.js";
-import { Player } from "../server/Player.js";
-import { PlayerCircle } from "../server/PlayerCircle.js";
-import { CardSortUtils } from "../public/scripts/utils/CardSortUtils.js";
-import { TurnUtils } from "../public/scripts/utils/TurnUtils.js";
+import { Card } from "../src/core/Card.js";
+import { CardSortUtils } from "../src/core/CardSortUtils.js";
+import { Constants } from "../src/core/Constants.js";
+import { Deck } from "../src/core/Deck.js";
+import { Hand } from "../src/core/Hand.js";
+import { Player } from "../src/core/Player.js";
+import { PlayerCircle } from "../src/core/PlayerCircle.js";
+import { TurnUtils } from "../src/core/TurnUtils.js";
 
 const { VALUE, SUIT } = Constants.CARD;
 

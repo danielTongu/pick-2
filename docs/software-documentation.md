@@ -2,11 +2,28 @@
 
 ## 1. Purpose and scope
 
-Pick 2 is a browser-based, real-time card game. The server owns rooms, membership, turns, game rules, card scores, AI decisions, and persisted hand order. The browser owns presentation, temporary hand sorting, card flipping, drag interaction, and the local session identity stored for a browser tab.
+Pick 2 is a multiplayer browser card game with server and static editions. Both editions use the same `src/core` rules and `src/ui` browser components. In the server edition, the server owns rooms, membership, turns, and synchronized sessions. In the static edition, a browser-local service owns one table for a human and three AI players.
 
-This document describes the software as implemented. User-facing rules are summarized in the project README and in the guide embedded in `public/index.html`.
+This document describes the shared model and the server edition in detail. User-facing rules are summarized in the project README and in the guides embedded in `web/server/index.html` and the static edition's root `index.html`.
 
 ## 2. System architecture
+
+All JavaScript is organized beneath one source root:
+
+```text
+index.html       GitHub Pages entry point for the static edition
+src/core         Rules, models, AI behavior, and DTO mapping
+src/ui           Shared controllers, card element, and browser utilities
+src/server       Express/WebSocket transport, lobby, and shared rooms
+src/static       Browser-local service and fixed AI table
+web/shared       Shared styles, templates, and artwork
+web/server       Server-edition HTML
+web/static       Static-edition layout additions
+```
+
+The four source folders are deliberately flat. Application folders contain only
+edition-specific composition and flow, while shared rules and presentation are
+maintained once in `core`, `ui`, and `web/shared`.
 
 ```text
 Browser
@@ -53,7 +70,7 @@ The client does not normalize different player variants. Every player has one DT
 
 ## 3. Shared sources of truth
 
-`public/scripts/Constants.js` is deliberately shared by browser and server code. It owns:
+`src/core/Constants.js` is deliberately shared by both applications and the server runtime. It owns:
 
 - action names;
 - room, game, connection, and notification statuses;
@@ -70,7 +87,7 @@ Generic development validation belongs in the shared assertion and normalization
 
 ### 4.1 Startup
 
-1. `server/index.js` registers termination and fatal-error handlers.
+1. `src/server/index.js` registers termination and fatal-error handlers.
 2. `Server` creates the Express application, HTTP server, and WebSocket server.
 3. Static files and `/health` are registered.
 4. Default rooms and their AI players are created. The first two default rooms receive two AI players; the remaining rooms receive one.

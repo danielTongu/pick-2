@@ -3,13 +3,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Constants } from "../public/scripts/Constants.js";
-import { Card } from "../server/Card.js";
-import { AIPlayer, Player } from "../server/Player.js";
-import { PlayerCircle } from "../server/PlayerCircle.js";
-import { Room } from "../server/Room.js";
-import { StateMapper } from "../server/StateMapper.js";
-import { TurnUtils } from "../public/scripts/utils/TurnUtils.js";
+import { Card } from "../src/core/Card.js";
+import { Constants } from "../src/core/Constants.js";
+import { AIPlayer, Player } from "../src/core/Player.js";
+import { PlayerCircle } from "../src/core/PlayerCircle.js";
+import { Room } from "../src/core/Room.js";
+import { StateMapper } from "../src/core/StateMapper.js";
+import { TurnUtils } from "../src/core/TurnUtils.js";
 
 function stopIdleMonitoring(room) {
     for (const player of room.circle.players.values()) {

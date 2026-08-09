@@ -2,12 +2,12 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Card } from "../server/Card.js";
-import { Constants } from "../public/scripts/Constants.js";
-import { Deck } from "../server/Deck.js";
-import { UserNotification } from "../server/UserNotification.js";
-import { Player } from "../server/Player.js";
-import { Room } from "../server/Room.js";
+import { Card } from "../src/core/Card.js";
+import { Constants } from "../src/core/Constants.js";
+import { Deck } from "../src/core/Deck.js";
+import { Player } from "../src/core/Player.js";
+import { Room } from "../src/core/Room.js";
+import { UserNotification } from "../src/core/UserNotification.js";
 
 test("actionable player and game-rule failures use UserNotification", async () => {
     assert.throws(() => new Player(""), UserNotification);

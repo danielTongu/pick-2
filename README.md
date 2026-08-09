@@ -1,149 +1,105 @@
 # Pick 2
 
-Pick 2 is a proprietary, real-time multiplayer shedding card game for the browser. Players can create or enter rooms, play against people and built-in AI players, or watch as visitors.
+Pick 2 is a multiplayer shedding card game with two browser editions built
+from the same rules and interface source:
 
-The application uses a dependency-free JavaScript client, an Express server, and WebSockets for synchronized gameplay.
+- **Server:** shared rooms for people, AI players, and visitors over WebSockets.
+- **Static:** one browser-local table with one human and three AI players,
+  deployable to GitHub Pages.
 
-## Features
-
-- Live multiplayer rooms with consistent player state across clients
-- Human players, automated opponents, and visitors
-- Room creation, browsing, filtering, promotion, demotion, and eviction
-- Automatic reconnection using a browser-tab session identifier
-- Server-authoritative turns, card rules, scoring, and game completion
-- Local hand sorting by rank, value, suit, or score, committed on the next move
-- Click-to-flip and pointer-based card dragging
-- Mobile-first interface with tablet and desktop support
-- Player-only game-start and game-end overlays
-- Idle-player removal and delayed empty-room cleanup
-- Health endpoint at `/health`
+The shared source folders are the only authoritative copies of card rules, AI
+behavior, common controllers, card rendering, styles, templates, and artwork.
 
 ## Requirements
 
-- Node.js 18 or newer
+- Node.js 22
 - npm
 
-## Run locally
-
-Install dependencies:
+## Install
 
 ```bash
 npm install
 ```
 
-Start the server:
+## Run the server edition
 
 ```bash
 npm start
 ```
 
-Open [http://localhost:8080](http://localhost:8080). Use a second browser or private window to test another independent session.
+Open [http://localhost:8080](http://localhost:8080). Development watch mode is
+available through `npm run dev`.
 
-Development watch mode:
+## Open the static edition
 
-```bash
-npm run dev
-```
+The static edition starts at the repository's root `index.html`. Serve the
+repository root with IntelliJ's built-in web server to run it locally. It uses
+the shared source and web assets directly, so there is no build output.
 
-To select another port:
+Publish the static edition manually using the hosting provider and release
+process of your choice. This repository does not automatically publish changes
+when `main` is pushed.
 
-```bash
-PORT=3000 npm start
-```
+The published page declares its canonical URL and includes a root-level
+`sitemap.xml`. After the first deployment, add
+`https://danieltongu.github.io/pick-2/` as a URL-prefix property in Google
+Search Console, submit `https://danieltongu.github.io/pick-2/sitemap.xml`, and
+request indexing for the canonical page. Search engines decide when and whether
+to index a page, so publication alone does not guarantee immediate appearance.
+
+Each browser tab runs an independent static match; a static host cannot share a
+room across browsers without an external realtime service.
 
 ## Test
-
-Run the complete automated suite:
 
 ```bash
 npm test
 ```
 
-Run it with Node's coverage report:
-
-```bash
-npm run test:coverage
-```
-
-The suite covers cards and scoring, collections, serialization, state mapping, throttling, room membership, game rules, AI decisions, shared utilities, and error classification.
-
-## How to play
-
-1. Enter a name in the lobby.
-2. Enter an existing room as a player or visitor, or create a room.
-3. Visitors may join the game while room membership is unlocked.
-4. A game may start when at least two players are seated.
-5. During a game, the turn owner may discard a legal card, draw, or pass when allowed. In a waiting room, no turn owner is assigned, so any seated player may draw or discard.
-6. Empty your hand, or play the seven of hearts, to finish the game.
-7. The player or tied players with the lowest remaining hand score win.
-
-Each player starts with seven cards. While a game is not playing, card-placement rules do not apply.
-
-## Special cards and scores
-
-| Card | Effect | Score |
-| --- | --- | ---: |
-| 2 | Makes the next player draw two; compatible draw cards may defend or stack the penalty. | 20 |
-| 8 | Skips the next player. | 8 |
-| Jack | Reverses direction with at least three players; skips with two players. | 11 |
-| Ace, except spades | Allows the player to declare the active suit. | 14 |
-| Ace of spades | Wild card and special draw defense. | 40 |
-| Joker | Wild card that makes the next player draw four. | 50 |
-| 7 of hearts | Ends the game immediately. | 30 |
-
-Other standard cards use their natural rank as their score.
+Coverage reporting is available through `npm run test:coverage`.
 
 ## Project structure
 
 ```text
-public/
-  templates/            Reusable browser component templates
-  images/               Card artwork
-  scripts/
-    controllers/        View and overlay controllers
-    elements/            Interactive custom-element definitions
-    utils/               Shared UI, validation, sorting, and template utilities
-    ConnectionService.js WebSocket connection and browser-session state
-    Constants.js         Shared actions, statuses, rules, scores, and limits
-  styles/               Tokens, layout, cards, tables, and overlays
-  index.html             Application page and initialized UI state
-server/
-  Server.js              HTTP/WebSocket transport, sessions, routing, and cleanup
-  Room.js                Membership, lifecycle, turn flow, and game rules
-  Player.js              Player state and automated-player decisions
-  PlayerCircle.js        Circular turn ordering
-  Card.js                Card identity and rule behavior
-  Deck.js / Hand.js      Card collections
-  StateMapper.js         Stable client-facing response shapes
-  Serializable.js        Domain-model serialization
-test/                    Node test suite
-docs/
-  software-documentation.md Detailed design and maintenance reference
+index.html              Static-edition entry point for GitHub Pages
+src/
+  core/                  Cards, collections, room rules, AI, state mapping
+  ui/                    Shared controllers, elements, and browser utilities
+  server/                Server runtime, lobby, and networked controllers
+  static/                Browser-local service and AI-table controllers
+web/
+  shared/                Shared CSS, templates, images, and artwork
+  server/                Server-edition HTML
+  static/                Static-edition layout additions
+test/                    Shared, server, and static tests
+docs/                    Design and maintenance documentation
 ```
 
-## Documentation
+Every JavaScript file lives under `src`. Its four flat folders describe whether
+a file contains shared rules, shared browser UI, server-edition behavior, or
+static-edition behavior. Relative imports cross at most one source boundary,
+such as `../core/Room.js` or `../ui/PlayingCard.js`.
 
-See [Software documentation](docs/software-documentation.md) for the architecture, runtime flows, data contracts, action protocol, shared sources of truth, error policy, and extension guidelines.
-
-## Commands
-
-| Command | Purpose |
-| --- | --- |
-| `npm start` | Start the application server. |
-| `npm run dev` | Start the server in Node watch mode. |
-| `npm test` | Run all automated tests. |
-| `npm run test:coverage` | Run tests with a coverage report. |
+The server exposes the shared source and web assets directly. GitHub Pages uses
+the root entry point and the same files in place. Nothing is copied or generated.
 
 ## Technology
 
 - JavaScript ES modules
-- Node.js and Express 5
-- WebSockets through `ws`
+- Node.js, Express 5, and WebSockets through `ws`
 - Semantic HTML and mobile-first CSS
 - Node's built-in test runner
+- Static hosting support for the browser-only edition
+
+## Documentation
+
+See [Software documentation](docs/software-documentation.md) for game flow,
+protocol details, data contracts, and extension guidance.
 
 ## License and copyright
 
 Copyright © Pick 2. All rights reserved.
 
-This software is proprietary and is not free or open-source software. No permission is granted to copy, modify, distribute, sublicense, or use it outside the terms provided by its owner.
+This software is proprietary and is not free or open-source software. No
+permission is granted to copy, modify, distribute, sublicense, or use it outside
+the terms provided by its owner.

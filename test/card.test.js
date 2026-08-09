@@ -3,8 +3,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Constants } from "../public/scripts/Constants.js";
-import { Card } from "../server/Card.js";
+import { Card } from "../src/core/Card.js";
+import { Constants } from "../src/core/Constants.js";
 
 const { VALUE, SUIT } = Constants.CARD;
 

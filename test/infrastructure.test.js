@@ -4,20 +4,20 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { Constants } from "../public/scripts/Constants.js";
-import { CardSortUtils } from "../public/scripts/utils/CardSortUtils.js";
-import { NormalizeUtils } from "../public/scripts/utils/NormalizeUtils.js";
-import { NotificationUtils } from "../public/scripts/utils/NotificationUtils.js";
-import { OpponentUtils } from "../public/scripts/utils/OpponentUtils.js";
-import { RoomRowUtils } from "../public/scripts/utils/RoomRowUtils.js";
-import { TemplateUtils } from "../public/scripts/utils/TemplateUtils.js";
-import { TurnUtils } from "../public/scripts/utils/TurnUtils.js";
-import { Serializable } from "../server/Serializable.js";
-import { StateMapper } from "../server/StateMapper.js";
-import { ThrottleGuard } from "../server/ThrottleGuard.js";
-import { UserNotification } from "../server/UserNotification.js";
+import { CardSortUtils } from "../src/core/CardSortUtils.js";
+import { Constants } from "../src/core/Constants.js";
+import { NormalizeUtils } from "../src/core/NormalizeUtils.js";
+import { Serializable } from "../src/core/Serializable.js";
+import { StateMapper } from "../src/core/StateMapper.js";
+import { TurnUtils } from "../src/core/TurnUtils.js";
+import { UserNotification } from "../src/core/UserNotification.js";
+import { RoomRowUtils } from "../src/server/RoomRowUtils.js";
+import { ThrottleGuard } from "../src/server/ThrottleGuard.js";
+import { NotificationUtils } from "../src/ui/NotificationUtils.js";
+import { OpponentUtils } from "../src/ui/OpponentUtils.js";
+import { TemplateUtils } from "../src/ui/TemplateUtils.js";
 
-const INDEX_HTML = readFileSync(new URL("../public/index.html", import.meta.url), "utf8");
+const INDEX_HTML = readFileSync(new URL("../web/server/index.html", import.meta.url), "utf8");
 
 test("browser controller, custom element, and template utility families share their intended APIs", async () => {
     const OriginalHTMLElement = globalThis.HTMLElement;
@@ -41,20 +41,20 @@ test("browser controller, custom element, and template utility families share th
             { GameEndController },
             { LobbyController },
             { LocalPlayerController },
-            { RoomController },
+            { ServerRoomController },
             { SuitSelectionController },
             { ViewController },
             { PlayingCard }
         ] = await Promise.all([
-            import("../public/scripts/controllers/AlertController.js"),
-            import("../public/scripts/controllers/CountdownController.js"),
-            import("../public/scripts/controllers/GameEndController.js"),
-            import("../public/scripts/controllers/LobbyController.js"),
-            import("../public/scripts/controllers/LocalPlayerController.js"),
-            import("../public/scripts/controllers/RoomController.js"),
-            import("../public/scripts/controllers/SuitSelectionController.js"),
-            import("../public/scripts/controllers/ViewController.js"),
-            import("../public/scripts/elements/PlayingCard.js")
+            import("../src/ui/AlertController.js"),
+            import("../src/ui/CountdownController.js"),
+            import("../src/ui/GameEndController.js"),
+            import("../src/server/LobbyController.js"),
+            import("../src/ui/LocalPlayerController.js"),
+            import("../src/server/ServerRoomController.js"),
+            import("../src/ui/SuitSelectionController.js"),
+            import("../src/ui/ViewController.js"),
+            import("../src/ui/PlayingCard.js")
         ]);
         const overlayTypes = [
             AlertController,
@@ -62,7 +62,7 @@ test("browser controller, custom element, and template utility families share th
             GameEndController,
             SuitSelectionController
         ];
-        const viewTypes = [LobbyController, RoomController];
+        const viewTypes = [LobbyController, ServerRoomController];
         const playingCardMethods = [
             "update",
             "getCard",
