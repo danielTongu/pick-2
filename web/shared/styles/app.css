@@ -608,8 +608,13 @@ main {
     overflow-x: auto;
     overscroll-behavior-inline: contain;
     scroll-padding-inline: var(--container-spacing);
+    scrollbar-width: none;
     white-space: nowrap;
     text-align: center;
+}
+
+#local-player-hand::-webkit-scrollbar {
+    display: none;
 }
 
 #local-player-hand > * {

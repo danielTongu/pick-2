@@ -178,6 +178,8 @@ test("the local hand keeps cards large and drag handles touch friendly", () => {
     );
     assert.match(appCss, /height:\s*var\(--local-player-card-height\)/);
     assert.match(appCss, /#local-player-hand[\s\S]*overflow-x:\s*auto/);
+    assert.match(appCss, /#local-player-hand[\s\S]*scrollbar-width:\s*none/);
+    assert.match(appCss, /#local-player-hand::-webkit-scrollbar\s*\{[\s\S]*?display:\s*none/);
     assert.match(appCss, /#local-player-hand > playing-card\s*\{[\s\S]*?position:\s*relative/);
     assert.match(appCss, /#draw-card-button\s*\{[\s\S]*?position:\s*relative/);
     assert.match(
