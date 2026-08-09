@@ -288,12 +288,11 @@ main {
     background: #fbbf24;
     box-shadow: 0 .35rem 1rem rgba(0, 0, 0, .22);
     font-weight: 800;
-    transition: background .2s ease, transform .15s ease, box-shadow .2s ease;
+    transition: background .2s ease, transform .15s ease;
 }
 
 #room-registration-submit-button:hover {
     background: var(--active-color);
-    box-shadow: 0 .45rem 1.25rem rgba(0, 0, 0, .28);
 }
 
 #room-registration-submit-button:active {
@@ -604,8 +603,10 @@ main {
 #local-player-hand {
     width: 100%;
     min-width: 0;
+    min-height: var(--local-player-card-min-height);
     overflow-x: auto;
     overscroll-behavior-inline: contain;
+    scroll-padding-inline: var(--container-spacing);
     white-space: nowrap;
     text-align: center;
 }
@@ -615,15 +616,14 @@ main {
     vertical-align: top;
 }
 
-#local-player-hand > playing-card,
-#draw-card-button {
+#local-player-hand > playing-card {
     margin-right: var(--container-spacing);
-    position: sticky;
-    left: 0;
-    z-index: 0;
+    position: relative;
 }
 
 #draw-card-button {
+    margin-right: var(--container-spacing);
+    position: relative;
     z-index: 1;
 }
 
@@ -632,6 +632,38 @@ main {
     grid-template-columns: repeat(2, minmax(80px, 1fr));
     gap: var(--container-spacing);
     padding: var(--container-spacing) 3px 3px;
+}
+
+#card-size-control {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: auto minmax(6rem, 1fr) 3.5rem;
+    gap: .75rem;
+    align-items: center;
+    width: min(100%, 26rem);
+    min-height: 3rem;
+    justify-self: center;
+    padding-inline: .75rem;
+    color: rgba(255, 255, 255, .8);
+    font-size: .8rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+}
+
+#card-size-range {
+    width: 100%;
+    min-width: 0;
+    min-height: 2.75rem;
+    cursor: ew-resize;
+    accent-color: #60a5fa;
+}
+
+#card-size-output {
+    color: #bfdbfe;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    white-space: nowrap;
 }
 
 @media (min-width: 768px) {
@@ -655,7 +687,7 @@ main {
     box-shadow: 0 4px 12px rgba(0, 0, 0, .16);
     font-weight: 600;
     letter-spacing: .04em;
-    transition: background .2s ease, border-color .2s ease, box-shadow .2s ease, transform .15s ease;
+    transition: background .2s ease, border-color .2s ease, transform .15s ease;
     min-width: 80px;
 }
 
@@ -675,7 +707,6 @@ main {
 #local-player-actions > button:hover {
     border-color: rgba(255, 255, 255, .35);
     background: rgba(255, 255, 255, .15);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, .22);
 }
 
 #local-player-actions > button:focus-within,

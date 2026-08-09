@@ -148,3 +148,46 @@ test("the static page publishes consistent search discovery metadata", () => {
     assert.match(html, /<script type="application\/ld\+json">/);
     assert.match(sitemap, new RegExp(`<loc>${canonicalUrl}<\\/loc>`));
 });
+
+test("the local hand keeps cards and drag handles touch friendly", () => {
+    const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+    const serverHtml = readFileSync(new URL("../web/server/index.html", import.meta.url), "utf8");
+    const controller = readFileSync(new URL("../src/ui/LocalPlayerController.js", import.meta.url), "utf8");
+    const cardCss = readFileSync(new URL("../web/shared/styles/playing-card.css", import.meta.url), "utf8");
+    const appCss = readFileSync(new URL("../web/shared/styles/app.css", import.meta.url), "utf8");
+
+    for (const page of [html, serverHtml]) {
+        assert.match(page, /id="card-size-range"[^>]+min="96"[^>]+max="240"[^>]+value="128"/);
+        assert.match(page, /id="card-size-output"/);
+    }
+
+    assert.match(controller, /--local-player-card-min-height/);
+    assert.match(cardCss, /--local-player-card-min-height:\s*128px/);
+    assert.match(
+        cardCss,
+        /\.playing-card-drag-handle\s*\{[\s\S]*?width:\s*100%;[\s\S]*?height:\s*calc\(var\(--card-height\) \/ 3\)/
+    );
+    assert.match(
+        cardCss,
+        /\.playing-card-drag-handle::before\s*\{[\s\S]*?width:\s*calc\(100% \/ 3\);[\s\S]*?margin-top:\s*\.35rem/
+    );
+    assert.match(cardCss, /playing-card\s*\{[\s\S]*?box-shadow:\s*none/);
+    assert.match(
+        cardCss,
+        /#discard-pile > playing-card:last-child\s*\{[\s\S]*?box-shadow:/
+    );
+    assert.match(appCss, /min-height:\s*var\(--local-player-card-min-height\)/);
+    assert.match(appCss, /#local-player-hand[\s\S]*overflow-x:\s*auto/);
+    assert.match(appCss, /#local-player-hand > playing-card\s*\{[\s\S]*?position:\s*relative/);
+    assert.match(appCss, /#draw-card-button\s*\{[\s\S]*?position:\s*relative/);
+    assert.match(
+        cardCss,
+        /#draw-card-button\s*\{[\s\S]*?background:\s*rgba\(255, 255, 255, \.08\);[\s\S]*?color:\s*#fff/
+    );
+    assert.match(
+        cardCss,
+        /#draw-card-button:disabled\s*\{[\s\S]*?color:\s*#fff;[\s\S]*?opacity:\s*1/
+    );
+    assert.doesNotMatch(cardCss, /#draw-card-button:hover\s*\{[^}]*box-shadow/);
+    assert.doesNotMatch(appCss, /button:hover\s*\{[^}]*box-shadow/);
+});
