@@ -34,6 +34,9 @@ select,
 input {
     font: inherit;
     color: inherit;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
 }
 
 label {
@@ -355,6 +358,7 @@ main {
     scrollbar-gutter: stable;
     border: 1px solid rgba(255, 255, 255, .08);
     border-radius: var(--container-radius);
+    font-size: small;
 }
 
 #room-list-table {
@@ -400,6 +404,11 @@ main {
 /* ========================================
    ROOM VIEW
    ======================================== */
+
+#room-view {
+    grid-template-rows: auto minmax(0, 1fr);
+    min-height: calc(100vh - 2 * var(--container-spacing));
+}
 
 #room-header {
     display: grid;
@@ -476,7 +485,7 @@ main {
 
 #room-game-session {
     display: grid;
-    grid-template-rows: auto minmax(var(--card-min-height), 1fr) auto;
+    grid-template-rows: auto minmax(var(--card-min-height), var(--card-max-height)) auto;
     gap: var(--container-spacing);
     padding: var(--container-spacing);
     min-height: 0;
@@ -537,7 +546,7 @@ main {
 
 #local-player-region {
     display: grid;
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    grid-template-rows: auto 1fr auto;
     min-height: 0;
     overflow: hidden;
     border: 2px solid rgba(255, 255, 255, .12);
@@ -603,8 +612,8 @@ main {
 #local-player-hand {
     width: 100%;
     min-width: 0;
-    height: var(--local-player-card-height);
-    min-height: var(--local-player-card-height);
+    height: var(--card-max-height);
+    min-height: var(--card-max-height);
     overflow-x: auto;
     overscroll-behavior-inline: contain;
     scroll-padding-inline: var(--container-spacing);

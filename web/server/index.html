@@ -26,8 +26,7 @@
 </header>
 
 <main id="lobby-view">
-    <h2>Lobby</h2>
-    <p>Join or create a room</p>
+    <h2>Join or create a room</h2>
     <header id="room-registration-form">
         <div id="field-group">
             <label for="player-name-input">
@@ -91,14 +90,8 @@
 </main>
 
 <main id="room-view" hidden>
-    <h2>Room</h2>
     <header id="room-header">
-        <nav id="room-actions" aria-label="Room controls">
-            <button id="evict-occupant-button" type="button">Exit</button>
-            <button id="promote-visitor-button" type="button">Join</button>
-            <button id="copy-invite-button" type="button">Invite</button>
-        </nav>
-        <section class="table-container">
+        <div class="table-container">
             <table id="room-info-table">
                 <caption>Current room details</caption>
                 <thead>
@@ -114,7 +107,12 @@
                 </thead>
                 <tbody id="room-info-table-body"></tbody>
             </table>
-        </section>
+        </div>
+        <nav id="room-actions" aria-label="Room controls">
+            <button id="evict-occupant-button" type="button">Exit</button>
+            <button id="promote-visitor-button" type="button">Join</button>
+            <button id="copy-invite-button" type="button">Invite</button>
+        </nav>
     </header>
     <section id="room-game-session" data-room-status="waiting">
         <div id="opponent-player-list"></div>

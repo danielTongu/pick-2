@@ -20,70 +20,26 @@
     color: #4ade80;
 }
 
-#leave-table-button {
+#post-join-form-actions-button[data-action="leave"],
+#post-join-form-actions-button[data-action="stop"] {
     background: rgba(185, 28, 28, .75);
 }
 
-#new-table-button {
+#post-join-form-actions-button[data-action="new"] {
     background: rgba(37, 99, 235, .75);
 }
 
-#table-status-bar {
+#join-form {
     display: grid;
-    grid-template-columns: auto auto minmax(0, 1fr);
-    gap: .65rem;
-    align-items: center;
-    text-align: center;
-}
-
-#table-status-label,
-#table-player-count {
-    padding: .35rem .65rem;
-    border-radius: 999px;
-    background: rgba(0, 0, 0, .22);
-    color: rgba(255, 255, 255, .75);
-    font-size: .75rem;
-    font-weight: 800;
-    text-transform: uppercase;
-}
-
-#turn-status {
-    justify-self: end;
-    color: #bbf7d0;
-    text-align: right;
-}
-
-#join-panel {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(16rem, .8fr);
-    gap: calc(2 * var(--container-spacing));
-    align-items: end;
+    gap: var(--container-spacing);
     padding: calc(1.5 * var(--container-spacing));
     border: 1px solid rgba(253, 230, 138, .3);
     border-radius: var(--container-radius);
     background: linear-gradient(135deg, rgba(253, 230, 138, .13), rgba(255, 255, 255, .05));
 }
 
-#join-panel h2 {
+#join-form h2 {
     color: #fde68a;
-}
-
-#join-panel p:not(.eyebrow) {
-    color: rgba(255, 255, 255, .72);
-}
-
-#join-form {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: .55rem;
-}
-
-#join-form label {
-    grid-column: 1 / -1;
-    color: rgba(255, 255, 255, .65);
-    font-size: .72rem;
-    font-weight: 800;
-    letter-spacing: .06em;
 }
 
 #join-table-button {
@@ -97,40 +53,20 @@ select:disabled {
     opacity: .42;
 }
 
-
-@media (max-width: 700px) {
-    #join-panel {
-        grid-template-columns: 1fr;
-    }
-
-    #table-status-bar {
-        grid-template-columns: auto auto;
-    }
-
-    #turn-status {
-        grid-column: 1 / -1;
-        justify-self: start;
-        text-align: left;
-    }
-
+@media (min-width: 700px) {
     #join-form {
-        grid-template-columns: 1fr;
+        align-items: center;
+        grid-template-columns: 1fr 1fr auto;
     }
 
-    #join-form label {
-        grid-column: auto;
+    #join-form > label {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: var(--container-spacing);
+        align-items: center;
     }
 
-    #app-footer {
-        grid-template-columns: 1fr;
-    }
-
-    #app-footer-navigation {
-        justify-content: start;
-    }
-
-    #app-footer-note {
+    #post-join-form-actions-button {
         justify-self: start;
-        text-align: left;
     }
 }

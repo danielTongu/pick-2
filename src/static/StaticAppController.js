@@ -52,15 +52,19 @@ export class StaticAppController {
         const isBusy = room?.isBusy === true;
         const isActive = room?.status === Constants.STATUS.PLAYING || room?.status === Constants.STATUS.PENDING;
         const isRunningWithoutLocalPlayer = !isJoined && isActive;
+        const isFinishedWithoutLocalPlayer = !isJoined && room?.status === Constants.STATUS.FINISHED;
         const canJoin = !isJoined && room?.status === Constants.STATUS.WAITING;
-        const leaveButton = DomUtils.require("#leave-table-button", HTMLButtonElement);
+        const joinForm = DomUtils.require("#join-form", HTMLFormElement);
+        const actionButton = DomUtils.require("#post-join-form-actions-button", HTMLButtonElement);
+        const action = isFinishedWithoutLocalPlayer
+            ? "new"
+            : isRunningWithoutLocalPlayer ? "stop" : "leave";
 
-        DomUtils.require("#join-panel", HTMLElement).hidden = !canJoin;
-        leaveButton.hidden = !isJoined && !isRunningWithoutLocalPlayer;
-        leaveButton.disabled = isJoined && isBusy;
-        leaveButton.dataset.action = isRunningWithoutLocalPlayer ? "stop" : "leave";
-        leaveButton.textContent = isRunningWithoutLocalPlayer ? "stop" : "leave";
-        DomUtils.require("#new-table-button", HTMLButtonElement).disabled = isBusy;
+        joinForm.hidden = !canJoin;
+        actionButton.hidden = !isJoined && !isRunningWithoutLocalPlayer && !isFinishedWithoutLocalPlayer;
+        actionButton.disabled = isJoined && isBusy;
+        actionButton.dataset.action = action;
+        actionButton.textContent = action;
         this.#roomController.render(room);
     }
 
@@ -76,17 +80,17 @@ export class StaticAppController {
             void this.#gameService.join(nameInput.value);
         }.bind(this));
 
-        DomUtils.require("#new-table-button", HTMLButtonElement).addEventListener("click", function () {
-            if (window.confirm("Start a fresh table? The current game will be discarded.")) {
-                void this.#gameService.reset();
-            }
-        }.bind(this));
-
-        DomUtils.require("#leave-table-button", HTMLButtonElement).addEventListener("click", function (event) {
+        DomUtils.require("#post-join-form-actions-button", HTMLButtonElement).addEventListener("click", function (event) {
             const button = event.currentTarget;
 
-            if (button instanceof HTMLButtonElement && button.dataset.action === "stop") {
+            if (!(button instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            if (button.dataset.action === "stop") {
                 void this.#gameService.stop();
+            } else if (button.dataset.action === "new") {
+                void this.#gameService.reset();
             } else {
                 void this.#gameService.leave();
             }

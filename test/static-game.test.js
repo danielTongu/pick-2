@@ -125,14 +125,32 @@ test("starting deals seven cards and can hand the first turn to the human", asyn
     }
 });
 
-test("the deployment entry point contains no lobby, viewers, or network client", () => {
+test("the deployment entry point contains no lobby or network client", () => {
     const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
     const main = readFileSync(new URL("../src/static/main.js", import.meta.url), "utf8");
 
-    assert.doesNotMatch(html, /lobby|viewer|visitor/i);
+    assert.doesNotMatch(html, /lobby/i);
     assert.doesNotMatch(main, /WebSocket|ConnectionService|LobbyController/);
+    assert.match(html, /id="room-info-table-body"/);
+    assert.match(html, /id="post-join-form-actions-button"/);
+    assert.doesNotMatch(html, /id="room-actions"|id="turn-status"/);
+    assert.doesNotMatch(html, /<th scope="col">Visitors<\/th>/);
     assert.match(html, /\.\/src\/static\/main\.js/);
     assert.match(html, /\.\/web\/shared\/styles\/app\.css/);
+});
+
+test("static and server room headers group metadata and controls", () => {
+    const staticHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+    const serverHtml = readFileSync(new URL("../web/server/index.html", import.meta.url), "utf8");
+    const roomHeaderPattern = /<header id="room-header">\s*<div class="table-container">\s*<table id="room-info-table">/;
+
+    assert.match(staticHtml, roomHeaderPattern);
+    assert.match(serverHtml, roomHeaderPattern);
+    assert.match(
+        staticHtml,
+        /<\/div>\s*<form id="join-form">[\s\S]*?<button id="post-join-form-actions-button"[\s\S]*?<\/header>/
+    );
+    assert.match(serverHtml, /<\/div>\s*<nav id="room-actions"[\s\S]*?<\/nav>\s*<\/header>/);
 });
 
 test("the static page publishes consistent search discovery metadata", () => {
@@ -141,7 +159,7 @@ test("the static page publishes consistent search discovery metadata", () => {
     const canonicalUrl = "https://danieltongu.github.io/pick-2/";
 
     assert.match(html, /<title>Play Pick 2 Online \| Free AI Card Game<\/title>/);
-    assert.match(html, /<meta name="description" content="[^"]+">/);
+    assert.match(html, /<meta name="description"\s+content="[^"]+">/);
     assert.match(html, /<meta name="robots" content="index, follow/);
     assert.match(html, new RegExp(`<link rel="canonical" href="${canonicalUrl}">`));
     assert.match(html, new RegExp(`<meta property="og:url" content="${canonicalUrl}">`));
@@ -162,7 +180,12 @@ test("the local hand keeps cards large and drag handles touch friendly", () => {
     }
 
     assert.doesNotMatch(controller, /cardSizeControl|applyCardSize/);
-    assert.match(cardCss, /--local-player-card-height:\s*240px/);
+    assert.doesNotMatch(cardCss, /--local-player-card-height/);
+    assert.match(cardCss, /--card-max-height:\s*200px/);
+    assert.match(
+        cardCss,
+        /#local-player-hand > playing-card,[\s\S]*?height:\s*var\(--card-max-height\)/
+    );
     assert.match(
         cardCss,
         /\.playing-card-drag-handle\s*\{[\s\S]*?width:\s*100%;[\s\S]*?height:\s*calc\(var\(--card-height\) \/ 3\)/
@@ -176,7 +199,10 @@ test("the local hand keeps cards large and drag handles touch friendly", () => {
         cardCss,
         /#discard-pile > playing-card:last-child\s*\{[\s\S]*?box-shadow:/
     );
-    assert.match(appCss, /height:\s*var\(--local-player-card-height\)/);
+    assert.match(
+        appCss,
+        /#local-player-hand\s*\{[\s\S]*?height:\s*var\(--card-max-height\)/
+    );
     assert.match(appCss, /#local-player-hand[\s\S]*overflow-x:\s*auto/);
     assert.match(appCss, /#local-player-hand[\s\S]*scrollbar-width:\s*none/);
     assert.match(appCss, /#local-player-hand::-webkit-scrollbar\s*\{[\s\S]*?display:\s*none/);

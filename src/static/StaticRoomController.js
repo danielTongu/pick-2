@@ -3,6 +3,7 @@
 import { Constants } from "../core/Constants.js";
 import { NormalizeUtils } from "../core/NormalizeUtils.js";
 import { TurnUtils } from "../core/TurnUtils.js";
+import { RoomRowUtils } from "../server/RoomRowUtils.js";
 import { DomUtils } from "../ui/DomUtils.js";
 import { GameEndController } from "../ui/GameEndController.js";
 import { LocalPlayerController } from "../ui/LocalPlayerController.js";
@@ -45,7 +46,10 @@ export class StaticRoomController extends ViewController {
      * @returns {Promise<void>}
      */
     async initialize() {
-        await OpponentUtils.load();
+        await Promise.all([
+            OpponentUtils.load(),
+            RoomRowUtils.load()
+        ]);
         PlayingCard.setDiscardTarget("#discard-pile");
         this.#bindCardDropEvent();
         this.#initializeLocalPlayerController();
@@ -62,7 +66,7 @@ export class StaticRoomController extends ViewController {
 
         this.#room = room;
         this.#suitSelectionController.hide();
-        this.#renderTableStatus(room, localPlayer);
+        this.#renderRoomInformation(room);
         this.#renderOpponentPlayers(room);
         this.#renderDiscardPile(room?.discardPile);
         this.#renderLocalPlayer(localPlayer, room);
@@ -141,51 +145,18 @@ export class StaticRoomController extends ViewController {
     }
 
     /**
-     * Updates table identity and turn feedback.
+     * Updates the static room metadata table and session status.
      *
      * @param {Object|null} room - Room payload.
-     * @param {Object|null} localPlayer - Local player payload.
      */
-    #renderTableStatus(room, localPlayer) {
+    #renderRoomInformation(room) {
         const session = DomUtils.require("#room-game-session", HTMLElement);
-        const status = DomUtils.require("#table-status-label", HTMLElement);
-        const players = DomUtils.require("#table-player-count", HTMLElement);
-        const turn = DomUtils.require("#turn-status", HTMLElement);
-        const playerCount = room?.playerCount ?? 0;
+        const body = DomUtils.require("#room-info-table-body", HTMLTableSectionElement);
+        const row = RoomRowUtils.create(room ?? {});
 
         session.dataset.roomStatus = NormalizeUtils.optionalString(room?.status, Constants.STATUS.WAITING);
-        status.textContent = NormalizeUtils.optionalString(room?.status, Constants.STATUS.WAITING);
-        players.textContent = `${playerCount} / ${room?.capacity ?? 4} seats`;
-        turn.textContent = StaticRoomController.#getTurnMessage(room, localPlayer);
-    }
-
-    /**
-     * Produces friendly turn feedback for the status bar.
-     *
-     * @param {Object|null} room - Room payload.
-     * @param {Object|null} localPlayer - Local player payload.
-     * @returns {string} Status message.
-     */
-    static #getTurnMessage(room, localPlayer) {
-        if (room?.status === Constants.STATUS.FINISHED) {
-            return "Game over — start a new table whenever you’re ready.";
-        }
-
-        if (room?.status === Constants.STATUS.WAITING) {
-            return localPlayer === null
-                ? "Three AI players are waiting for you."
-                : "All seats are ready. Start when you are.";
-        }
-
-        const turnOwner = StaticRoomController.#getPlayers(room).find(function (player) {
-            return TurnUtils.isTurnOwner(room?.circle?.turnOwnerKey, player.key);
-        });
-
-        if (localPlayer !== null && turnOwner?.key === localPlayer.key) {
-            return room?.status === Constants.STATUS.PENDING ? "Choose the next suit." : "Your turn.";
-        }
-
-        return turnOwner ? `${turnOwner.name} is thinking…` : "Preparing the next turn…";
+        DomUtils.remove(DomUtils.requireChild(row, "[data-visitor-count]", HTMLTableCellElement));
+        body.replaceChildren(row);
     }
 
     /**

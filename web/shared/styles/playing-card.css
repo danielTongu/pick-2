@@ -5,8 +5,7 @@
 :root {
     --card-aspect-ratio: 170 / 240;
     --card-min-height: 90px;
-    --card-max-height: 280px;
-    --local-player-card-height: 240px;
+    --card-max-height: 200px;
 }
 
 @media (min-width: 641px) {
@@ -96,8 +95,8 @@ playing-card,
 /* Keep local cards and their drag affordance comfortable for adult thumbs. */
 #local-player-hand > playing-card,
 #local-player-hand > #draw-card-button {
-    height: var(--local-player-card-height);
-    --card-height: var(--local-player-card-height);
+    height: var(--card-max-height);
+    --card-height: var(--card-max-height);
 }
 
 playing-card {
@@ -212,6 +211,7 @@ playing-card[data-suit="spades"] {
 
 playing-card::before,
 playing-card::after {
+    pointer-events: none;
     content: attr(data-value) "\A" var(--symbol);
     position: absolute;
     z-index: 2;
@@ -275,6 +275,7 @@ playing-card[data-is-dragging="true"] {
 
 #draw-card-button::before,
 #draw-card-button::after {
+    pointer-events: none;
     content: "";
     position: absolute;
     left: 50%;
