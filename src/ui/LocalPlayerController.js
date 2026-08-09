@@ -33,12 +33,6 @@ export class LocalPlayerController extends ViewController {
     /** @type {HTMLSelectElement} */
     #sortControl;
 
-    /** @type {HTMLInputElement} */
-    #cardSizeControl;
-
-    /** @type {HTMLOutputElement} */
-    #cardSizeOutput;
-
     /** @type {HTMLElement|null} */
     #idleSecondsOutput = null;
 
@@ -66,8 +60,6 @@ export class LocalPlayerController extends ViewController {
             this.#idleSecondsOutput = idleSecondsOutput;
         }
         this.#sortControl = DomUtils.requireChild(this.root, "#card-sort-key-select", HTMLSelectElement);
-        this.#cardSizeControl = DomUtils.requireChild(this.root, "#card-size-range", HTMLInputElement);
-        this.#cardSizeOutput = DomUtils.requireChild(this.root, "#card-size-output", HTMLOutputElement);
         this.#startButton = DomUtils.requireChild(this.root, "#start-game-button", HTMLButtonElement);
         this.#passButton = DomUtils.requireChild(this.root, "#pass-turn-button", HTMLButtonElement);
 
@@ -116,12 +108,6 @@ export class LocalPlayerController extends ViewController {
         this.#sortControl.addEventListener("change", function () {
             this.#submitSortChange();
         }.bind(this));
-
-        this.#cardSizeControl.addEventListener("input", function () {
-            this.#applyCardSize();
-        }.bind(this));
-
-        this.#applyCardSize();
     }
 
     /**
@@ -199,16 +185,6 @@ export class LocalPlayerController extends ViewController {
     #submitSortChange() {
         if (this.#sortHandler !== null) {
             this.#sortHandler(this.#sortControl.value);
-        }
-    }
-
-    /** Applies the selected local-hand card height. */
-    #applyCardSize() {
-        const size = Number(this.#cardSizeControl.value);
-
-        if (Number.isFinite(size)) {
-            this.root.style.setProperty("--local-player-card-min-height", `${size}px`);
-            this.#cardSizeOutput.value = `${size} px`;
         }
     }
 

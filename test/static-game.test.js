@@ -149,7 +149,7 @@ test("the static page publishes consistent search discovery metadata", () => {
     assert.match(sitemap, new RegExp(`<loc>${canonicalUrl}<\\/loc>`));
 });
 
-test("the local hand keeps cards and drag handles touch friendly", () => {
+test("the local hand keeps cards large and drag handles touch friendly", () => {
     const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
     const serverHtml = readFileSync(new URL("../web/server/index.html", import.meta.url), "utf8");
     const controller = readFileSync(new URL("../src/ui/LocalPlayerController.js", import.meta.url), "utf8");
@@ -157,12 +157,12 @@ test("the local hand keeps cards and drag handles touch friendly", () => {
     const appCss = readFileSync(new URL("../web/shared/styles/app.css", import.meta.url), "utf8");
 
     for (const page of [html, serverHtml]) {
-        assert.match(page, /id="card-size-range"[^>]+min="96"[^>]+max="240"[^>]+value="128"/);
-        assert.match(page, /id="card-size-output"/);
+        assert.doesNotMatch(page, /id="card-size-range"/);
+        assert.doesNotMatch(page, /id="card-size-output"/);
     }
 
-    assert.match(controller, /--local-player-card-min-height/);
-    assert.match(cardCss, /--local-player-card-min-height:\s*128px/);
+    assert.doesNotMatch(controller, /cardSizeControl|applyCardSize/);
+    assert.match(cardCss, /--local-player-card-height:\s*240px/);
     assert.match(
         cardCss,
         /\.playing-card-drag-handle\s*\{[\s\S]*?width:\s*100%;[\s\S]*?height:\s*calc\(var\(--card-height\) \/ 3\)/
@@ -176,7 +176,7 @@ test("the local hand keeps cards and drag handles touch friendly", () => {
         cardCss,
         /#discard-pile > playing-card:last-child\s*\{[\s\S]*?box-shadow:/
     );
-    assert.match(appCss, /min-height:\s*var\(--local-player-card-min-height\)/);
+    assert.match(appCss, /height:\s*var\(--local-player-card-height\)/);
     assert.match(appCss, /#local-player-hand[\s\S]*overflow-x:\s*auto/);
     assert.match(appCss, /#local-player-hand > playing-card\s*\{[\s\S]*?position:\s*relative/);
     assert.match(appCss, /#draw-card-button\s*\{[\s\S]*?position:\s*relative/);

@@ -6,7 +6,7 @@
     --card-aspect-ratio: 170 / 240;
     --card-min-height: 90px;
     --card-max-height: 280px;
-    --local-player-card-min-height: 128px;
+    --local-player-card-height: 240px;
 }
 
 @media (min-width: 641px) {
@@ -96,8 +96,8 @@ playing-card,
 /* Keep local cards and their drag affordance comfortable for adult thumbs. */
 #local-player-hand > playing-card,
 #local-player-hand > #draw-card-button {
-    height: clamp(var(--local-player-card-min-height), 100cqh, var(--card-max-height));
-    --card-height: clamp(var(--local-player-card-min-height), 100cqh, var(--card-max-height));
+    height: var(--local-player-card-height);
+    --card-height: var(--local-player-card-height);
 }
 
 playing-card {

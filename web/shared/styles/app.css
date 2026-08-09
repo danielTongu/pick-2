@@ -603,7 +603,8 @@ main {
 #local-player-hand {
     width: 100%;
     min-width: 0;
-    min-height: var(--local-player-card-min-height);
+    height: var(--local-player-card-height);
+    min-height: var(--local-player-card-height);
     overflow-x: auto;
     overscroll-behavior-inline: contain;
     scroll-padding-inline: var(--container-spacing);
@@ -632,38 +633,6 @@ main {
     grid-template-columns: repeat(2, minmax(80px, 1fr));
     gap: var(--container-spacing);
     padding: var(--container-spacing) 3px 3px;
-}
-
-#card-size-control {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: auto minmax(6rem, 1fr) 3.5rem;
-    gap: .75rem;
-    align-items: center;
-    width: min(100%, 26rem);
-    min-height: 3rem;
-    justify-self: center;
-    padding-inline: .75rem;
-    color: rgba(255, 255, 255, .8);
-    font-size: .8rem;
-    font-weight: 600;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-}
-
-#card-size-range {
-    width: 100%;
-    min-width: 0;
-    min-height: 2.75rem;
-    cursor: ew-resize;
-    accent-color: #60a5fa;
-}
-
-#card-size-output {
-    color: #bfdbfe;
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-    white-space: nowrap;
 }
 
 @media (min-width: 768px) {
