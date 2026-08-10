@@ -4,5 +4,6 @@
     --container-spacing: 1rem;
     --control-padding: .5rem 1rem;
     --container-radius: 1rem;
+    --shadow-black: 0 .35rem 1rem rgba(0, 0, 0, .22);
     font-size: medium;
 }

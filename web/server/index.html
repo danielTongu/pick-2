@@ -31,7 +31,7 @@
         <div id="field-group">
             <label for="player-name-input">
                 <span>Player</span>
-                <input id="player-name-input" type="text" autocomplete="nickname" required>
+                <input id="player-name-input" type="text" autocomplete="nickname" required autofocus>
             </label>
             <label for="room-name-input">
                 <span>Room</span>
@@ -137,8 +137,7 @@
                         <option value="value">value</option>
                     </select>
                 </button>
-                <button id="start-game-button" title="start game" type="button">Start
-                </button>
+                <button id="start-game-button" title="start game" type="button">Play</button>
                 <button id="pass-turn-button" title="pass turn" type="button">Pass
                 </button>
             </footer>
@@ -180,9 +179,7 @@
 
 <section id="game-end-dialog" class="dialog-overlay" hidden>
     <div class="dialog-panel dialog-panel-large">
-        <header>
-            <h1>Game Over</h1>
-            <p id="game-end-message"></p>
+        <header><h1 id="game-end-message"></h1>
         </header>
         <section id="game-end-stats-panel">
             <h2>Player Stats</h2>
@@ -238,7 +235,7 @@
         <span>Learn the table in a minute, then open any section when you need a reminder.</span>
     </summary>
     <div>
-        <details>
+        <details open>
             <summary>
                 <span>01</span>
                 <span>Quick start</span>
@@ -249,8 +246,8 @@
                     <p>Watch as a visitor or join as a player. Your hand appears below the discard pile.</p>
                 </article>
                 <article>
-                    <strong>Start the game</strong>
-                    <p>With at least two players present, select <em>Start</em>. Everyone receives seven cards.</p>
+                    <strong>Play the game</strong>
+                    <p>With at least two players present, select <em>Play</em>. Everyone receives seven cards.</p>
                 </article>
                 <article>
                     <strong>Take your turn</strong>
@@ -287,7 +284,7 @@
                 </article>
             </div>
         </details>
-        <details open>
+        <details>
             <summary>
                 <span>03</span>
                 <span>Special cards</span>
@@ -408,7 +405,7 @@
     </nav>
     <small id="app-footer-note">
         <span>© <time id="copyright-year" datetime="2026">2026</time> Pick 2. All rights reserved.</span>
-        <span>Proprietary software.</span>
+        <span>Network Edition</span>
     </small>
 </footer>
 

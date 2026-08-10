@@ -141,7 +141,7 @@ playing-card[data-is-face-down="true"] {
 }
 
 #discard-pile > playing-card:last-child {
-    box-shadow: 0 8px 24px rgba(0, 0, 0, .28);
+    box-shadow: var(--shadow-black);
 }
 
 playing-card:hover > .playing-card-center::before {

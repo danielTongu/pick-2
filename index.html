@@ -79,7 +79,9 @@
             </label>
             <button id="join-table-button" type="submit">submit</button>
         </form>
-        <button id="post-join-form-actions-button" type="button" data-action="leave" hidden>leave</button>
+        <nav id="room-actions" aria-label="Room controls">
+            <button id="post-join-form-actions-button" type="button" data-action="leave" hidden>leave</button>
+        </nav>
     </header>
     <section id="room-game-session" data-room-status="waiting">
         <div id="opponent-player-list" aria-label="AI opponents"></div>
@@ -96,7 +98,7 @@
                     <label for="card-sort-key-select">sort:</label>
                     <select id="card-sort-key-select"></select>
                 </button>
-                <button id="start-game-button" title="Start game" type="button">Start</button>
+                <button id="start-game-button" title="Start game" type="button">Play</button>
                 <button id="pass-turn-button" title="Pass turn" type="button">Pass</button>
             </footer>
         </div>
@@ -127,8 +129,7 @@
 
 <section id="game-end-dialog" class="dialog-overlay" hidden>
     <div class="dialog-panel dialog-panel-large">
-        <header><h1>Game Over</h1>
-            <p id="game-end-message"></p></header>
+        <header><h1 id="game-end-message"></h1></header>
         <section id="game-end-stats-panel">
             <h2>Player Stats</h2>
             <table id="game-end-player-stats-table">
@@ -169,13 +170,13 @@
         <span>Learn the table in a minute, then open any section when you need a reminder.</span>
     </summary>
     <div>
-        <details>
+        <details open>
             <summary><span>01</span><span>Quick start</span></summary>
             <div id="quick-start">
                 <article><strong>Take your seat</strong>
                     <p>Enter your name and join the three AI opponents.</p></article>
-                <article><strong>Start the game</strong>
-                    <p>Select <em>Start</em>. Everyone receives seven cards.</p></article>
+                <article><strong>Play the game</strong>
+                    <p>Select <em>Play</em>. Everyone receives seven cards.</p></article>
                 <article><strong>Take your turn</strong>
                     <p>Drag a card to the discard pile, draw when needed, or pass after drawing.</p></article>
                 <article><strong>Use your cards</strong>
@@ -196,7 +197,7 @@
                     <p>The player with the lowest remaining hand score wins.</p></article>
             </div>
         </details>
-        <details open>
+        <details>
             <summary><span>03</span><span>Special cards</span></summary>
             <div id="special-cards">
                 <article><b>Eight</b><span>Skips the next player.</span>
@@ -287,13 +288,17 @@
 </details>
 
 <footer id="app-footer">
-    <section id="app-footer-brand" aria-label="Pick 2"><strong>Pick 2</strong>
-        <p>Match cards. Make moves.</p></section>
-    <nav id="app-footer-navigation" aria-label="Footer navigation"><a href="#app-header">Top</a><a
-            href="#game-guide-section">Game guide</a></nav>
+    <section id="app-footer-brand" aria-label="Pick 2">
+        <strong>Pick 2</strong>
+        <p>Match cards. Make moves.</p>
+    </section>
+    <nav id="app-footer-navigation" aria-label="Footer navigation">
+        <a href="#app-header">Top</a>
+        <a href="#game-guide-section">Game guide</a>
+    </nav>
     <small id="app-footer-note">
-        <span>© <time id="copyright-year" datetime="2026">2026</time> Pick 2.</span>
-        <span>Static browser edition · one player versus three AI opponents.</span>
+        <span>© <time id="copyright-year" datetime="2026">2026</time> Pick 2. All rights reserved.</span>
+        <span>Static Edition</span>
     </small>
 </footer>
 

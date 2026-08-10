@@ -596,6 +596,19 @@ export default class Server {
      * @returns {Promise<void>}
      */
     async #evictRoomSession(roomSession, room) {
+        const roomKey = await this.#removeRoomSession(roomSession, room);
+
+        await this.#continueGameOrCloseRoom(roomKey);
+    }
+
+    /**
+     * Removes one occupant without waiting for subsequent automated turns.
+     *
+     * @param {{tabId:string, ws:WebSocket, roomKey:string, playerName:string|null}} roomSession - Room session.
+     * @param {Room} room - Room instance.
+     * @returns {Promise<string>} Removed occupant's room key.
+     */
+    async #removeRoomSession(roomSession, room) {
         const roomKey = roomSession.roomKey;
         const playerName = roomSession.playerName;
 
@@ -607,7 +620,7 @@ export default class Server {
             room.evictVisitor(roomSession.tabId);
         }
 
-        await this.#continueGameOrCloseRoom(roomKey);
+        return roomKey;
     }
 
     // -------------------------------------------------------------------------
@@ -1249,12 +1262,14 @@ export default class Server {
         const room = this.#roomsByKey.get(session.roomSession.roomKey) ?? null;
 
         if (room !== null) {
-            await this.#evictRoomSession(session.roomSession, room);
+            const roomKey = await this.#removeRoomSession(session.roomSession, room);
+
+            this.#sendLobbyTransition(ws);
+            await this.#continueGameOrCloseRoom(roomKey);
         } else {
             this.#unregisterRoomSession(session.tabId, ws);
+            this.#sendLobbyTransition(ws);
         }
-
-        this.#sendLobbyTransition(ws);
     }
 
     /**

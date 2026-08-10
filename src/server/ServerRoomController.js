@@ -74,6 +74,10 @@ export class ServerRoomController extends ViewController {
     hide() {
         super.hide();
         this.#hideTransientOverlays();
+        this.#countdownController.hide();
+        this.#gameEndController.hide();
+        this.#room = null;
+        this.#previousRoomStatus = "";
     }
 
     /**

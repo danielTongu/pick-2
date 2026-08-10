@@ -7,15 +7,15 @@ import test from "node:test";
 import { Constants } from "../src/core/Constants.js";
 import { LocalGameEngine } from "../src/static/LocalGameEngine.js";
 
-test("a fresh static table contains exactly three waiting AI seats", async () => {
+test("a fresh static table uses the configured opponent names", async () => {
     const engine = new LocalGameEngine();
     const room = await engine.reset();
 
     assert.equal(room.status, Constants.STATUS.WAITING);
-    assert.equal(room.playerCount, 3);
+    assert.equal(room.playerCount, Constants.STATIC_OPPONENT_NAMES.length);
     assert.equal(room.capacity, 4);
     assert.equal(room.session.playerName, null);
-    assert.deepEqual(room.circle.players.map((player) => player.name), ["Maya", "Theo", "Zuri"]);
+    assert.deepEqual(room.circle.players.map((player) => player.name), Constants.STATIC_OPPONENT_NAMES);
 });
 
 test("the browser user occupies the fourth and final seat", async () => {
@@ -36,9 +36,9 @@ test("leaving a waiting table removes only the browser user", async () => {
     const room = await engine.leave();
 
     assert.equal(room.status, Constants.STATUS.WAITING);
-    assert.equal(room.playerCount, 3);
+    assert.equal(room.playerCount, Constants.STATIC_OPPONENT_NAMES.length);
     assert.equal(room.session.playerName, null);
-    assert.deepEqual(room.circle.players.map((player) => player.name), ["Maya", "Theo", "Zuri"]);
+    assert.deepEqual(room.circle.players.map((player) => player.name), Constants.STATIC_OPPONENT_NAMES);
 });
 
 test("leaving an active game starts autonomous play that can be stopped", async () => {
@@ -133,7 +133,7 @@ test("the deployment entry point contains no lobby or network client", () => {
     assert.doesNotMatch(main, /WebSocket|ConnectionService|LobbyController/);
     assert.match(html, /id="room-info-table-body"/);
     assert.match(html, /id="post-join-form-actions-button"/);
-    assert.doesNotMatch(html, /id="room-actions"|id="turn-status"/);
+    assert.doesNotMatch(html, /id="turn-status"/);
     assert.doesNotMatch(html, /<th scope="col">Visitors<\/th>/);
     assert.match(html, /\.\/src\/static\/main\.js/);
     assert.match(html, /\.\/web\/shared\/styles\/app\.css/);
@@ -208,6 +208,15 @@ test("the local hand keeps cards large and drag handles touch friendly", () => {
     assert.match(appCss, /#local-player-hand::-webkit-scrollbar\s*\{[\s\S]*?display:\s*none/);
     assert.match(appCss, /#local-player-hand > playing-card\s*\{[\s\S]*?position:\s*relative/);
     assert.match(appCss, /#draw-card-button\s*\{[\s\S]*?position:\s*relative/);
+    assert.match(
+        appCss,
+        /\[data-is-turn-owner="true"\]\s*\{[\s\S]*?animation:\s*turn-owner-border-strobe 1\.2s ease-in-out infinite/
+    );
+    assert.match(appCss, /@keyframes turn-owner-border-strobe/);
+    assert.match(
+        appCss,
+        /@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]*?\[data-is-turn-owner="true"\][\s\S]*?animation:\s*none/
+    );
     assert.match(
         cardCss,
         /#draw-card-button\s*\{[\s\S]*?background:\s*rgba\(255, 255, 255, \.08\);[\s\S]*?color:\s*#fff/

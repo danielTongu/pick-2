@@ -56,9 +56,7 @@ export class StaticAppController {
         const canJoin = !isJoined && room?.status === Constants.STATUS.WAITING;
         const joinForm = DomUtils.require("#join-form", HTMLFormElement);
         const actionButton = DomUtils.require("#post-join-form-actions-button", HTMLButtonElement);
-        const action = isFinishedWithoutLocalPlayer
-            ? "new"
-            : isRunningWithoutLocalPlayer ? "stop" : "leave";
+        const action = isFinishedWithoutLocalPlayer ? "new" : isRunningWithoutLocalPlayer ? "stop" : "leave";
 
         joinForm.hidden = !canJoin;
         actionButton.hidden = !isJoined && !isRunningWithoutLocalPlayer && !isFinishedWithoutLocalPlayer;

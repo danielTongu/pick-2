@@ -32,7 +32,8 @@
 #join-form {
     display: grid;
     gap: var(--container-spacing);
-    padding: calc(1.5 * var(--container-spacing));
+    padding: calc(var(--container-spacing));
+    margin: 0 var(--container-spacing);
     border: 1px solid rgba(253, 230, 138, .3);
     border-radius: var(--container-radius);
     background: linear-gradient(135deg, rgba(253, 230, 138, .13), rgba(255, 255, 255, .05));
@@ -64,9 +65,5 @@ select:disabled {
         grid-template-columns: auto 1fr;
         gap: var(--container-spacing);
         align-items: center;
-    }
-
-    #post-join-form-actions-button {
-        justify-self: start;
     }
 }

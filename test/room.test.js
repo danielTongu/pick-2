@@ -101,6 +101,17 @@ test("room membership supports visitor eviction, player demotion, and player evi
     assert.equal(room.isEmpty(), true);
 });
 
+test("players and visitors can exit while a game is active", async (t) => {
+    const room = await createPlayingRoom(t);
+
+    assert.equal(room.admitVisitor("active-visitor"), true);
+    assert.equal((await room.evictPlayer("Alice")).name, "Alice");
+    assert.equal(room.evictVisitor("active-visitor"), true);
+    assert.equal(room.status, Constants.STATUS.PLAYING);
+    assert.equal(room.isPlayerPresent("Alice"), false);
+    assert.equal(room.visitors.has("active-visitor"), false);
+});
+
 test("room payload uses one player shape and session identifies the local player", async (t) => {
     const room = new Room("Payload Room", 2);
     t.after(() => stopIdleMonitoring(room));

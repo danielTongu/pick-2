@@ -33,6 +33,9 @@ export class LocalPlayerController extends ViewController {
     /** @type {HTMLSelectElement} */
     #sortControl;
 
+    /** @type {HTMLButtonElement} */
+    #sortButton;
+
     /** @type {HTMLElement|null} */
     #idleSecondsOutput = null;
 
@@ -59,7 +62,8 @@ export class LocalPlayerController extends ViewController {
         if (idleSecondsOutput instanceof HTMLElement) {
             this.#idleSecondsOutput = idleSecondsOutput;
         }
-        this.#sortControl = DomUtils.requireChild(this.root, "#card-sort-key-select", HTMLSelectElement);
+        this.#sortButton = DomUtils.requireChild(this.root, "#card-sort-control-button", HTMLButtonElement);
+        this.#sortControl = DomUtils.requireChild(this.#sortButton, "#card-sort-key-select", HTMLSelectElement);
         this.#startButton = DomUtils.requireChild(this.root, "#start-game-button", HTMLButtonElement);
         this.#passButton = DomUtils.requireChild(this.root, "#pass-turn-button", HTMLButtonElement);
 
@@ -107,6 +111,21 @@ export class LocalPlayerController extends ViewController {
 
         this.#sortControl.addEventListener("change", function () {
             this.#submitSortChange();
+        }.bind(this));
+
+        this.#sortButton.addEventListener("click", function (event) {
+            if (event.target === this.#sortControl || this.#sortControl.disabled) {
+                return;
+            }
+
+            event.preventDefault();
+
+            if (typeof this.#sortControl.showPicker === "function") {
+                this.#sortControl.showPicker();
+            } else {
+                this.#sortControl.focus();
+                this.#sortControl.click();
+            }
         }.bind(this));
     }
 

@@ -74,7 +74,7 @@ The client does not normalize different player variants. Every player has one DT
 
 - action names;
 - room, game, connection, and notification statuses;
-- initial hand size, room capacity, default rooms, and idle duration;
+- initial hand size, room capacity, default rooms, static opponent names, and idle duration;
 - standard values, standard suits, joker suits, rank/value/suit/score sort options, and score overrides;
 - card score calculation;
 - reusable emoji groups and random emoji selection.
@@ -104,7 +104,7 @@ The membership vocabulary is consistent across constants, routing, and domain op
 - **demote** changes a player into a visitor;
 - **evict** removes an occupant.
 
-Membership is locked while the room is starting, playing, or awaiting a suit declaration. Player names are unique within a room, and room capacity applies to player seats.
+New admissions, promotions, and demotions are locked while the room is starting, playing, or awaiting a suit declaration. Visitors and players may still exit at any time; self-exit removes their room session and returns their client to the lobby before any remaining automated turns continue. Player names are unique within a room, and room capacity applies to player seats.
 
 ### 4.3 Game flow
 

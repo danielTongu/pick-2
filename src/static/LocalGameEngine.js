@@ -9,14 +9,11 @@ import { StateMapper } from "../core/StateMapper.js";
 /**
  * Runs one self-contained Pick 2 table entirely inside the browser.
  *
- * The engine owns one human seat and three permanent AI seats. It exposes the
- * same action vocabulary as the original network client, but never opens a
- * socket or persists state outside the current page.
+ * The engine owns one human seat and the AI seats configured in shared
+ * constants. It exposes the same action vocabulary as the original network
+ * client, but never opens a socket or persists state outside the current page.
  */
 export class LocalGameEngine {
-    /** @type {readonly string[]} */
-    static AI_NAMES = Object.freeze(["Maya", "Theo", "Zuri"]);
-
     /** @type {Room|null} */
     #room = null;
 
@@ -63,7 +60,7 @@ export class LocalGameEngine {
     }
 
     /**
-     * Creates a fresh waiting table with three AI players.
+     * Creates a fresh waiting table with the configured AI opponents.
      *
      * @returns {Promise<Object>} Initial room snapshot.
      */
@@ -85,7 +82,7 @@ export class LocalGameEngine {
             this.#emitState(room);
         }.bind(this);
 
-        for (const name of LocalGameEngine.AI_NAMES) {
+        for (const name of Constants.STATIC_OPPONENT_NAMES) {
             await room.admitPlayer(name, true);
         }
 

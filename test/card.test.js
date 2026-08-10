@@ -26,6 +26,16 @@ test("default room configuration assigns two AI players to two rooms", () => {
     );
 });
 
+test("static opponent names are centralized and immutable", () => {
+    assert.equal(Object.isFrozen(Constants.STATIC_OPPONENT_NAMES), true);
+    assert.equal(Constants.STATIC_OPPONENT_NAMES.length, Constants.ROOM_MAX_CAPACITY - 1);
+    assert.equal(
+        Constants.STATIC_OPPONENT_NAMES.every((name) => typeof name === "string" && name.trim().length > 0),
+        true
+    );
+    assert.equal(new Set(Constants.STATIC_OPPONENT_NAMES).size, Constants.STATIC_OPPONENT_NAMES.length);
+});
+
 test("card-domain suit operations share canonical suit definitions", () => {
     assert.equal(Constants.isStandardSuit(SUIT.HEARTS), true);
     assert.equal(Constants.isStandardSuit(SUIT.RED), false);

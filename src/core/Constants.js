@@ -25,6 +25,15 @@ export class Constants {
     static ROOM_MAX_CAPACITY = 4;
 
     /**
+     * Ordered display names for the static edition's AI opponents.
+     *
+     * The static game engine creates one opponent for every name in this
+     * collection, so its lineup can be maintained without changing engine
+     * logic.
+     */
+    static STATIC_OPPONENT_NAMES = Object.freeze(["A", "B", "C"]);
+
+    /**
      * Default room names created when the server starts.
      */
     static DEFAULT_ROOM_NAMES = Object.freeze(["Default-R0", "Default-R1", "Default-R2", "Default-R3"]);

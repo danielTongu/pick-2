@@ -18,6 +18,7 @@ import { OpponentUtils } from "../src/ui/OpponentUtils.js";
 import { TemplateUtils } from "../src/ui/TemplateUtils.js";
 
 const INDEX_HTML = readFileSync(new URL("../web/server/index.html", import.meta.url), "utf8");
+const OVERLAYS_CSS = readFileSync(new URL("../web/shared/styles/overlays.css", import.meta.url), "utf8");
 
 test("browser controller, custom element, and template utility families share their intended APIs", async () => {
     const OriginalHTMLElement = globalThis.HTMLElement;
@@ -291,6 +292,18 @@ test("card-sort HTML initializes every canonical option", () => {
     });
 
     assert.deepEqual(optionValues.sort(), [...Constants.CARD.SORT_OPTIONS].sort());
+});
+
+test("the countdown strobes its box shadow and respects reduced motion", () => {
+    assert.match(
+        OVERLAYS_CSS,
+        /#countdown-value\s*\{[\s\S]*?animation:\s*countdown-box-shadow-strobe 1s ease-in-out infinite/
+    );
+    assert.match(OVERLAYS_CSS, /@keyframes countdown-box-shadow-strobe/);
+    assert.match(
+        OVERLAYS_CSS,
+        /@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]*?#countdown-value[\s\S]*?animation:\s*none/
+    );
 });
 
 test("game-guide score cells initialize from canonical card scores", () => {
