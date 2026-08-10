@@ -54,6 +54,21 @@ test("room lifecycle predicates describe active and membership-locked states", (
     assert.equal(room.isMembershipLocked(), false);
 });
 
+test("stopping a completed round returns the same table to waiting", async (t) => {
+    const room = new Room("Completed Table", 2);
+
+    t.after(() => stopIdleMonitoring(room));
+    await room.admitPlayer("Alice");
+    await room.admitPlayer("Bob");
+    await room.startGame();
+    room.status = Constants.STATUS.FINISHED;
+
+    assert.equal(await room.stopGame(), true);
+    assert.equal(room.status, Constants.STATUS.WAITING);
+    assert.equal(room.circle.turnOwnerKey, null);
+    assert.equal(room.circle.players.size, 2);
+});
+
 test("room membership enforces uniqueness and capacity", async (t) => {
     const room = new Room("Test Room", 2);
     t.after(() => stopIdleMonitoring(room));

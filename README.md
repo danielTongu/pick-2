@@ -48,7 +48,14 @@ request indexing for the canonical page. Search engines decide when and whether
 to index a page, so publication alone does not guarantee immediate appearance.
 
 Each browser tab runs an independent static match; a static host cannot share a
-room across browsers without an external realtime service.
+room across browsers without an external realtime service. The table uses a
+single `Join` / `Leave` control before play. During a round, leaving removes the
+local player while the AI players continue and changes the control to `Stop`.
+Stopping an active AI round restores the local seat at the same waiting table.
+If that round finishes first, the seat is restored automatically and the
+available choices are `Play` or `Leave`. Cards can be sorted locally during any
+player's turn. After a completed round, `Play` starts the next round directly;
+there is no separate new-table action.
 
 ## Test
 

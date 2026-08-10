@@ -98,10 +98,6 @@ export class LocalGameEngine {
     async leave() {
         this.#requireRoom();
 
-        if (this.#isBusy) {
-            throw new Error("Please wait for the current turn to finish.");
-        }
-
         if (this.#playerName === null) {
             throw new Error("The local seat is not occupied.");
         }
@@ -114,6 +110,10 @@ export class LocalGameEngine {
         this.#emitState(room);
 
         try {
+            if (room.status === Constants.STATUS.FINISHED) {
+                await room.stopGame();
+            }
+
             await this.#resolvePendingSuitBeforeLeaving(room, playerName);
             await room.evictPlayer(playerName);
 
@@ -122,6 +122,21 @@ export class LocalGameEngine {
                 this.#departedPlayerName = room.isGameActive() ? playerName : null;
                 this.#emitState(room);
                 await this.#runAutomatedTurns(room, operationId);
+
+                if (
+                    this.#isCurrentOperation(room, operationId) &&
+                    room.status === Constants.STATUS.FINISHED &&
+                    this.#departedPlayerName !== null
+                ) {
+                    await room.stopGame();
+
+                    if (!room.isPlayerPresent(playerName)) {
+                        await room.admitPlayer(playerName, false);
+                    }
+
+                    this.#playerName = playerName;
+                    this.#departedPlayerName = null;
+                }
             }
         } finally {
             if (this.#isCurrentOperation(room, operationId)) {
@@ -247,6 +262,7 @@ export class LocalGameEngine {
 
         return Object.freeze({
             ...StateMapper.toRoomPayload(this.#room, this.#playerName),
+            canStop: this.#departedPlayerName !== null,
             isBusy: this.#isBusy
         });
     }

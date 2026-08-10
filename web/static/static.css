@@ -25,10 +25,6 @@
     background: rgba(185, 28, 28, .75);
 }
 
-#post-join-form-actions-button[data-action="new"] {
-    background: rgba(37, 99, 235, .75);
-}
-
 #join-form {
     display: grid;
     gap: var(--container-spacing);

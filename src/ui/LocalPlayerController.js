@@ -45,14 +45,20 @@ export class LocalPlayerController extends ViewController {
     /** @type {HTMLButtonElement} */
     #passButton;
 
+    /** @type {boolean} */
+    #canRestartFinishedGame;
+
     /**
      * Creates a local-player region controller.
      *
      * @param {string} selector - Local-player region selector.
+     * @param {Object} [options={}] - Edition-specific control options.
+     * @param {boolean} [options.canRestartFinishedGame=false] - Whether Play is available after a finished round.
      * @throws {Error}
      */
-    constructor(selector) {
+    constructor(selector, {canRestartFinishedGame = false} = {}) {
         super(selector);
+        this.#canRestartFinishedGame = canRestartFinishedGame === true;
         this.#playerHeader = DomUtils.requireChild(this.root, "header", HTMLElement);
         this.#handElement = DomUtils.requireChild(this.root, "#local-player-hand", HTMLDivElement);
         this.#drawButton = DomUtils.requireChild(this.root, "#draw-card-button", HTMLButtonElement);
@@ -242,8 +248,11 @@ export class LocalPlayerController extends ViewController {
         this.#drawAllowanceOutput.dataset.drawAllowance = String(data.drawAllowance);
         this.#drawButton.disabled = !LocalPlayerController.#isDrawButtonUsable(data);
         this.#sortControl.value = sortKey;
-        this.#sortControl.disabled = data.isBusy;
-        this.#startButton.disabled = data.isBusy || data.status !== Constants.STATUS.WAITING;
+        this.#sortControl.disabled = false;
+        const canStartGame = data.status === Constants.STATUS.WAITING ||
+            (this.#canRestartFinishedGame && data.status === Constants.STATUS.FINISHED);
+
+        this.#startButton.disabled = data.isBusy || !canStartGame;
         this.#passButton.disabled = data.isBusy ||
             data.status !== Constants.STATUS.PLAYING ||
             !TurnUtils.isTurnOwner(data.turnOwnerKey, data.key);

@@ -49,18 +49,15 @@ export class StaticAppController {
      */
     handleRoomSync(room) {
         const isJoined = room?.session?.playerName !== null;
-        const isBusy = room?.isBusy === true;
-        const isActive = room?.status === Constants.STATUS.PLAYING || room?.status === Constants.STATUS.PENDING;
-        const isRunningWithoutLocalPlayer = !isJoined && isActive;
-        const isFinishedWithoutLocalPlayer = !isJoined && room?.status === Constants.STATUS.FINISHED;
+        const canStop = !isJoined && room?.canStop === true;
         const canJoin = !isJoined && room?.status === Constants.STATUS.WAITING;
         const joinForm = DomUtils.require("#join-form", HTMLFormElement);
         const actionButton = DomUtils.require("#post-join-form-actions-button", HTMLButtonElement);
-        const action = isFinishedWithoutLocalPlayer ? "new" : isRunningWithoutLocalPlayer ? "stop" : "leave";
+        const action = canStop ? "stop" : "leave";
 
         joinForm.hidden = !canJoin;
-        actionButton.hidden = !isJoined && !isRunningWithoutLocalPlayer && !isFinishedWithoutLocalPlayer;
-        actionButton.disabled = isJoined && isBusy;
+        actionButton.hidden = !isJoined && !canStop;
+        actionButton.disabled = false;
         actionButton.dataset.action = action;
         actionButton.textContent = action;
         this.#roomController.render(room);
@@ -87,8 +84,6 @@ export class StaticAppController {
 
             if (button.dataset.action === "stop") {
                 void this.#gameService.stop();
-            } else if (button.dataset.action === "new") {
-                void this.#gameService.reset();
             } else {
                 void this.#gameService.leave();
             }

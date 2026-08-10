@@ -121,6 +121,15 @@ While a room is `waiting`, `circle.turnOwnerKey` is `null`. With no turn owner, 
 
 Card rules and game-ending rules are enforced only while the room is actively playing. Outside play, any card may be placed on any other card.
 
+In the static edition, the browser user may leave while any turn is resolving.
+The three AI seats continue an active round and the `Leave` control becomes
+`Stop`. Stopping returns the same table to `waiting` and restores the local
+seat. If the AI round finishes before Stop is selected, the engine restores the
+local seat automatically, leaving only `Play` and `Leave` available. Hand
+sorting remains a local presentation action and is available while any player
+owns the turn. A seated player can select `Play` from either `waiting` or
+`finished`, so completed rounds restart without a separate new-table action.
+
 ### 4.4 Idle and empty-room cleanup
 
 When a player exceeds `Constants.MAX_IDLE_MS`, the server removes or demotes that player and sends the relevant notification. If no players remain, the server schedules an empty-room check for another `MAX_IDLE_MS`. The closure callback checks the room again before evicting remaining visitors and removing the room, preventing a stale timer from closing an occupied room.

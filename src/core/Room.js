@@ -423,16 +423,16 @@ export class Room extends Serializable {
     }
 
     /**
-     * Stops the current game without replacing or clearing the table.
+     * Returns the current or completed game to waiting without clearing the table.
      *
      * Players, hands, the deck, and the discard pile remain available in the
      * waiting state. Starting another game performs the normal round reset.
      *
-     * @returns {Promise<boolean>} True when an active game was stopped.
+     * @returns {Promise<boolean>} True when the table returned to waiting.
      */
     async stopGame() {
         return this.#enqueueOperation(() => {
-            const wasStopped = this.isGameActive();
+            const wasStopped = this.status !== Constants.STATUS.WAITING;
 
             if (wasStopped) {
                 this.status = Constants.STATUS.WAITING;

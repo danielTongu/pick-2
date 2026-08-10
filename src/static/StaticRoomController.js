@@ -35,7 +35,9 @@ export class StaticRoomController extends ViewController {
      */
     constructor(client) {
         super("#room-view", client);
-        this.#localPlayerController = new LocalPlayerController("#local-player-region");
+        this.#localPlayerController = new LocalPlayerController("#local-player-region", {
+            canRestartFinishedGame: true
+        });
         this.#suitSelectionController = new SuitSelectionController("#suit-selection-dialog");
         this.#gameEndController = new GameEndController("#game-end-dialog");
     }

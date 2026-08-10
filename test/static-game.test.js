@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { Constants } from "../src/core/Constants.js";
+import { AIPlayer } from "../src/core/Player.js";
 import { LocalGameEngine } from "../src/static/LocalGameEngine.js";
 
 test("a fresh static table uses the configured opponent names", async () => {
@@ -105,6 +106,80 @@ test("leaving an active game starts autonomous play that can be stopped", async 
     }
 });
 
+test("the browser user can leave while an AI turn is resolving", async () => {
+    const originalRandom = Math.random;
+    const originalSetTimeout = globalThis.setTimeout;
+    const aiTurnCallbacks = [];
+
+    Math.random = () => 0;
+    globalThis.setTimeout = (callback, delay) => {
+        if (delay < Constants.MAX_IDLE_MS) {
+            aiTurnCallbacks.push(callback);
+        }
+
+        return aiTurnCallbacks.length + 1;
+    };
+
+    try {
+        const engine = new LocalGameEngine();
+
+        await engine.reset();
+        await engine.join("Daniel");
+        const startPromise = engine.act(Constants.ACTIONS.START_GAME);
+
+        await new Promise((resolve) => setImmediate(resolve));
+        assert.equal(engine.snapshot().isBusy, true);
+
+        const leavePromise = engine.leave();
+
+        await new Promise((resolve) => setImmediate(resolve));
+        assert.equal(engine.snapshot().session.playerName, null);
+        assert.equal(engine.snapshot().playerCount, Constants.STATIC_OPPONENT_NAMES.length);
+
+        const stoppedRoom = await engine.stop();
+
+        assert.equal(stoppedRoom.status, Constants.STATUS.WAITING);
+        assert.equal(stoppedRoom.session.playerName, "Daniel");
+
+        for (const callback of aiTurnCallbacks) {
+            callback();
+        }
+
+        await Promise.all([startPromise, leavePromise]);
+    } finally {
+        Math.random = originalRandom;
+        globalThis.setTimeout = originalSetTimeout;
+    }
+});
+
+test("an autonomous finish restores the local seat without exposing stop", async () => {
+    const originalRandom = Math.random;
+    const originalTakeTurn = AIPlayer.prototype.takeTurn;
+
+    Math.random = () => 0.99;
+    AIPlayer.prototype.takeTurn = async function (room) {
+        room.status = Constants.STATUS.FINISHED;
+        room.circle.setTurnOwner(null);
+    };
+
+    try {
+        const engine = new LocalGameEngine();
+
+        await engine.reset();
+        await engine.join("Daniel");
+        await engine.act(Constants.ACTIONS.START_GAME);
+        const room = await engine.leave();
+
+        assert.equal(room.status, Constants.STATUS.WAITING);
+        assert.equal(room.session.playerName, "Daniel");
+        assert.equal(room.playerCount, Constants.ROOM_MAX_CAPACITY);
+        assert.equal(room.canStop, false);
+    } finally {
+        Math.random = originalRandom;
+        AIPlayer.prototype.takeTurn = originalTakeTurn;
+    }
+});
+
 test("starting deals seven cards and can hand the first turn to the human", async () => {
     const originalRandom = Math.random;
     Math.random = () => 0.99;
@@ -137,6 +212,31 @@ test("the deployment entry point contains no lobby or network client", () => {
     assert.doesNotMatch(html, /<th scope="col">Visitors<\/th>/);
     assert.match(html, /\.\/src\/static\/main\.js/);
     assert.match(html, /\.\/web\/shared\/styles\/app\.css/);
+});
+
+test("static controls cycle through join, leave, and stop without a new-table action", () => {
+    const appController = readFileSync(new URL("../src/static/StaticAppController.js", import.meta.url), "utf8");
+    const gameService = readFileSync(new URL("../src/static/LocalGameService.js", import.meta.url), "utf8");
+    const playerController = readFileSync(new URL("../src/ui/LocalPlayerController.js", import.meta.url), "utf8");
+    const staticCss = readFileSync(new URL("../web/static/static.css", import.meta.url), "utf8");
+
+    assert.match(appController, /room\?\.canStop === true/);
+    assert.match(appController, /const action = canStop \? "stop" : "leave"/);
+    assert.match(appController, /actionButton\.disabled = false/);
+    assert.doesNotMatch(appController, /dataset\.action === "new"|#gameService\.reset/);
+    assert.doesNotMatch(gameService, /async reset\(\)/);
+    assert.doesNotMatch(staticCss, /data-action="new"/);
+    assert.match(
+        playerController,
+        /data\.status === Constants\.STATUS\.WAITING \|\|[\s\S]*?#canRestartFinishedGame && data\.status === Constants\.STATUS\.FINISHED/
+    );
+    assert.match(playerController, /#startButton\.disabled = data\.isBusy \|\| !canStartGame/);
+    assert.match(playerController, /#sortControl\.disabled = false/);
+    assert.doesNotMatch(playerController, /#sortControl\.disabled = data\.isBusy/);
+    assert.match(
+        readFileSync(new URL("../src/static/StaticRoomController.js", import.meta.url), "utf8"),
+        /canRestartFinishedGame: true/
+    );
 });
 
 test("static and server room headers group metadata and controls", () => {

@@ -106,17 +106,6 @@ export class LocalGameService {
     }
 
     /**
-     * Replaces the current game with a fresh waiting table.
-     *
-     * @returns {Promise<void>}
-     */
-    async reset() {
-        this.#sortKey = Constants.CARD.SORT_OPTIONS[0];
-        const room = await this.#engine.reset();
-        this.#appController?.handleRoomSync(room);
-    }
-
-    /**
      * Dispatches a game action without blocking DOM event handlers.
      *
      * @param {string} type - Game action.
