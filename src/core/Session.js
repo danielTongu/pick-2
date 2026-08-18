@@ -11,43 +11,37 @@ import { PlayerCircle } from "./PlayerCircle.js";
 import { TurnUtils } from "./TurnUtils.js";
 
 /**
- * Owns one game room and enforces game rules.
+ * Owns one Session and enforces the game rules within it.
  *
- * Membership levels:
- * - Visitor: Can observe the room.
- * - Player: Participates in the game.
+ * A session owns players and gameplay. Viewers may observe without joining.
  */
-export class Room extends Serializable {
+export class Session extends Serializable {
     /** @type {Promise<*>} */
     #operationQueue = Promise.resolve();
 
     /**
-     * Creates a room.
+     * Creates a session.
      *
-     * @param {string} name - Room name.
-     * @param {number} capacity - Room capacity.
+     * @param {string} name - Session name.
+     * @param {number} capacity - Session capacity.
      * @throws {Error}
      */
-    constructor(name, capacity = Constants.ROOM_MAX_CAPACITY) {
+    constructor(name, capacity = Constants.SESSION_MAX_CAPACITY) {
         super();
 
         const now = Date.now();
 
-        this.name = Room.#normalizeName(name);
-        this.capacity = Room.#normalizeCapacity(capacity);
+        this.name = Session.#normalizeName(name);
+        this.capacity = Session.#normalizeCapacity(capacity);
         this.status = Constants.STATUS.WAITING;
 
         this.createdAt = now;
         this.lastActiveAt = now;
 
-        this.session = {
-            playerName: null
-        };
-
         this.circle = new PlayerCircle();
         this.deck = new Deck(true);
         this.discardPile = [];
-        this.visitors = new Set();
+        this.viewers = new Set();
 
         this.winners = [];
         this.scores = {};
@@ -58,11 +52,11 @@ export class Room extends Serializable {
 
         // Server-supplied callbacks.
         this.onAnyChange = null;
-        this.onPlayerDemotionRequested = null;
+        this.onPlayerIdle = null;
     }
 
     /**
-     * Updates room activity timestamp.
+     * Updates session activity timestamp.
      *
      * @returns {number} Last active timestamp.
      */
@@ -73,7 +67,7 @@ export class Room extends Serializable {
     }
 
     /**
-     * Notifies the server of a room state change.
+     * Notifies the server of a session state change.
      */
     #notifyStateChange() {
         if (typeof this.onAnyChange === "function") {
@@ -95,99 +89,104 @@ export class Room extends Serializable {
     }
 
     /**
-     * Checks whether the room has no players.
+     * Checks whether the session has no players.
      *
-     * Visitors do not keep a room open.
+     * Viewers do not keep a session open.
      *
-     * @returns {boolean} True when the room has no players.
+     * @returns {boolean} True when the session has no players.
      */
     isEmpty() {
         return this.circle.players.size === 0;
     }
 
     /**
-     * Checks whether gameplay is underway or awaiting a required game decision.
+     * Checks whether the Session is playing or awaiting a required decision.
      *
-     * @returns {boolean} Whether the game is active.
+     * @returns {boolean} Whether the Session is active.
      */
-    isGameActive() {
+    isActive() {
         return this.status === Constants.STATUS.PLAYING || this.status === Constants.STATUS.PENDING;
     }
 
     /**
-     * Checks whether the current game state prevents membership changes.
+     * Checks whether the current Session state prevents Player changes.
      *
      * @returns {boolean} Whether membership is locked.
      */
     isMembershipLocked() {
-        return this.isGameActive();
+        return this.isActive();
     }
 
     /**
-     * Admits an outside client as a visitor.
-     * Transition: Outside -> Visitor.
+     * Adds a viewer.
      *
-     * @param {string} tabId - Visitor tab ID.
-     * @returns {boolean} True when the visitor was admitted.
+     * @param {string} tabId - Viewer tab ID.
+     * @returns {boolean} True when the viewer was added.
      */
-    admitVisitor(tabId) {
-        const normalizedTabId = Room.#normalizeOptionalText(tabId);
-        let isAdmitted = false;
+    view(tabId) {
+        const normalizedTabId = Session.#normalizeOptionalText(tabId);
+        let wasAdded = false;
 
         if (normalizedTabId.length > 0) {
-            const previousVisitorCount = this.visitors.size;
+            const previousViewerCount = this.viewers.size;
 
-            this.visitors.add(normalizedTabId);
-            isAdmitted = this.visitors.size > previousVisitorCount;
+            this.viewers.add(normalizedTabId);
+            wasAdded = this.viewers.size > previousViewerCount;
 
-            if (isAdmitted) {
+            if (wasAdded) {
                 this.#recordActivity();
                 this.#notifyStateChange();
             }
         }
 
-        return isAdmitted;
+        return wasAdded;
     }
 
     /**
-     * Evicts a visitor from the room.
-     * Transition: Visitor -> Outside.
+     * Removes a viewer.
      *
-     * @param {string} tabId - Visitor tab ID.
-     * @returns {boolean} True when the visitor was evicted.
+     * @param {string} tabId - Viewer tab ID.
+     * @returns {boolean} True when the viewer was removed.
      */
-    evictVisitor(tabId) {
-        const normalizedTabId = Room.#normalizeOptionalText(tabId);
-        let isEvicted = false;
+    leaveViewer(tabId) {
+        const normalizedTabId = Session.#normalizeOptionalText(tabId);
+        let wasRemoved = false;
 
         if (normalizedTabId.length > 0) {
-            isEvicted = this.visitors.delete(normalizedTabId);
+            wasRemoved = this.viewers.delete(normalizedTabId);
 
-            if (isEvicted) {
+            if (wasRemoved) {
                 this.#recordActivity();
                 this.#notifyStateChange();
             }
         }
 
-        return isEvicted;
+        return wasRemoved;
     }
 
     /**
-     * Admits an outside client directly as a player.
-     * Transition: Outside -> Player.
+     * Joins a human or AI player, optionally replacing an existing viewer.
      *
      * @param {string} name - Player name.
      * @param {boolean} isAI - Whether AI controls the player.
-     * @returns {Promise<Player>} Admitted player.
+     * @param {string|null} viewerId - Viewer to replace with the player.
+     * @returns {Promise<Player>} Joined player.
      */
-    async admitPlayer(name, isAI = false) {
+    async join(name, isAI = false, viewerId = null) {
         return this.#enqueueOperation(() => {
+            const normalizedViewerId = Session.#normalizeOptionalText(viewerId);
+
+            if (normalizedViewerId.length > 0 && !this.viewers.has(normalizedViewerId)) {
+                throw new UserNotification("Viewer not found.");
+            }
+
             this.#assertMembershipUnlocked();
             this.#assertPlayerCapacityAvailable();
 
             const player = this.#createPlayer(name, isAI);
 
             this.circle.addPlayer(player);
+            this.viewers.delete(normalizedViewerId);
             this.#recordActivity();
             this.#refreshPlayerIdleMonitoring();
             this.#notifyStateChange();
@@ -197,78 +196,43 @@ export class Room extends Serializable {
     }
 
     /**
-     * Promotes a visitor to player status.
-     * Transition: Visitor -> Player.
-     *
-     * @param {string} tabId - Visitor tab ID.
-     * @param {string} playerName - New player name.
-     * @returns {Promise<Player>} Promoted player.
-     * @throws {Error}
-     */
-    async promoteVisitor(tabId, playerName) {
-        return this.#enqueueOperation(() => {
-            const normalizedTabId = Room.#normalizeOptionalText(tabId);
-
-            if (normalizedTabId.length === 0 || !this.visitors.has(normalizedTabId)) {
-                throw new UserNotification("Visitor not found.");
-            }
-
-            this.#assertMembershipUnlocked();
-            this.#assertPlayerCapacityAvailable();
-
-            const player = this.#createPlayer(playerName, false);
-
-            this.circle.addPlayer(player);
-            this.visitors.delete(normalizedTabId);
-
-            this.#recordActivity();
-            this.#refreshPlayerIdleMonitoring();
-            this.#notifyStateChange();
-
-            return player;
-        });
-    }
-
-    /**
-     * Demotes a player to visitor status.
-     * Transition: Player -> Visitor.
+     * Moves an idle player back to viewing state.
      *
      * @param {string} nameOrKey - Player name or normalized player key.
-     * @param {string} tabId - Client tab ID that becomes the visitor ID.
-     * @returns {Promise<Player|null>} Demoted player, or null when not found.
+     * @param {string} tabId - Client tab ID that becomes the viewer ID.
+     * @returns {Promise<Player|null>} Removed player, or null when not found.
      */
-    async demotePlayer(nameOrKey, tabId) {
+    async movePlayerToView(nameOrKey, tabId) {
         return this.#enqueueOperation(() => {
             const player = this.circle.getPlayer(nameOrKey);
-            const normalizedTabId = Room.#normalizeOptionalText(tabId);
-            let demotedPlayer = null;
+            const normalizedTabId = Session.#normalizeOptionalText(tabId);
+            let removedPlayer = null;
 
             if (player !== null && normalizedTabId.length > 0) {
                 this.#removePlayerAndRecycleHand(player.key);
-                this.visitors.add(normalizedTabId);
+                this.viewers.add(normalizedTabId);
 
                 this.#refreshPlayerIdleMonitoring();
                 this.#recordActivity();
                 this.#notifyStateChange();
 
-                demotedPlayer = player;
+                removedPlayer = player;
             }
 
-            return demotedPlayer;
+            return removedPlayer;
         });
     }
 
     /**
-     * Evicts a player from the room.
-     * Transition: Player -> Outside.
+     * Removes a player from the session.
      *
      * @param {string} nameOrKey - Player name or normalized player key.
-     * @returns {Promise<Player|null>} Evicted player, or null when not found.
+     * @returns {Promise<Player|null>} Removed player, or null when not found.
      */
-    async evictPlayer(nameOrKey) {
+    async leavePlayer(nameOrKey) {
         return this.#enqueueOperation(() => {
             const player = this.circle.getPlayer(nameOrKey);
-            let evictedPlayer = null;
+            let removedPlayer = null;
 
             if (player !== null) {
                 this.#removePlayerAndRecycleHand(player.key);
@@ -277,10 +241,10 @@ export class Room extends Serializable {
                 this.#recordActivity();
                 this.#notifyStateChange();
 
-                evictedPlayer = player;
+                removedPlayer = player;
             }
 
-            return evictedPlayer;
+            return removedPlayer;
         });
     }
 
@@ -304,25 +268,25 @@ export class Room extends Serializable {
     }
 
     /**
-     * Asserts the room accepts membership-level changes.
+     * Asserts the session accepts membership-level changes.
      */
     #assertMembershipUnlocked() {
         if (this.isMembershipLocked()) {
-            throw new UserNotification("Game already in progress.");
+            throw new UserNotification("Session already in progress.");
         }
     }
 
     /**
-     * Asserts the room has player capacity.
+     * Asserts the session has player capacity.
      */
     #assertPlayerCapacityAvailable() {
         if (this.isFull()) {
-            throw new UserNotification("Room is full.");
+            throw new UserNotification("Session is full.");
         }
     }
 
     /**
-     * Checks whether the room is at player capacity.
+     * Checks whether the session is at player capacity.
      *
      * @returns {boolean} True when full.
      */
@@ -334,7 +298,7 @@ export class Room extends Serializable {
      * Refreshes idle watches for all human players.
      */
     #refreshPlayerIdleMonitoring() {
-        const isTrackingOnlyTurnOwner = this.isGameActive() &&
+        const isTrackingOnlyTurnOwner = this.isActive() &&
             TurnUtils.hasTurnOwner(this.circle.turnOwnerKey);
 
         for (const player of this.circle.players.values()) {
@@ -352,17 +316,16 @@ export class Room extends Serializable {
     }
 
     /**
-     * Enables automatic demotion requests for an idle player.
+     * Enables automatic idle handling for a player.
      *
-     * Room does not perform the demotion directly because the server owns the
-     * player-to-tab relationship required to create the visitor membership.
+     * The server owns the player-to-tab relationship used for viewing state.
      *
      * @param {Player} player - Player to watch.
      */
     #startPlayerIdleMonitoring(player) {
         player.onIdle = (idlePlayer) => {
-            if (typeof this.onPlayerDemotionRequested === "function") {
-                this.onPlayerDemotionRequested(this, idlePlayer.name);
+            if (typeof this.onPlayerIdle === "function") {
+                this.onPlayerIdle(this, idlePlayer.name);
             }
         };
 
@@ -370,10 +333,9 @@ export class Room extends Serializable {
     }
 
     /**
-     * Removes a player from the active game state.
+     * Removes a Player from the active Session state.
      *
-     * This method does not decide whether the player is being demoted or evicted.
-     * The public transition method handles the destination level.
+     * The public operation decides whether the client keeps viewing afterward.
      *
      * @param {string} nameOrKey - Player name or normalized player key.
      */
@@ -387,9 +349,9 @@ export class Room extends Serializable {
         this.deck.putManyTop(cards);
         this.deck.shuffle();
 
-        if (this.isGameActive()) {
+        if (this.isActive()) {
             if (this.circle.players.size < 2) {
-                this.#resetActiveGameState();
+                this.#resetActiveState();
             } else {
                 const isTurnOwnerRemoved = !TurnUtils.hasTurnOwner(this.circle.turnOwnerKey) ||
                     TurnUtils.isTurnOwner(this.circle.turnOwnerKey, player.key);
@@ -402,9 +364,9 @@ export class Room extends Serializable {
     }
 
     /**
-     * Resets game state to waiting.
+     * Resets Session state to waiting.
      */
-    #resetActiveGameState() {
+    #resetActiveState() {
         this.winners = [];
         this.scores = {};
         this.isAwaitingSuit = false;
@@ -423,14 +385,14 @@ export class Room extends Serializable {
     }
 
     /**
-     * Returns the current or completed game to waiting without clearing the table.
+     * Returns the active or completed Session to waiting without clearing it.
      *
      * Players, hands, the deck, and the discard pile remain available in the
-     * waiting state. Starting another game performs the normal round reset.
+     * waiting state. Starting again performs the normal reset.
      *
-     * @returns {Promise<boolean>} True when the table returned to waiting.
+     * @returns {Promise<boolean>} True when the session returned to waiting.
      */
-    async stopGame() {
+    async stop() {
         return this.#enqueueOperation(() => {
             const wasStopped = this.status !== Constants.STATUS.WAITING;
 
@@ -467,16 +429,16 @@ export class Room extends Serializable {
     }
 
     /**
-     * Starts a new game.
+     * Starts the Session.
      *
      * @returns {Promise<boolean>} True when started.
      */
-    async startGame() {
+    async start() {
         return this.#enqueueOperation(() => {
-            this.#assertGameNotStarted();
+            this.#assertNotStarted();
             this.#assertMinimumPlayerCount();
 
-            this.#resetActiveGameState();
+            this.#resetActiveState();
             this.deck.reset(true);
             this.#dealInitialDiscard();
             this.#dealInitialHands();
@@ -493,16 +455,16 @@ export class Room extends Serializable {
     }
 
     /**
-     * Asserts a game is not already active.
+     * Asserts the Session is not already active.
      */
-    #assertGameNotStarted() {
-        if (this.isGameActive()) {
-            throw new UserNotification("Game already started.");
+    #assertNotStarted() {
+        if (this.isActive()) {
+            throw new UserNotification("Session already started.");
         }
     }
 
     /**
-     * Asserts the room has enough players to start.
+     * Asserts the session has enough players to start.
      */
     #assertMinimumPlayerCount() {
         if (this.circle.players.size < 2) {
@@ -605,7 +567,7 @@ export class Room extends Serializable {
         return this.#enqueueOperation(() => {
             let drawnCards = [];
 
-            if (!this.#resetFinishedGame()) {
+            if (!this.#resetFinishedSession()) {
                 const player = this.circle.getPlayer(playerName);
 
                 this.#assertCanAct(player);
@@ -639,15 +601,15 @@ export class Room extends Serializable {
     }
 
     /**
-     * Resets the room if the previous game is finished.
+     * Resets the session if the previous game is finished.
      *
      * @returns {boolean} True when reset.
      */
-    #resetFinishedGame() {
+    #resetFinishedSession() {
         const shouldReset = this.status === Constants.STATUS.FINISHED;
 
         if (shouldReset) {
-            this.#resetActiveGameState();
+            this.#resetActiveState();
             this.#recordActivity();
             this.#notifyStateChange();
         }
@@ -666,7 +628,7 @@ export class Room extends Serializable {
         }
 
         if (this.status === Constants.STATUS.PENDING) {
-            throw new UserNotification("Room is waiting for suit declaration.");
+            throw new UserNotification("Session is waiting for suit declaration.");
         }
 
         const isAnotherPlayersTurn = this.status === Constants.STATUS.PLAYING &&
@@ -707,7 +669,7 @@ export class Room extends Serializable {
         return this.#enqueueOperation(() => {
             const drawnCards = [];
 
-            if (!this.#resetFinishedGame()) {
+            if (!this.#resetFinishedSession()) {
                 const player = this.circle.getPlayer(playerName);
 
                 this.#assertCanAct(player);
@@ -751,7 +713,7 @@ export class Room extends Serializable {
         return this.#enqueueOperation(() => {
             const drawnCards = [];
 
-            if (!this.#resetFinishedGame()) {
+            if (!this.#resetFinishedSession()) {
                 const player = this.circle.getPlayer(playerName);
                 const card = new Card(value, suit);
 
@@ -835,7 +797,7 @@ export class Room extends Serializable {
     }
 
     /**
-     * Gets the player who most recently discarded during the active game.
+     * Gets the Player who most recently discarded during the active Session.
      *
      * @returns {Player|null} Last discarding player.
      */
@@ -863,7 +825,7 @@ export class Room extends Serializable {
             player.drawAllowance = 0;
             this.declaredSuit = null;
 
-            if (card.isGameEndingMove(player.hand.cards.length)) {
+            if (card.isSessionEndingMove(player.hand.cards.length)) {
                 this.#completeGame();
             } else if (card.isSuitChange()) {
                 this.status = Constants.STATUS.PENDING;
@@ -928,12 +890,12 @@ export class Room extends Serializable {
         return this.#enqueueOperation(() => {
             let isCompleted = true;
 
-            if (!this.#resetFinishedGame()) {
+            if (!this.#resetFinishedSession()) {
                 if (!this.isAwaitingSuit) {
                     throw new UserNotification("No suit pending declaration.");
                 }
 
-                this.declaredSuit = Room.normalizeSuit(suit);
+                this.declaredSuit = Session.normalizeSuit(suit);
                 this.isAwaitingSuit = false;
                 this.status = Constants.STATUS.PLAYING;
 
@@ -960,15 +922,6 @@ export class Room extends Serializable {
     }
 
     /**
-     * Sets the session player used during serialization.
-     *
-     * @param {string|null} playerName - Session player name.
-     */
-    setSessionPlayer(playerName = null) {
-        this.session.playerName = playerName;
-    }
-
-    /**
      * Normalizes optional text.
      *
      * @param {*} value - Value.
@@ -985,7 +938,7 @@ export class Room extends Serializable {
     }
 
     /**
-     * Normalizes a room or player-facing name.
+     * Normalizes a session or player-facing name.
      *
      * @param {*} value - Value.
      * @returns {string} Normalized name.
@@ -993,30 +946,30 @@ export class Room extends Serializable {
      */
     static #normalizeName(value) {
         if (typeof value !== "string") {
-            throw new Error("Room name must be a string.");
+            throw new Error("Session name must be a string.");
         }
 
         const name = value.trim();
 
         if (name.length === 0) {
-            throw new UserNotification("Room name cannot be empty.");
+            throw new UserNotification("Session name cannot be empty.");
         }
 
         return name;
     }
 
     /**
-     * Normalizes room capacity.
+     * Normalizes session capacity.
      *
      * @param {*} value - Value.
      * @returns {number} Capacity.
      * @throws {Error}
      */
     static #normalizeCapacity(value) {
-        const isValid = Number.isInteger(value) && value >= 2 && value <= Constants.ROOM_MAX_CAPACITY;
+        const isValid = Number.isInteger(value) && value >= 2 && value <= Constants.SESSION_MAX_CAPACITY;
 
         if (!isValid) {
-            throw new UserNotification(`Capacity must be between 2 and ${Constants.ROOM_MAX_CAPACITY}.`);
+            throw new UserNotification(`Capacity must be between 2 and ${Constants.SESSION_MAX_CAPACITY}.`);
         }
 
         return value;
@@ -1030,6 +983,6 @@ export class Room extends Serializable {
      * @throws {Error}
      */
     static normalizeSuit(value) {
-        return Constants.normalizeStandardSuit(Room.#normalizeName(value));
+        return Constants.normalizeStandardSuit(Session.#normalizeName(value));
     }
 }

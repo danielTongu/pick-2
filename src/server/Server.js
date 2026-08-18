@@ -12,23 +12,16 @@ import { Card } from "../core/Card.js";
 import { Constants } from "../core/Constants.js";
 import { NormalizeUtils } from "../core/NormalizeUtils.js";
 import { AIPlayer, Player } from "../core/Player.js";
-import { Room } from "../core/Room.js";
+import { Session } from "../core/Session.js";
 import { StateMapper } from "../core/StateMapper.js";
 import { ThrottleGuard } from "./ThrottleGuard.js";
 
 /**
  * HTTP and WebSocket server for the card game.
  *
- * Membership transitions:
- * - Outside -> Visitor: admit
- * - Outside -> Player: admit
- * - Visitor -> Player: promote
- * - Player -> Visitor: demote
- * - Visitor -> Outside: evict
- * - Player -> Outside: evict
- *
- * Room owns room membership and game state.
- * Server owns sockets, sessions, notifications, and room registration.
+ * The Game lists Sessions. A client may view a Session, join as a Player,
+ * and leave it. Session owns players and gameplay; Server owns connections,
+ * viewers, notifications, and the session registry.
  */
 export default class Server {
     // -------------------------------------------------------------------------
@@ -44,20 +37,20 @@ export default class Server {
     /** @type {number|null} */
     #heartbeatIntervalId = null;
 
-    /** @type {Map<string, Room>} */
-    #roomsByKey = new Map();
+    /** @type {Map<string, Session>} */
+    #sessionsByKey = new Map();
 
     /** @type {Map<string, Set<string>>} */
-    #roomTabIdsByRoomKey = new Map();
+    #sessionTabIdsBySessionKey = new Map();
 
     /** @type {Map<string, NodeJS.Timeout>} */
-    #roomClosureTimersByRoomKey = new Map();
+    #sessionClosureTimersBySessionKey = new Map();
 
-    /** @type {Map<string, {tabId:string, ws:WebSocket, roomKey:string, playerName:string|null}>} */
-    #roomSessionsByTabId = new Map();
+    /** @type {Map<string, {tabId:string, ws:WebSocket, sessionKey:string, playerName:string|null}>} */
+    #clientsByTabId = new Map();
 
     /** @type {Set<WebSocket>} */
-    #lobbyConnections = new Set();
+    #gameConnections = new Set();
 
     /** @type {ThrottleGuard} */
     #throttleGuard = new ThrottleGuard();
@@ -75,7 +68,7 @@ export default class Server {
         this.#webSocketServer = new WebSocketServer({ server: this.#httpServer });
 
         this.#attachWebSocketServer();
-        this.#initializeDefaultRooms();
+        this.#initializeDefaultSessions();
         this.#startHttpServer(port);
     }
 
@@ -115,17 +108,22 @@ export default class Server {
         const filename = fileURLToPath(import.meta.url);
         const dirname = path.dirname(filename);
         const repositoryPath = path.join(dirname, "../..");
-        const publicPath = path.join(repositoryPath, "web/server");
-        const sharedPath = path.join(repositoryPath, "web/shared");
+        const webPath = path.join(repositoryPath, "web");
+        const sharedPath = path.join(webPath, "shared");
         const sourcePath = path.join(repositoryPath, "src");
-        const indexPath = path.join(publicPath, "index.html");
+        const indexPath = path.join(repositoryPath, "index.html");
+        const sessionIndexPath = path.join(repositoryPath, "session/index.html");
 
         app.use("/shared", express.static(sharedPath));
+        app.use("/web", express.static(webPath));
         app.use("/src", express.static(sourcePath));
-        app.use(express.static(publicPath));
 
         app.get("/", (_request, response) => {
             response.sendFile(indexPath);
+        });
+
+        app.get(["/session", "/session/", "/session/index.html"], (_request, response) => {
+            response.sendFile(sessionIndexPath);
         });
 
         app.get("/health", (_request, response) => {
@@ -181,21 +179,20 @@ export default class Server {
     }
 
     // -------------------------------------------------------------------------
-    // Room registry and state publication
+    // Session registry and state publication
     // -------------------------------------------------------------------------
 
     /**
-     * Creates the default rooms and AI players.
+     * Creates the default sessions and AI players.
      */
-    #initializeDefaultRooms() {
-        for (const [roomIndex, roomName] of Constants.DEFAULT_ROOM_NAMES.entries()) {
-            const roomKey = this.#normalizeRoomKey(roomName);
-            const room = this.#registerRoom(roomName, Constants.ROOM_MAX_CAPACITY, roomKey);
+    #initializeDefaultSessions() {
+        for (const sessionConfig of Constants.DEFAULT_SESSIONS) {
+            const sessionKey = this.#normalizeSessionKey(sessionConfig.name);
+            const session = this.#registerSession(sessionConfig.name, sessionConfig.capacity, sessionKey);
 
-            void room.admitPlayer("AI-Player", true);
-
-            if (roomIndex < Constants.DEFAULT_DUAL_AI_ROOM_COUNT) {
-                void room.admitPlayer("AI-Player-2", true);
+            for (let index = 0; index < sessionConfig.aiCount; index += 1) {
+                const suffix = index === 0 ? "" : `-${index + 1}`;
+                void session.join(`AI-Player${suffix}`, true);
             }
         }
     }
@@ -206,192 +203,214 @@ export default class Server {
      * @param {string} name - Name.
      * @returns {string} Normalized key.
      */
-    #normalizeRoomKey(name) {
+    #normalizeSessionKey(name) {
         return Player.normalizeKey(name);
     }
 
     /**
-     * Creates and registers a room.
+     * Creates and registers a session.
      *
-     * @param {string} roomName - Room name.
+     * @param {string} sessionName - Session name.
      * @param {number} capacity - Player capacity.
-     * @param {string} roomKey - Room key.
-     * @returns {Room} Registered room.
+     * @param {string} sessionKey - Session key.
+     * @returns {Session} Registered session.
      */
-    #registerRoom(roomName, capacity, roomKey) {
-        const room = new Room(roomName, capacity);
+    #registerSession(sessionName, capacity, sessionKey) {
+        const session = new Session(sessionName, capacity);
 
-        room.onAnyChange = () => {
-            this.#broadcastRoomSync(roomKey);
+        session.onAnyChange = () => {
+            this.#broadcastSessionSync(sessionKey);
         };
 
-        room.onPlayerDemotionRequested = (_changedRoom, playerName) => {
-            void this.#demoteIdlePlayerToVisitor(roomKey, playerName);
+        session.onPlayerIdle = (_changedSession, playerName) => {
+            void this.#moveIdlePlayerToView(sessionKey, playerName);
         };
 
-        this.#roomsByKey.set(roomKey, room);
-        this.#roomTabIdsByRoomKey.set(roomKey, new Set());
+        this.#sessionsByKey.set(sessionKey, session);
+        this.#sessionTabIdsBySessionKey.set(sessionKey, new Set());
 
-        return room;
+        return session;
     }
 
     /**
-     * Removes server callbacks from a room.
+     * Removes server callbacks from a session.
      *
-     * @param {Room} room - Room instance.
+     * @param {Session} session - Session instance.
      */
-    #clearRoomCallbacks(room) {
-        room.onAnyChange = null;
-        room.onPlayerDemotionRequested = null;
+    #clearSessionCallbacks(session) {
+        session.onAnyChange = null;
+        session.onPlayerIdle = null;
     }
 
     /**
-     * Gets a registered room.
+     * Gets a registered session.
      *
-     * @param {string} roomKey - Room key.
-     * @returns {Room} Room instance.
+     * @param {string} sessionKey - Session key.
+     * @returns {Session} Session instance.
      * @throws {Error}
      */
-    #requireRoomByKey(roomKey) {
-        const room = this.#roomsByKey.get(roomKey) ?? null;
+    #requireSessionByKey(sessionKey) {
+        const session = this.#sessionsByKey.get(sessionKey) ?? null;
 
-        if (room === null) {
-            throw new UserNotification("Room not found.");
+        if (session === null) {
+            throw new UserNotification("Session not found.");
         }
 
-        return room;
+        return session;
     }
 
     /**
-     * Broadcasts current room state to every room occupant.
+     * Broadcasts current Session state to every connected client.
      *
-     * @param {string} roomKey - Room key.
+     * @param {string} sessionKey - Session key.
      */
-    #broadcastRoomSync(roomKey) {
-        const room = this.#roomsByKey.get(roomKey) ?? null;
+    #broadcastSessionSync(sessionKey) {
+        const session = this.#sessionsByKey.get(sessionKey) ?? null;
 
-        if (room !== null) {
-            const roomTabIds = this.#roomTabIdsByRoomKey.get(roomKey);
+        if (session !== null) {
+            const sessionTabIds = this.#sessionTabIdsBySessionKey.get(sessionKey);
 
-            if (roomTabIds !== undefined) {
-                for (const tabId of roomTabIds) {
-                    const roomSession = this.#roomSessionsByTabId.get(tabId);
+            if (sessionTabIds !== undefined) {
+                for (const tabId of sessionTabIds) {
+                    const client = this.#clientsByTabId.get(tabId);
 
-                    if (roomSession !== undefined && roomSession.ws.readyState === WebSocket.OPEN) {
-                        this.#sendRoomSync(roomSession.ws, room, this.#resolveRoomSessionPlayerName(room, roomSession));
+                    if (client !== undefined && client.ws.readyState === WebSocket.OPEN) {
+                        this.#sendSessionSync(client.ws, session, this.#resolveClientPlayerName(session, client));
                     }
                 }
             }
 
-            if (room.status === Constants.STATUS.FINISHED) {
-                room.status = Constants.STATUS.WAITING;
+            if (session.status === Constants.STATUS.FINISHED) {
+                session.status = Constants.STATUS.WAITING;
             }
         }
     }
 
     /**
-     * Resolves a room session's player name against current membership.
+     * Resolves a client's player name against current session membership.
      *
-     * @param {Room} room - Room instance.
-     * @param {{playerName:string|null}} roomSession - Room session.
+     * @param {Session} session - Session instance.
+     * @param {{playerName:string|null}} client - Session client.
      * @returns {string|null} Valid player name or null.
      */
-    #resolveRoomSessionPlayerName(room, roomSession) {
+    #resolveClientPlayerName(session, client) {
         let playerName = null;
 
-        if (roomSession.playerName !== null && room.isPlayerPresent(roomSession.playerName)) {
-            playerName = roomSession.playerName;
+        if (client.playerName !== null && session.isPlayerPresent(client.playerName)) {
+            playerName = client.playerName;
         }
 
         return playerName;
     }
 
     /**
-     * Sends room state to one client.
+     * Sends session state to one client.
      *
      * @param {WebSocket} ws - Client WebSocket.
-     * @param {Room} room - Room instance.
+     * @param {Session} session - Session instance.
      * @param {string|null} playerName - Session player name.
      */
-    #sendRoomSync(ws, room, playerName) {
-        this.#sendViewSync(ws, Constants.VIEWS.ROOM, StateMapper.toRoomPayload(room, playerName));
+    #sendSessionSync(ws, session, playerName) {
+        this.#sendViewSync(ws, Constants.VIEWS.SESSION, Object.freeze({
+            ...StateMapper.toSessionPayload(session, playerName),
+            ...Server.#getModeData(),
+            isBusy: false
+        }));
     }
 
     /**
-     * Registers a socket as currently viewing the lobby.
+     * Registers a socket as currently viewing the game.
      *
      * @param {WebSocket} ws - Client WebSocket.
      */
-    #registerLobbyConnection(ws) {
+    #registerGameConnection(ws) {
         if (ws.readyState === WebSocket.OPEN) {
-            this.#lobbyConnections.add(ws);
+            this.#gameConnections.add(ws);
         }
     }
 
     /**
-     * Removes a socket from lobby tracking.
+     * Removes a socket from game tracking.
      *
      * @param {WebSocket} ws - Client WebSocket.
      */
-    #unregisterLobbyConnection(ws) {
-        this.#lobbyConnections.delete(ws);
+    #unregisterGameConnection(ws) {
+        this.#gameConnections.delete(ws);
     }
 
     /**
-     * Broadcasts the current lobby synchronization payload.
+     * Broadcasts the current game synchronization payload.
      *
-     * @param {{rooms:Object[]}|null} lobbySync - Optional prebuilt lobby payload.
+     * @param {{sessions:Object[]}|null} gameSync - Optional prebuilt game payload.
      */
-    #broadcastLobbySync(lobbySync = null) {
-        const resolvedLobbySync = lobbySync ?? this.#createLobbySync();
+    #broadcastGameSync(gameSync = null) {
+        const resolvedGameSync = gameSync ?? this.#createGameSync();
 
-        for (const ws of Array.from(this.#lobbyConnections)) {
+        for (const ws of Array.from(this.#gameConnections)) {
             if (ws.readyState === WebSocket.OPEN) {
-                this.#sendViewSync(ws, Constants.VIEWS.LOBBY, resolvedLobbySync);
+                this.#sendViewSync(ws, Constants.VIEWS.GAME, resolvedGameSync);
             } else {
-                this.#lobbyConnections.delete(ws);
+                this.#gameConnections.delete(ws);
             }
         }
     }
 
     /**
-     * Creates the lobby synchronization payload.
+     * Creates the game synchronization payload.
      *
-     * @returns {{rooms:Object[]}} Lobby payload.
+     * @returns {{sessions:Object[]}} Game payload.
      */
-    #createLobbySync() {
-        return StateMapper.toLobbyPayload(this.#roomsByKey.values());
+    #createGameSync() {
+        return Object.freeze({
+            ...StateMapper.toGamePayload(this.#sessionsByKey.values()),
+            ...Server.#getModeData()
+        });
+    }
+
+    /** @returns {Object} Shared Server-mode metadata. */
+    static #getModeData() {
+        return Object.freeze({
+            mode: "server",
+            capabilities: Object.freeze({
+                create: true,
+                join: true,
+                view: true,
+                invite: true,
+                aiFill: false,
+                restart: false
+            })
+        });
     }
 
     /**
-     * Sends a normal transition to the lobby.
+     * Sends a normal transition to the game.
      *
      * @param {WebSocket} ws - Client WebSocket.
-     * @param {{rooms:Object[]}|null} lobbySync - Optional prebuilt lobby payload.
+     * @param {{sessions:Object[]}|null} gameSync - Optional prebuilt game payload.
      */
-    #sendLobbyTransition(ws, lobbySync = null) {
-        const resolvedLobbySync = lobbySync ?? this.#createLobbySync();
+    #sendGameTransition(ws, gameSync = null) {
+        const resolvedGameSync = gameSync ?? this.#createGameSync();
 
-        this.#registerLobbyConnection(ws);
-        this.#sendViewSync(ws, Constants.VIEWS.LOBBY, resolvedLobbySync);
+        this.#registerGameConnection(ws);
+        this.#sendViewSync(ws, Constants.VIEWS.GAME, resolvedGameSync);
     }
 
     /**
-     * Sends an involuntary eviction notification and lobby state.
+     * Sends a forced session-exit notification and Game state.
      *
      * @param {WebSocket} ws - Client WebSocket.
      * @param {string} title - Warning title.
      * @param {string} message - Warning message.
-     * @param {{rooms:Object[]}|null} lobbySync - Optional prebuilt lobby payload.
+     * @param {{sessions:Object[]}|null} gameSync - Optional prebuilt game payload.
      */
-    #sendInvoluntaryLobbyTransition(ws, title, message, lobbySync = null) {
-        const resolvedLobbySync = lobbySync ?? this.#createLobbySync();
+    #sendInvoluntaryGameTransition(ws, title, message, gameSync = null) {
+        const resolvedGameSync = gameSync ?? this.#createGameSync();
 
-        this.#registerLobbyConnection(ws);
+        this.#registerGameConnection(ws);
         this.#sendResponse(ws, StateMapper.toResponse(
-            Constants.VIEWS.LOBBY,
+            Constants.VIEWS.GAME,
             StateMapper.toMessage(Constants.STATUS.WARNING, title, message),
-            resolvedLobbySync
+            resolvedGameSync
         ));
     }
 
@@ -400,63 +419,63 @@ export default class Server {
     // -------------------------------------------------------------------------
 
     /**
-     * Registers a client room session.
+     * Registers a client with a session.
      *
      * @param {string} tabId - Tab ID.
      * @param {WebSocket} ws - Client WebSocket.
-     * @param {string} roomKey - Room key.
+     * @param {string} sessionKey - Session key.
      * @param {string|null} playerName - Player name.
-     * @returns {{tabId:string, ws:WebSocket, roomKey:string, playerName:string|null}} Registered room session.
+     * @returns {{tabId:string, ws:WebSocket, sessionKey:string, playerName:string|null}} Registered client.
      */
-    #registerRoomSession(tabId, ws, roomKey, playerName) {
-        const existingRoomSession = this.#roomSessionsByTabId.get(tabId);
+    #registerClient(tabId, ws, sessionKey, playerName) {
+        const existingClient = this.#clientsByTabId.get(tabId);
 
-        if (existingRoomSession !== undefined && existingRoomSession.ws !== ws) {
-            this.#closeWebSocket(existingRoomSession.ws, 1008, "Session replaced");
+        if (existingClient !== undefined && existingClient.ws !== ws) {
+            this.#closeWebSocket(existingClient.ws, 1008, "Session replaced");
         }
 
-        this.#unregisterLobbyConnection(ws);
+        this.#unregisterGameConnection(ws);
 
-        const roomSession = { tabId, ws, roomKey, playerName };
+        const client = { tabId, ws, sessionKey, playerName };
 
-        this.#roomSessionsByTabId.set(tabId, roomSession);
+        this.#clientsByTabId.set(tabId, client);
         ws.tabId = tabId;
 
-        let roomTabIds = this.#roomTabIdsByRoomKey.get(roomKey);
+        let sessionTabIds = this.#sessionTabIdsBySessionKey.get(sessionKey);
 
-        if (roomTabIds === undefined) {
-            roomTabIds = new Set();
-            this.#roomTabIdsByRoomKey.set(roomKey, roomTabIds);
+        if (sessionTabIds === undefined) {
+            sessionTabIds = new Set();
+            this.#sessionTabIdsBySessionKey.set(sessionKey, sessionTabIds);
         }
 
-        roomTabIds.add(tabId);
+        sessionTabIds.add(tabId);
 
-        return roomSession;
+        return client;
     }
 
     /**
-     * Unregisters a client room session.
+     * Unregisters a client from a session.
      *
-     * This does not mutate Room membership or move the socket to the lobby.
+     * This does not mutate Session membership or move the socket to the game.
      *
      * @param {string} tabId - Tab ID.
      * @param {WebSocket} ws - Client WebSocket.
      */
-    #unregisterRoomSession(tabId, ws) {
-        const roomSession = this.#roomSessionsByTabId.get(tabId);
+    #unregisterClient(tabId, ws) {
+        const client = this.#clientsByTabId.get(tabId);
 
-        if (roomSession !== undefined && roomSession.ws === ws) {
-            const roomTabIds = this.#roomTabIdsByRoomKey.get(roomSession.roomKey);
+        if (client !== undefined && client.ws === ws) {
+            const sessionTabIds = this.#sessionTabIdsBySessionKey.get(client.sessionKey);
 
-            if (roomTabIds !== undefined) {
-                roomTabIds.delete(tabId);
+            if (sessionTabIds !== undefined) {
+                sessionTabIds.delete(tabId);
 
-                if (roomTabIds.size === 0) {
-                    this.#roomTabIdsByRoomKey.delete(roomSession.roomKey);
+                if (sessionTabIds.size === 0) {
+                    this.#sessionTabIdsBySessionKey.delete(client.sessionKey);
                 }
             }
 
-            this.#roomSessionsByTabId.delete(tabId);
+            this.#clientsByTabId.delete(tabId);
         }
 
         this.#throttleGuard.reset(`player:${tabId}`);
@@ -468,298 +487,261 @@ export default class Server {
     }
 
     /**
-     * Finds a room session by room and player name.
+     * Finds a session client by player name.
      *
-     * @param {string} roomKey - Room key.
+     * @param {string} sessionKey - Session key.
      * @param {string} playerName - Player name.
-     * @returns {{tabId:string, ws:WebSocket, roomKey:string, playerName:string|null}|null} Matching room session.
+     * @returns {{tabId:string, ws:WebSocket, sessionKey:string, playerName:string|null}|null} Matching client.
      */
-    #findRoomSessionByPlayer(roomKey, playerName) {
-        let matchingRoomSession = null;
+    #findClientByPlayer(sessionKey, playerName) {
+        let matchingClient = null;
 
-        for (const roomSession of this.#roomSessionsByTabId.values()) {
-            if (matchingRoomSession === null && roomSession.roomKey === roomKey && roomSession.playerName === playerName) {
-                matchingRoomSession = roomSession;
+        for (const client of this.#clientsByTabId.values()) {
+            if (matchingClient === null && client.sessionKey === sessionKey && client.playerName === playerName) {
+                matchingClient = client;
             }
         }
 
-        return matchingRoomSession;
+        return matchingClient;
     }
 
     /**
-     * Finds a room session by WebSocket.
+     * Finds a session client by WebSocket.
      *
      * @param {WebSocket} ws - Client WebSocket.
-     * @returns {{tabId:string, ws:WebSocket, roomKey:string, playerName:string|null}|null} Matching room session.
+     * @returns {{tabId:string, ws:WebSocket, sessionKey:string, playerName:string|null}|null} Matching client.
      */
-    #findRoomSessionBySocket(ws) {
-        let matchingRoomSession = null;
+    #findClientBySocket(ws) {
+        let matchingClient = null;
 
-        for (const roomSession of this.#roomSessionsByTabId.values()) {
-            if (matchingRoomSession === null && roomSession.ws === ws) {
-                matchingRoomSession = roomSession;
+        for (const client of this.#clientsByTabId.values()) {
+            if (matchingClient === null && client.ws === ws) {
+                matchingClient = client;
             }
         }
 
-        return matchingRoomSession;
+        return matchingClient;
     }
 
     /**
-     * Checks whether a captured room session is still current.
+     * Checks whether a captured session client is still current.
      *
-     * @param {{tabId:string, ws:WebSocket, roomKey:string, playerName:string|null}} roomSession - Captured room session.
+     * @param {{tabId:string, ws:WebSocket, sessionKey:string, playerName:string|null}} client - Captured client.
      * @returns {boolean} True when still current.
      */
-    #isCurrentRoomSession(roomSession) {
-        return this.#roomSessionsByTabId.get(roomSession.tabId) === roomSession;
+    #isCurrentClient(client) {
+        return this.#clientsByTabId.get(client.tabId) === client;
     }
 
     /**
-     * Promotes a visitor to player status.
+     * Moves an idle player back to viewing state.
      *
-     * Transition: Visitor -> Player.
-     *
-     * @param {{tabId:string, ws:WebSocket, roomKey:string, playerName:string|null}} roomSession - Visitor room session.
-     * @param {Room} room - Room instance.
-     * @param {string} playerName - Requested player name.
-     * @returns {Promise<Player>} Promoted player.
-     */
-    async #promoteVisitorSession(roomSession, room, playerName) {
-        const previousPlayerName = roomSession.playerName;
-
-        roomSession.playerName = playerName;
-
-        try {
-            const player = await room.promoteVisitor(roomSession.tabId, playerName);
-
-            if (this.#isCurrentRoomSession(roomSession)) {
-                roomSession.playerName = player.name;
-            } else {
-                await room.evictPlayer(player.name);
-                await this.#continueGameOrCloseRoom(roomSession.roomKey);
-            }
-
-            return player;
-        } catch (error) {
-            if (this.#isCurrentRoomSession(roomSession)) {
-                roomSession.playerName = previousPlayerName;
-            }
-
-            throw error;
-        }
-    }
-
-    /**
-     * Demotes an idle player to visitor status.
-     *
-     * Transition: Player -> Visitor.
-     *
-     * @param {string} roomKey - Room key.
+     * @param {string} sessionKey - Session key.
      * @param {string} playerName - Idle player name.
      * @returns {Promise<void>}
      */
-    async #demoteIdlePlayerToVisitor(roomKey, playerName) {
-        const room = this.#roomsByKey.get(roomKey) ?? null;
-        const roomSession = this.#findRoomSessionByPlayer(roomKey, playerName);
+    async #moveIdlePlayerToView(sessionKey, playerName) {
+        const session = this.#sessionsByKey.get(sessionKey) ?? null;
+        const client = this.#findClientByPlayer(sessionKey, playerName);
 
-        if (room !== null && roomSession !== null) {
-            const demotedPlayer = await room.demotePlayer(playerName, roomSession.tabId);
+        if (session !== null && client !== null) {
+            const removedPlayer = await session.movePlayerToView(playerName, client.tabId);
 
-            if (demotedPlayer !== null) {
-                if (this.#isCurrentRoomSession(roomSession)) {
-                    roomSession.playerName = null;
+            if (removedPlayer !== null) {
+                if (this.#isCurrentClient(client)) {
+                    client.playerName = null;
 
-                    this.#sendResponse(roomSession.ws, StateMapper.toResponse(
-                        Constants.VIEWS.ROOM, StateMapper.toMessage(
+                    this.#sendResponse(client.ws, StateMapper.toResponse(
+                        Constants.VIEWS.SESSION, StateMapper.toMessage(
                             Constants.STATUS.WARNING,
-                            "Moved to visitors",
+                            "Moved to viewers",
                             "You were idle."
                         ),
-                        StateMapper.toRoomPayload(room, null)
+                        StateMapper.toSessionPayload(session, null)
                     ));
 
-                    this.#scheduleRoomClosureIfEmpty(roomKey);
-                    await this.#continueAutomatedTurn(roomKey);
+                    this.#scheduleSessionClosureIfEmpty(sessionKey);
+                    await this.#continueAutomatedTurn(sessionKey);
                 } else {
-                    room.evictVisitor(roomSession.tabId);
-                    await this.#continueGameOrCloseRoom(roomKey);
+                    session.leaveViewer(client.tabId);
+                    await this.#continueOrCloseSession(sessionKey);
                 }
             }
         }
     }
 
     /**
-     * Evicts one room occupant.
+     * Removes one session client.
      *
-     * @param {{tabId:string, ws:WebSocket, roomKey:string, playerName:string|null}} roomSession - Room session.
-     * @param {Room} room - Room instance.
+     * @param {{tabId:string, ws:WebSocket, sessionKey:string, playerName:string|null}} client - Session client.
+     * @param {Session} session - Session instance.
      * @returns {Promise<void>}
      */
-    async #evictRoomSession(roomSession, room) {
-        const roomKey = await this.#removeRoomSession(roomSession, room);
+    async #leaveClient(client, session) {
+        const sessionKey = await this.#removeClient(client, session);
 
-        await this.#continueGameOrCloseRoom(roomKey);
+        await this.#continueOrCloseSession(sessionKey);
     }
 
     /**
      * Removes one occupant without waiting for subsequent automated turns.
      *
-     * @param {{tabId:string, ws:WebSocket, roomKey:string, playerName:string|null}} roomSession - Room session.
-     * @param {Room} room - Room instance.
-     * @returns {Promise<string>} Removed occupant's room key.
+     * @param {{tabId:string, ws:WebSocket, sessionKey:string, playerName:string|null}} client - Session client.
+     * @param {Session} session - Session instance.
+     * @returns {Promise<string>} Removed occupant's session key.
      */
-    async #removeRoomSession(roomSession, room) {
-        const roomKey = roomSession.roomKey;
-        const playerName = roomSession.playerName;
+    async #removeClient(client, session) {
+        const sessionKey = client.sessionKey;
+        const playerName = client.playerName;
 
-        this.#unregisterRoomSession(roomSession.tabId, roomSession.ws);
+        this.#unregisterClient(client.tabId, client.ws);
 
         if (playerName !== null) {
-            await room.evictPlayer(playerName);
+            await session.leavePlayer(playerName);
         } else {
-            room.evictVisitor(roomSession.tabId);
+            session.leaveViewer(client.tabId);
         }
 
-        return roomKey;
+        return sessionKey;
     }
 
     // -------------------------------------------------------------------------
-    // Room closure and game continuation
+    // Session closure and game continuation
     // -------------------------------------------------------------------------
 
     /**
-     * Continues the game or closes the room if no players remain.
+     * Continues the game or closes the session if no players remain.
      *
-     * @param {string} roomKey - Room key.
-     * @returns {Promise<boolean>} True when the room closed.
+     * @param {string} sessionKey - Session key.
+     * @returns {Promise<boolean>} True when the session closed.
      */
-    async #continueGameOrCloseRoom(roomKey) {
-        const isRoomClosed = this.#closeRoomIfNoPlayersRemain(roomKey);
+    async #continueOrCloseSession(sessionKey) {
+        const isSessionClosed = this.#closeSessionIfNoPlayersRemain(sessionKey);
 
-        if (!isRoomClosed) {
-            await this.#continueAutomatedTurn(roomKey);
+        if (!isSessionClosed) {
+            await this.#continueAutomatedTurn(sessionKey);
         }
 
-        return isRoomClosed;
+        return isSessionClosed;
     }
 
     /**
-     * Closes a room when no players remain.
+     * Closes a session when no players remain.
      *
-     * @param {string} roomKey - Room key.
-     * @returns {boolean} True when the room closed.
+     * @param {string} sessionKey - Session key.
+     * @returns {boolean} True when the session closed.
      */
-    #closeRoomIfNoPlayersRemain(roomKey) {
-        let isRoomClosed = false;
+    #closeSessionIfNoPlayersRemain(sessionKey) {
+        let isSessionClosed = false;
 
-        if (this.#isRoomEmpty(roomKey) && !this.#roomClosureTimersByRoomKey.has(roomKey)) {
-            this.#closeRoomAndEvictVisitors(roomKey);
-            isRoomClosed = true;
+        if (this.#isSessionEmpty(sessionKey) && !this.#sessionClosureTimersBySessionKey.has(sessionKey)) {
+            this.#closeSession(sessionKey);
+            isSessionClosed = true;
         }
 
-        return isRoomClosed;
+        return isSessionClosed;
     }
 
     /**
-     * Schedules a second empty-room check after the idle-player notification
-     * grace period when the room is currently empty.
+     * Schedules a second empty-session check after the idle-player notification
+     * grace period when the session is currently empty.
      *
-     * @param {string} roomKey - Room key.
+     * @param {string} sessionKey - Session key.
      */
-    #scheduleRoomClosureIfEmpty(roomKey) {
-        if (this.#isRoomEmpty(roomKey)) {
-            this.#cancelScheduledRoomClosure(roomKey);
+    #scheduleSessionClosureIfEmpty(sessionKey) {
+        if (this.#isSessionEmpty(sessionKey)) {
+            this.#cancelScheduledSessionClosure(sessionKey);
 
             const timeoutId = globalThis.setTimeout(() => {
-                this.#roomClosureTimersByRoomKey.delete(roomKey);
-                this.#closeRoomIfNoPlayersRemain(roomKey);
+                this.#sessionClosureTimersBySessionKey.delete(sessionKey);
+                this.#closeSessionIfNoPlayersRemain(sessionKey);
             }, Constants.MAX_IDLE_MS);
 
             timeoutId.unref?.();
-            this.#roomClosureTimersByRoomKey.set(roomKey, timeoutId);
+            this.#sessionClosureTimersBySessionKey.set(sessionKey, timeoutId);
         }
     }
 
     /**
-     * Checks whether a registered room currently has no players.
+     * Checks whether a registered session currently has no players.
      *
-     * @param {string} roomKey - Room key.
-     * @returns {boolean} True when the room exists and has no players.
+     * @param {string} sessionKey - Session key.
+     * @returns {boolean} True when the session exists and has no players.
      */
-    #isRoomEmpty(roomKey) {
-        const room = this.#roomsByKey.get(roomKey) ?? null;
+    #isSessionEmpty(sessionKey) {
+        const session = this.#sessionsByKey.get(sessionKey) ?? null;
 
-        return room !== null && room.isEmpty();
+        return session !== null && session.isEmpty();
     }
 
     /**
-     * Cancels a pending empty-room closure check.
+     * Cancels a pending empty-session closure check.
      *
-     * @param {string} roomKey - Room key.
+     * @param {string} sessionKey - Session key.
      */
-    #cancelScheduledRoomClosure(roomKey) {
-        const timeoutId = this.#roomClosureTimersByRoomKey.get(roomKey);
+    #cancelScheduledSessionClosure(sessionKey) {
+        const timeoutId = this.#sessionClosureTimersBySessionKey.get(sessionKey);
 
         if (timeoutId !== undefined) {
             globalThis.clearTimeout(timeoutId);
-            this.#roomClosureTimersByRoomKey.delete(roomKey);
+            this.#sessionClosureTimersBySessionKey.delete(sessionKey);
         }
     }
 
     /**
-     * Closes a room and involuntarily evicts every remaining visitor.
+     * Closes a session and returns every viewer to the Game.
      *
-     * @param {string} roomKey - Room key.
+     * @param {string} sessionKey - Session key.
      */
-    #closeRoomAndEvictVisitors(roomKey) {
-        const room = this.#roomsByKey.get(roomKey) ?? null;
+    #closeSession(sessionKey) {
+        const session = this.#sessionsByKey.get(sessionKey) ?? null;
 
-        if (room !== null) {
-            this.#cancelScheduledRoomClosure(roomKey);
+        if (session !== null) {
+            this.#cancelScheduledSessionClosure(sessionKey);
 
-            const roomTabIds = Array.from(this.#roomTabIdsByRoomKey.get(roomKey) ?? []);
-            const evictedVisitorSessions = [];
+            const sessionTabIds = Array.from(this.#sessionTabIdsBySessionKey.get(sessionKey) ?? []);
+            const viewingClients = [];
 
-            this.#clearRoomCallbacks(room);
-            this.#roomsByKey.delete(roomKey);
-            this.#roomTabIdsByRoomKey.delete(roomKey);
-            this.#throttleGuard.reset(`room:${roomKey}`);
+            this.#clearSessionCallbacks(session);
+            this.#sessionsByKey.delete(sessionKey);
+            this.#sessionTabIdsBySessionKey.delete(sessionKey);
+            this.#throttleGuard.reset(`session:${sessionKey}`);
 
-            for (const tabId of roomTabIds) {
-                const roomSession = this.#roomSessionsByTabId.get(tabId);
+            for (const tabId of sessionTabIds) {
+                const client = this.#clientsByTabId.get(tabId);
 
-                if (roomSession !== undefined) {
-                    evictedVisitorSessions.push(roomSession);
-                    this.#unregisterRoomSession(roomSession.tabId, roomSession.ws);
+                if (client !== undefined) {
+                    viewingClients.push(client);
+                    this.#unregisterClient(client.tabId, client.ws);
                 }
             }
 
-            const lobbySync = this.#createLobbySync();
+            const gameSync = this.#createGameSync();
 
-            this.#broadcastLobbySync(lobbySync);
+            this.#broadcastGameSync(gameSync);
 
-            for (const roomSession of evictedVisitorSessions) {
-                this.#sendInvoluntaryLobbyTransition(
-                    roomSession.ws,
-                    "Room closed",
+            for (const client of viewingClients) {
+                this.#sendInvoluntaryGameTransition(
+                    client.ws,
+                    "Session closed",
                     "No players remain.",
-                    lobbySync
+                    gameSync
                 );
             }
         }
     }
 
     /**
-     * Continues AI turn processing while the room remains active.
+     * Continues AI turn processing while the session remains active.
      *
-     * @param {string} roomKey - Room key.
+     * @param {string} sessionKey - Session key.
      * @returns {Promise<void>}
      */
-    async #continueAutomatedTurn(roomKey) {
-        const room = this.#roomsByKey.get(roomKey) ?? null;
+    async #continueAutomatedTurn(sessionKey) {
+        const session = this.#sessionsByKey.get(sessionKey) ?? null;
 
-        if (room !== null && room.isGameActive()) {
-            await this.#runAutomatedTurn(roomKey);
+        if (session !== null && session.isActive()) {
+            await this.#runAutomatedTurn(sessionKey);
         }
     }
 
@@ -811,8 +793,8 @@ export default class Server {
      * @param {WebSocket} ws - Client WebSocket.
      */
     #handleWebSocketConnection(ws) {
-        this.#registerLobbyConnection(ws);
-        this.#sendViewSync(ws, Constants.VIEWS.LOBBY, this.#createLobbySync());
+        this.#registerGameConnection(ws);
+        this.#sendViewSync(ws, Constants.VIEWS.GAME, this.#createGameSync());
 
         ws.on("message", (message) => {
             void this.#handleWebSocketMessage(ws, message);
@@ -889,18 +871,16 @@ export default class Server {
      */
     async #routeAction(ws, type, payload) {
         const handlers = {
-            [Constants.ACTIONS.VIEW_LOBBY]: this.#viewLobby,
-            [Constants.ACTIONS.CREATE_ROOM]: this.#createRoom,
-            [Constants.ACTIONS.ADMIT_VISITOR]: this.#admitVisitor,
-            [Constants.ACTIONS.ADMIT_PLAYER]: this.#admitPlayer,
-            [Constants.ACTIONS.PROMOTE_VISITOR]: this.#promoteVisitor,
-            [Constants.ACTIONS.DEMOTE_PLAYER]: this.#demotePlayer,
-            [Constants.ACTIONS.EVICT_OCCUPANT]: this.#evictOccupant,
-            [Constants.ACTIONS.START_GAME]: this.#startGame,
-            [Constants.ACTIONS.DRAW_CARD]: this.#drawCard,
-            [Constants.ACTIONS.DISCARD_CARD]: this.#discardCard,
-            [Constants.ACTIONS.PASS_PLAYER]: this.#passTurn,
-            [Constants.ACTIONS.SUIT_CHANGE]: this.#suitChange
+            [Constants.ACTIONS.LIST]: this.#list,
+            [Constants.ACTIONS.CREATE]: this.#create,
+            [Constants.ACTIONS.VIEW]: this.#view,
+            [Constants.ACTIONS.JOIN]: this.#join,
+            [Constants.ACTIONS.LEAVE]: this.#leave,
+            [Constants.ACTIONS.START]: this.#start,
+            [Constants.ACTIONS.DRAW]: this.#draw,
+            [Constants.ACTIONS.DISCARD]: this.#discard,
+            [Constants.ACTIONS.PASS]: this.#pass,
+            [Constants.ACTIONS.DECLARE]: this.#declare
         };
 
         const handler = handlers[type];
@@ -915,23 +895,23 @@ export default class Server {
     /**
      * Handles a disconnected WebSocket.
      *
-     * Room occupants are silently evicted.
+     * Session clients are silently removed.
      *
      * @param {WebSocket} ws - Client WebSocket.
      * @returns {Promise<void>}
      */
     async #handleWebSocketDisconnect(ws) {
-        this.#unregisterLobbyConnection(ws);
+        this.#unregisterGameConnection(ws);
 
-        const roomSession = this.#findRoomSessionBySocket(ws);
+        const client = this.#findClientBySocket(ws);
 
-        if (roomSession !== null) {
-            const room = this.#roomsByKey.get(roomSession.roomKey) ?? null;
+        if (client !== null) {
+            const session = this.#sessionsByKey.get(client.sessionKey) ?? null;
 
-            if (room !== null) {
-                await this.#evictRoomSession(roomSession, room);
+            if (session !== null) {
+                await this.#leaveClient(client, session);
             } else {
-                this.#unregisterRoomSession(roomSession.tabId, ws);
+                this.#unregisterClient(client.tabId, ws);
             }
         }
     }
@@ -982,11 +962,11 @@ export default class Server {
     }
 
     /**
-     * Welcomes a newly admitted visitor.
+     * Welcomes a new viewer.
      *
-     * @param {WebSocket} ws - Visitor WebSocket.
+     * @param {WebSocket} ws - Viewer WebSocket.
      */
-    #sendVisitorWelcome(ws) {
+    #sendViewerWelcome(ws) {
         this.#sendUserNotification(
             ws,
             Constants.STATUS.INFO,
@@ -996,10 +976,10 @@ export default class Server {
     }
 
     /**
-     * Welcomes a newly admitted player and identifies their play area.
+     * Welcomes a newly joined player and identifies their play area.
      *
      * @param {WebSocket} ws - Player WebSocket.
-     * @param {string} playerName - Admitted player name.
+     * @param {string} playerName - Joined player name.
      */
     #sendPlayerWelcome(ws, playerName) {
         this.#sendUserNotification(
@@ -1029,283 +1009,234 @@ export default class Server {
     // -------------------------------------------------------------------------
 
     /**
-     * Handles VIEW_LOBBY.
+     * Handles LIST.
      *
      * @param {WebSocket} ws - Client WebSocket.
      * @returns {Promise<void>}
      */
-    async #viewLobby(ws) {
-        if (this.#findRoomSessionBySocket(ws) !== null) {
-            throw new UserNotification("Exit the current room before viewing the lobby.");
+    async #list(ws) {
+        if (this.#findClientBySocket(ws) !== null) {
+            throw new UserNotification("Exit the current session before viewing the game.");
         }
 
-        this.#registerLobbyConnection(ws);
-        this.#sendViewSync(ws, Constants.VIEWS.LOBBY, this.#createLobbySync());
+        this.#registerGameConnection(ws);
+        this.#sendViewSync(ws, Constants.VIEWS.GAME, this.#createGameSync());
     }
 
     /**
-     * Handles CREATE_ROOM.
+     * Handles CREATE.
      *
      * @param {WebSocket} ws - Client WebSocket.
      * @param {Object} payload - Payload.
      * @returns {Promise<void>}
      */
-    async #createRoom(ws, payload) {
+    async #create(ws, payload) {
         const tabId = NormalizeUtils.requiredString(payload.tabId, "tabId");
-        const roomName = NormalizeUtils.requiredString(payload.roomName, "Room name");
+        const sessionName = NormalizeUtils.requiredString(payload.sessionName, "Session name");
         const playerName = NormalizeUtils.requiredString(payload.playerName, "Player name");
-        const roomKey = this.#normalizeRoomKey(roomName);
-        const capacity = this.#normalizeRoomCapacity(payload.capacity);
+        const sessionKey = this.#normalizeSessionKey(sessionName);
+        const capacity = this.#normalizeSessionCapacity(payload.capacity);
 
-        this.#throttleGuard.enforcePlayerThrottle(tabId, Constants.ACTIONS.CREATE_ROOM, 500);
+        this.#throttleGuard.enforcePlayerThrottle(tabId, Constants.ACTIONS.CREATE, 500);
 
-        if (this.#roomSessionsByTabId.has(tabId)) {
-            throw new UserNotification("Exit the current room before creating another room.");
+        if (this.#clientsByTabId.has(tabId)) {
+            throw new UserNotification("Exit the current session before creating another session.");
         }
 
-        if (this.#roomsByKey.has(roomKey)) {
-            throw new UserNotification(`Room already exists: ${roomName}`);
+        if (this.#sessionsByKey.has(sessionKey)) {
+            throw new UserNotification(`Session already exists: ${sessionName}`);
         }
 
-        const room = this.#registerRoom(roomName, capacity, roomKey);
+        const session = this.#registerSession(sessionName, capacity, sessionKey);
 
         try {
-            const player = await room.admitPlayer(playerName, false);
+            const player = await session.join(playerName, false);
 
-            this.#registerRoomSession(tabId, ws, roomKey, player.name);
-            this.#sendRoomSync(ws, room, player.name);
+            this.#registerClient(tabId, ws, sessionKey, player.name);
+            this.#sendSessionSync(ws, session, player.name);
             this.#sendPlayerWelcome(ws, player.name);
-            this.#broadcastLobbySync();
+            this.#broadcastGameSync();
         } catch (error) {
-            this.#clearRoomCallbacks(room);
-            this.#roomsByKey.delete(roomKey);
-            this.#roomTabIdsByRoomKey.delete(roomKey);
+            this.#clearSessionCallbacks(session);
+            this.#sessionsByKey.delete(sessionKey);
+            this.#sessionTabIdsBySessionKey.delete(sessionKey);
 
             throw error;
         }
     }
 
     /**
-     * Resolves room capacity.
+     * Resolves session capacity.
      *
      * @param {*} value - Raw capacity.
      * @returns {number} Capacity.
      */
-    #normalizeRoomCapacity(value) {
-        const parsedCapacity = Number(value || Constants.ROOM_MAX_CAPACITY);
+    #normalizeSessionCapacity(value) {
+        const parsedCapacity = Number(value || Constants.SESSION_MAX_CAPACITY);
 
-        return Number.isInteger(parsedCapacity) ? parsedCapacity : Constants.ROOM_MAX_CAPACITY;
+        return Number.isInteger(parsedCapacity) ? parsedCapacity : Constants.SESSION_MAX_CAPACITY;
     }
 
     /**
-     * Handles ADMIT_VISITOR.
+     * Handles VIEW.
      *
      * @param {WebSocket} ws - Client WebSocket.
      * @param {Object} payload - Payload.
      * @returns {Promise<void>}
      */
-    async #admitVisitor(ws, payload) {
-        const {tabId, roomKey, room, existingRoomSession} = this.#requireAdmissionContext(
-            ws, payload, Constants.ACTIONS.ADMIT_VISITOR, 300
+    async #view(ws, payload) {
+        const {tabId, sessionKey, session, existingClient} = this.#requireSessionContext(
+            ws, payload, Constants.ACTIONS.VIEW, 300
         );
 
-        if (existingRoomSession !== null && existingRoomSession.roomKey !== roomKey) {
-            throw new UserNotification("Exit the current room before viewing another room.");
+        if (existingClient !== null && existingClient.sessionKey !== sessionKey) {
+            throw new UserNotification("Exit the current session before viewing another session.");
         }
 
-        if (existingRoomSession === null) {
-            room.admitVisitor(tabId);
-            this.#registerRoomSession(tabId, ws, roomKey, null);
-            this.#sendRoomSync(ws, room, null);
-            this.#sendVisitorWelcome(ws);
+        if (existingClient === null) {
+            session.view(tabId);
+            this.#registerClient(tabId, ws, sessionKey, null);
+            this.#sendSessionSync(ws, session, null);
+            this.#sendViewerWelcome(ws);
         } else {
-            this.#sendRoomSync(ws, room, this.#resolveRoomSessionPlayerName(room, existingRoomSession));
+            this.#sendSessionSync(ws, session, this.#resolveClientPlayerName(session, existingClient));
         }
     }
 
-    /**
-     * Handles ADMIT_PLAYER.
-     *
-     * @param {WebSocket} ws - Client WebSocket.
-     * @param {Object} payload - Payload.
-     * @returns {Promise<void>}
-     */
-    async #admitPlayer(ws, payload) {
-        const {tabId, roomKey, room, existingRoomSession} = this.#requireAdmissionContext(
-            ws, payload, Constants.ACTIONS.ADMIT_PLAYER, 500
+    /** Joins a session as a player, whether it is already being viewed or not. */
+    async #join(ws, payload) {
+        const {tabId, sessionKey, session, existingClient} = this.#requireSessionContext(
+            ws, payload, Constants.ACTIONS.JOIN, 500
         );
         const playerName = NormalizeUtils.requiredString(payload.playerName, "Player name");
 
-        this.#assertPlayerNameAvailable(room, playerName);
+        this.#assertPlayerNameAvailable(session, playerName);
 
-        if (existingRoomSession !== null) {
-            throw new UserNotification("Client is already admitted to a room.");
+        if (existingClient !== null && existingClient.sessionKey !== sessionKey) {
+            throw new UserNotification("Leave the current session before joining another session.");
         }
 
-        const player = await room.admitPlayer(playerName, false);
-        this.#registerRoomSession(tabId, ws, roomKey, player.name);
+        if (existingClient !== null && existingClient.playerName !== null) {
+            throw new UserNotification("You already joined this session.");
+        }
 
-        const currentRoomSession = this.#roomSessionsByTabId.get(tabId);
+        const player = await session.join(playerName, false, existingClient === null ? null : tabId);
 
-        if (currentRoomSession !== undefined && currentRoomSession.ws === ws && currentRoomSession.roomKey === roomKey) {
-            currentRoomSession.playerName = player.name;
-            this.#sendRoomSync(ws, room, player.name);
+        if (existingClient === null) {
+            this.#registerClient(tabId, ws, sessionKey, player.name);
+        } else {
+            existingClient.playerName = player.name;
+        }
+
+        const currentClient = this.#clientsByTabId.get(tabId);
+
+        if (currentClient !== undefined && currentClient.ws === ws && currentClient.sessionKey === sessionKey) {
+            currentClient.playerName = player.name;
+            this.#sendSessionSync(ws, session, player.name);
             this.#sendPlayerWelcome(ws, player.name);
         }
     }
 
     /**
-     * Validates and resolves the shared context for direct room admission.
+     * Resolves the shared context for viewing or joining a session.
      *
      * @param {WebSocket} ws - Client WebSocket.
-     * @param {Object} payload - Admission payload.
-     * @param {string} action - Admission action.
+     * @param {Object} payload - Session payload.
+     * @param {string} action - Session action.
      * @param {number} throttleMs - Player throttle window.
-     * @returns {{tabId:string,roomKey:string,room:Room,existingRoomSession:Object|null}} Admission context.
+     * @returns {{tabId:string,sessionKey:string,session:Session,existingClient:Object|null}} Session context.
      */
-    #requireAdmissionContext(ws, payload, action, throttleMs) {
+    #requireSessionContext(ws, payload, action, throttleMs) {
         const tabId = NormalizeUtils.requiredString(payload.tabId, "tabId");
-        const {roomKey, room} = this.#requirePayloadRoom(payload);
-        const existingRoomSession = this.#roomSessionsByTabId.get(tabId) ?? null;
+        const {sessionKey, session} = this.#requirePayloadSession(payload);
+        const existingClient = this.#clientsByTabId.get(tabId) ?? null;
 
         this.#throttleGuard.enforcePlayerThrottle(tabId, action, throttleMs);
 
-        if (existingRoomSession !== null && existingRoomSession.ws !== ws) {
-            throw new UserNotification("Your room session has expired. Rejoin the room.");
+        if (existingClient !== null && existingClient.ws !== ws) {
+            throw new UserNotification("Your connection expired. Rejoin the session.");
         }
 
-        return {tabId, roomKey, room, existingRoomSession};
+        return {tabId, sessionKey, session, existingClient};
     }
 
     /**
-     * Resolves a required room from an action payload.
+     * Resolves a required session from an action payload.
      *
      * @param {Object} payload - Action payload.
-     * @returns {{roomKey:string,room:Room}} Room context.
+     * @returns {{sessionKey:string,session:Session}} Session context.
      */
-    #requirePayloadRoom(payload) {
-        const roomName = NormalizeUtils.requiredString(payload.roomName, "Room name");
-        const roomKey = this.#normalizeRoomKey(roomName);
+    #requirePayloadSession(payload) {
+        const sessionName = NormalizeUtils.requiredString(payload.sessionName, "Session name");
+        const sessionKey = this.#normalizeSessionKey(sessionName);
 
-        return {roomKey, room: this.#requireRoomByKey(roomKey)};
+        return {sessionKey, session: this.#requireSessionByKey(sessionKey)};
     }
 
     /**
-     * Requires a player name that is not already present in a room.
+     * Requires a player name that is not already present in a session.
      *
-     * @param {Room} room - Target room.
+     * @param {Session} session - Target session.
      * @param {string} playerName - Requested player name.
      */
-    #assertPlayerNameAvailable(room, playerName) {
-        if (room.isPlayerPresent(playerName)) {
+    #assertPlayerNameAvailable(session, playerName) {
+        if (session.isPlayerPresent(playerName)) {
             throw new UserNotification(`Player already exists: ${playerName}`);
         }
     }
 
-    /**
-     * Handles PROMOTE_VISITOR.
-     *
-     * @param {WebSocket} ws - Client WebSocket.
-     * @param {Object} payload - Payload.
-     * @returns {Promise<void>}
-     */
-    async #promoteVisitor(ws, payload) {
-        const session = this.#requireThrottledRoomSession(
-            ws, payload, Constants.ACTIONS.PROMOTE_VISITOR, 500
+    /** Leaves the viewed or joined session. */
+    async #leave(ws, payload) {
+        const context = this.#requireThrottledClient(
+            ws, payload, Constants.ACTIONS.LEAVE, 300
         );
-        const playerName = NormalizeUtils.requiredString(payload.playerName, "Player name");
-        const {roomKey, room} = this.#requirePayloadRoom(payload);
+        const session = this.#sessionsByKey.get(context.client.sessionKey) ?? null;
 
-        if (session.roomSession.roomKey !== roomKey || session.roomSession.playerName !== null) {
-            throw new UserNotification("Only a visitor in this room can be promoted.");
-        }
+        if (session !== null) {
+            const sessionKey = await this.#removeClient(context.client, session);
 
-        this.#assertPlayerNameAvailable(room, playerName);
-
-        const player = await this.#promoteVisitorSession(session.roomSession, room, playerName);
-
-        if (this.#isCurrentRoomSession(session.roomSession)) {
-            this.#sendRoomSync(ws, room, player.name);
-            this.#sendPlayerWelcome(ws, player.name);
-        }
-    }
-
-    /**
-     * Handles DEMOTE_PLAYER.
-     *
-     * @param {WebSocket} ws - Client WebSocket.
-     * @param {Object} payload - Payload.
-     * @returns {Promise<void>}
-     */
-    async #demotePlayer(ws, payload) {
-        const session = this.#requireThrottledPlayerSession(
-            ws, payload, Constants.ACTIONS.DEMOTE_PLAYER, 300
-        );
-
-        await session.room.demotePlayer(session.playerName, session.tabId);
-        session.roomSession.playerName = null;
-        this.#sendRoomSync(ws, session.room, null);
-        await this.#continueGameOrCloseRoom(session.roomKey);
-    }
-
-    /**
-     * Handles EVICT_OCCUPANT.
-     *
-     * @param {WebSocket} ws - Client WebSocket.
-     * @param {Object} payload - Payload.
-     * @returns {Promise<void>}
-     */
-    async #evictOccupant(ws, payload) {
-        const session = this.#requireThrottledRoomSession(
-            ws, payload, Constants.ACTIONS.EVICT_OCCUPANT, 300
-        );
-        const room = this.#roomsByKey.get(session.roomSession.roomKey) ?? null;
-
-        if (room !== null) {
-            const roomKey = await this.#removeRoomSession(session.roomSession, room);
-
-            this.#sendLobbyTransition(ws);
-            await this.#continueGameOrCloseRoom(roomKey);
+            this.#sendGameTransition(ws);
+            await this.#continueOrCloseSession(sessionKey);
         } else {
-            this.#unregisterRoomSession(session.tabId, ws);
-            this.#sendLobbyTransition(ws);
+            this.#unregisterClient(context.tabId, ws);
+            this.#sendGameTransition(ws);
         }
     }
 
     /**
-     * Requires a valid client room session.
+     * Requires a client currently viewing or playing in a session.
      *
      * @param {WebSocket} ws - Client WebSocket.
      * @param {Object} payload - Payload.
-     * @returns {{tabId:string, roomSession:Object}} Room session context.
+     * @returns {{tabId:string, client:Object}} Client context.
      * @throws {Error}
      */
-    #requireRoomSession(ws, payload) {
+    #requireClient(ws, payload) {
         const tabId = NormalizeUtils.requiredString(payload.tabId, "tabId");
-        const roomSession = this.#roomSessionsByTabId.get(tabId) ?? null;
+        const client = this.#clientsByTabId.get(tabId) ?? null;
 
-        if (roomSession === null || roomSession.ws !== ws) {
-            throw new UserNotification("Your room session has expired. Rejoin the room.");
+        if (client === null || client.ws !== ws) {
+            throw new UserNotification("Your connection expired. Rejoin the session.");
         }
 
-        return { tabId, roomSession };
+        return { tabId, client };
     }
 
     /**
-     * Requires a room session and applies its action throttle.
+     * Requires a session client and applies its action throttle.
      *
      * @param {WebSocket} ws - Client WebSocket.
      * @param {Object} payload - Action payload.
      * @param {string} action - Client action.
      * @param {number} throttleMs - Player throttle window.
-     * @returns {{tabId:string,roomSession:Object}} Throttled room session context.
+     * @returns {{tabId:string,client:Object}} Throttled client context.
      */
-    #requireThrottledRoomSession(ws, payload, action, throttleMs) {
-        const session = this.#requireRoomSession(ws, payload);
+    #requireThrottledClient(ws, payload, action, throttleMs) {
+        const context = this.#requireClient(ws, payload);
 
-        this.#throttleGuard.enforcePlayerThrottle(session.tabId, action, throttleMs);
+        this.#throttleGuard.enforcePlayerThrottle(context.tabId, action, throttleMs);
 
-        return session;
+        return context;
     }
 
     /**
@@ -1313,142 +1244,141 @@ export default class Server {
      *
      * @param {WebSocket} ws - Client WebSocket.
      * @param {Object} payload - Payload.
-     * @returns {{tabId:string, roomSession:Object, roomKey:string, room:Room, playerName:string}} Player session.
+     * @returns {{tabId:string, client:Object, sessionKey:string, session:Session, playerName:string}} Player session.
      * @throws {Error}
      */
     #requirePlayerSession(ws, payload) {
-        const session = this.#requireRoomSession(ws, payload);
-        const roomSession = session.roomSession;
+        const context = this.#requireClient(ws, payload);
+        const client = context.client;
 
-        if (roomSession.playerName === null) {
+        if (client.playerName === null) {
             throw new UserNotification("Join the game before making a move.");
         }
 
-        const room = this.#requireRoomByKey(roomSession.roomKey);
+        const session = this.#requireSessionByKey(client.sessionKey);
 
-        if (!room.isPlayerPresent(roomSession.playerName)) {
+        if (!session.isPlayerPresent(client.playerName)) {
             throw new UserNotification("Your player session has expired. Rejoin the game.");
         }
 
         return {
-            tabId: session.tabId,
-            roomSession,
-            roomKey: roomSession.roomKey,
-            room,
-            playerName: roomSession.playerName
+            tabId: context.tabId,
+            client,
+            sessionKey: client.sessionKey,
+            session,
+            playerName: client.playerName
         };
     }
 
     /**
-     * Requires a player session and applies player and optional room throttles.
+     * Requires a player session and applies player and optional session throttles.
      *
      * @param {WebSocket} ws - Client WebSocket.
      * @param {Object} payload - Action payload.
      * @param {string} action - Player action.
      * @param {number} playerThrottleMs - Player throttle window.
-     * @param {number|null} [roomThrottleMs=null] - Optional room throttle window.
-     * @returns {{tabId:string,roomSession:Object,roomKey:string,room:Room,playerName:string}} Player session.
+     * @param {number|null} [sessionThrottleMs=null] - Optional session throttle window.
+     * @returns {{tabId:string,client:Object,sessionKey:string,session:Session,playerName:string}} Player session.
      */
-    #requireThrottledPlayerSession(ws, payload, action, playerThrottleMs, roomThrottleMs = null) {
-        const session = this.#requirePlayerSession(ws, payload);
+    #requireThrottledPlayerSession(ws, payload, action, playerThrottleMs, sessionThrottleMs = null) {
+        const context = this.#requirePlayerSession(ws, payload);
 
-        this.#throttleGuard.enforcePlayerThrottle(session.tabId, action, playerThrottleMs);
+        this.#throttleGuard.enforcePlayerThrottle(context.tabId, action, playerThrottleMs);
 
-        if (roomThrottleMs !== null) {
-            this.#throttleGuard.enforceRoomThrottle(session.roomKey, action, roomThrottleMs);
+        if (sessionThrottleMs !== null) {
+            this.#throttleGuard.enforceSessionThrottle(context.sessionKey, action, sessionThrottleMs);
         }
 
-        return session;
+        return context;
     }
 
     /**
-     * Handles START_GAME.
+     * Handles START.
      *
      * @param {WebSocket} ws - Client WebSocket.
      * @param {Object} payload - Payload.
      * @returns {Promise<void>}
      */
-    async #startGame(ws, payload) {
-        const session = this.#requireThrottledPlayerSession(
-            ws, payload, Constants.ACTIONS.START_GAME, 1000, 500
+    async #start(ws, payload) {
+        const context = this.#requireThrottledPlayerSession(
+            ws, payload, Constants.ACTIONS.START, 1000, 500
         );
 
-        await session.room.startGame();
-        await this.#runAutomatedTurn(session.roomKey);
+        await context.session.start();
+        await this.#runAutomatedTurn(context.sessionKey);
     }
 
     /**
-     * Handles DRAW_CARD.
+     * Handles DRAW.
      *
      * @param {WebSocket} ws - Client WebSocket.
      * @param {Object} payload - Payload.
      * @returns {Promise<void>}
      */
-    async #drawCard(ws, payload) {
-        const session = this.#requireThrottledPlayerSession(
-            ws, payload, Constants.ACTIONS.DRAW_CARD, 400, 100
+    async #draw(ws, payload) {
+        const context = this.#requireThrottledPlayerSession(
+            ws, payload, Constants.ACTIONS.DRAW, 400, 100
         );
 
-        const room = session.room;
-        const drawn = await room.drawCards(session.playerName, payload.sortKey);
+        const drawn = await context.session.drawCards(context.playerName, payload.sortKey);
         const count = drawn.length;
 
-        this.#sendDrawNotification(ws, count, room.status === Constants.STATUS.PLAYING && count > 1);
-        await this.#continueAutomatedTurn(session.roomKey);
+        this.#sendDrawNotification(ws, count, context.session.status === Constants.STATUS.PLAYING && count > 1);
+        await this.#continueAutomatedTurn(context.sessionKey);
     }
 
     /**
-     * Handles DISCARD_CARD.
+     * Handles DISCARD.
      *
      * @param {WebSocket} ws - Client WebSocket.
      * @param {Object} payload - Payload.
      * @returns {Promise<void>}
      */
-    async #discardCard(ws, payload) {
-        const session = this.#requireThrottledPlayerSession(
-            ws, payload, Constants.ACTIONS.DISCARD_CARD, 250, 100
+    async #discard(ws, payload) {
+        const context = this.#requireThrottledPlayerSession(
+            ws, payload, Constants.ACTIONS.DISCARD, 250, 100
         );
         const card = Card.from(payload.card);
 
-        const drawn = await session.room.discardCard(session.playerName, card.value, card.suit, payload.sortKey);
+        const drawn = await context.session.discardCard(context.playerName, card.value, card.suit, payload.sortKey);
 
         this.#sendDrawNotification(ws, drawn.length, true);
-        await this.#continueAutomatedTurn(session.roomKey);
+        await this.#continueAutomatedTurn(context.sessionKey);
     }
 
     /**
-     * Handles PASS_PLAYER.
+     * Handles PASS.
      *
      * @param {WebSocket} ws - Client WebSocket.
      * @param {Object} payload - Payload.
      * @returns {Promise<void>}
      */
-    async #passTurn(ws, payload) {
-        const session = this.#requireThrottledPlayerSession(
-            ws, payload, Constants.ACTIONS.PASS_PLAYER, 250, 100
+    async #pass(ws, payload) {
+        const context = this.#requireThrottledPlayerSession(
+            ws, payload, Constants.ACTIONS.PASS, 250, 100
         );
 
-        const drawn = await session.room.passTurn(session.playerName, payload.sortKey);
+        const drawn = await context.session.passTurn(context.playerName, payload.sortKey);
 
         this.#sendDrawNotification(ws, drawn.length, true);
-        await this.#continueAutomatedTurn(session.roomKey);
+        await this.#continueAutomatedTurn(context.sessionKey);
     }
 
     /**
-     * Handles SUIT_CHANGE.
+     * Handles DECLARE.
      *
      * @param {WebSocket} ws - Client WebSocket.
      * @param {Object} payload - Payload.
      * @returns {Promise<void>}
      */
-    async #suitChange(ws, payload) {
-        const session = this.#requireThrottledPlayerSession(
-            ws, payload, Constants.ACTIONS.SUIT_CHANGE, 250, 100
+    async #declare(ws, payload) {
+        const context = this.#requireThrottledPlayerSession(
+            ws, payload, Constants.ACTIONS.DECLARE, 250, 100
         );
         const suit = this.#requireSuit(payload.suit);
 
-        await session.room.declareSuit(suit);
-        await this.#continueAutomatedTurn(session.roomKey);
+        await context.session.declareSuit(suit);
+        await this.#continueAutomatedTurn(context.sessionKey);
     }
 
     /**
@@ -1465,26 +1395,26 @@ export default class Server {
     /**
      * Handles AI turns and suit declarations.
      *
-     * @param {string} roomKey - Room key.
+     * @param {string} sessionKey - Session key.
      * @returns {Promise<void>}
      */
-    async #runAutomatedTurn(roomKey) {
-        const room = this.#roomsByKey.get(roomKey) ?? null;
+    async #runAutomatedTurn(sessionKey) {
+        const session = this.#sessionsByKey.get(sessionKey) ?? null;
 
-        if (room !== null) {
-            if (room.status === Constants.STATUS.PENDING) {
-                const turnOwner = room.circle.getTurnOwner();
+        if (session !== null) {
+            if (session.status === Constants.STATUS.PENDING) {
+                const turnOwner = session.circle.getTurnOwner();
 
                 if (turnOwner instanceof AIPlayer) {
-                    await turnOwner.chooseSuit(room);
-                    await this.#runAutomatedTurn(roomKey);
+                    await turnOwner.chooseSuit(session);
+                    await this.#runAutomatedTurn(sessionKey);
                 }
-            } else if (room.status === Constants.STATUS.PLAYING) {
-                const turnOwner = room.circle.getTurnOwner();
+            } else if (session.status === Constants.STATUS.PLAYING) {
+                const turnOwner = session.circle.getTurnOwner();
 
                 if (turnOwner instanceof AIPlayer) {
-                    await turnOwner.takeTurn(room);
-                    await this.#runAutomatedTurn(roomKey);
+                    await turnOwner.takeTurn(session);
+                    await this.#runAutomatedTurn(sessionKey);
                 }
             }
         }
@@ -1525,20 +1455,20 @@ export default class Server {
     async #destroy() {
         this.#stopHeartbeat();
 
-        for (const timeoutId of this.#roomClosureTimersByRoomKey.values()) {
+        for (const timeoutId of this.#sessionClosureTimersBySessionKey.values()) {
             globalThis.clearTimeout(timeoutId);
         }
 
-        this.#roomClosureTimersByRoomKey.clear();
+        this.#sessionClosureTimersBySessionKey.clear();
 
-        for (const room of this.#roomsByKey.values()) {
-            this.#clearRoomCallbacks(room);
+        for (const session of this.#sessionsByKey.values()) {
+            this.#clearSessionCallbacks(session);
         }
 
-        this.#roomsByKey.clear();
-        this.#roomTabIdsByRoomKey.clear();
-        this.#roomSessionsByTabId.clear();
-        this.#lobbyConnections.clear();
+        this.#sessionsByKey.clear();
+        this.#sessionTabIdsBySessionKey.clear();
+        this.#clientsByTabId.clear();
+        this.#gameConnections.clear();
         this.#throttleGuard.resetAll();
 
         for (const ws of Array.from(this.#webSocketServer.clients)) {

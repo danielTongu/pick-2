@@ -332,20 +332,20 @@
 }
 
 /* ========================================
-   GAME END DIALOG
+   SESSION END DIALOG
    ======================================== */
 
-#game-end-dialog .dialog-panel {
+#session-end-dialog .dialog-panel {
     max-width: 980px;
 }
 
-#game-end-message,
-#game-end-player-cards-panel p {
+#session-end-message,
+#session-end-player-cards-panel p {
     color: rgba(255, 255, 255, .65);
 }
 
-#game-end-stats-panel,
-#game-end-player-cards-panel {
+#session-end-stats-panel,
+#session-end-player-cards-panel {
     display: grid;
     gap: var(--container-spacing);
     min-height: 0;
@@ -354,34 +354,34 @@
     background: rgba(255, 255, 255, .05);
 }
 
-#game-end-stats-panel {
+#session-end-stats-panel {
     overflow: auto;
 }
 
-#game-end-player-stats-table {
+#session-end-player-stats-table {
     width: 100%;
     border-collapse: collapse;
 }
 
-#game-end-player-stats-table caption {
+#session-end-player-stats-table caption {
     position: absolute;
     width: 1px;
     height: 1px;
     overflow: hidden;
 }
 
-#game-end-player-stats-table th,
-#game-end-player-stats-table td {
+#session-end-player-stats-table th,
+#session-end-player-stats-table td {
     padding: var(--container-spacing);
     text-align: left;
     white-space: nowrap;
 }
 
-#game-end-player-stats-table thead {
+#session-end-player-stats-table thead {
     background: rgba(255, 255, 255, .08);
 }
 
-#game-end-player-stats-table thead th {
+#session-end-player-stats-table thead th {
     font-weight: 700;
     font-size: small;
     text-transform: uppercase;
@@ -389,32 +389,32 @@
     color: rgba(255, 255, 255, .7);
 }
 
-#game-end-player-stats-table tbody tr {
+#session-end-player-stats-table tbody tr {
     cursor: pointer;
     border-top: 1px solid rgba(255, 255, 255, .07);
     transition: background .2s ease;
 }
 
-#game-end-player-stats-table tbody tr:hover,
-#game-end-player-stats-table tbody tr[data-is-selected="true"] {
+#session-end-player-stats-table tbody tr:hover,
+#session-end-player-stats-table tbody tr[data-is-selected="true"] {
     background: rgba(255, 255, 255, .10);
 }
 
-#game-end-player-stats-table tbody tr[data-is-winner="true"] {
+#session-end-player-stats-table tbody tr[data-is-winner="true"] {
     color: gold;
 }
 
-#game-end-player-cards-panel {
+#session-end-player-cards-panel {
     grid-template-rows: auto minmax(0, 1fr);
 }
 
-#game-end-selected-player-hand {
+#session-end-selected-player-hand {
     overflow-x: auto;
     overflow-y: hidden;
     white-space: nowrap;
 }
 
-#game-end-selected-player-hand:empty::before {
+#session-end-selected-player-hand:empty::before {
     content: "No Cards To Show";
     display: grid;
     place-items: center;
@@ -423,17 +423,17 @@
     font-style: italic;
 }
 
-#game-end-selected-player-hand > playing-card {
+#session-end-selected-player-hand > playing-card {
     display: inline-block;
     margin-right: var(--container-spacing);
     vertical-align: top;
 }
 
-#game-end-dismiss-button {
+#session-end-dismiss-button {
     background: #238636;
 }
 
-#game-end-dismiss-button:hover {
+#session-end-dismiss-button:hover {
     background: #2ea043;
 }
 

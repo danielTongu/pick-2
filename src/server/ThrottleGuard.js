@@ -41,15 +41,15 @@ export class ThrottleGuard {
     }
 
     /**
-     * Enforces throttle for a room.
+     * Enforces throttle for a session.
      *
-     * @param {string} roomKey - Room key.
+     * @param {string} sessionKey - Session key.
      * @param {string} eventType - Event type.
      * @param {number} windowMs - Minimum interval.
      */
-    enforceRoomThrottle(roomKey, eventType, windowMs) {
+    enforceSessionThrottle(sessionKey, eventType, windowMs) {
         this.#enforceRateLimit(
-            `room:${NormalizeUtils.requiredString(roomKey, "roomKey")}:${eventType}`,
+            `session:${NormalizeUtils.requiredString(sessionKey, "sessionKey")}:${eventType}`,
             windowMs
         );
     }

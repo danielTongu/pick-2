@@ -144,7 +144,7 @@ export class Card extends Serializable {
      *
      * @returns {boolean} True when this card ends the game.
      */
-    isEndGameCard() {
+    isSessionEndCard() {
         return this.value === Constants.CARD.VALUE.SEVEN.id && this.suit === Constants.CARD.SUIT.HEARTS;
     }
 
@@ -208,7 +208,7 @@ export class Card extends Serializable {
      * @returns {boolean} True when this card has a special rule.
      */
     isSpecial() {
-        return this.isEndGameCard() ||
+        return this.isSessionEndCard() ||
             this.value === Constants.CARD.VALUE.TWO.id ||
             this.value === Constants.CARD.VALUE.EIGHT.id ||
             this.value === Constants.CARD.VALUE.JACK.id ||
@@ -247,13 +247,13 @@ export class Card extends Serializable {
     }
 
     /**
-     * Checks whether playing this card ends the move/game.
+     * Checks whether playing this card ends the Session.
      *
      * @param {number} remaining - Remaining cards.
-     * @returns {boolean} True when playing this card ends the move/game.
+     * @returns {boolean} True when playing this card ends the Session.
      */
-    isGameEndingMove(remaining) {
-        return remaining === 0 || this.isEndGameCard();
+    isSessionEndingMove(remaining) {
+        return remaining === 0 || this.isSessionEndCard();
     }
 
     /**

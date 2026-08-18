@@ -9,7 +9,7 @@ import { Serializable } from "./Serializable.js";
 import { TurnUtils } from "./TurnUtils.js";
 
 /**
- * Represents a game participant.
+ * Represents a game player.
  */
 export class Player extends Serializable {
     /** @type {*} */
@@ -211,14 +211,14 @@ export class AIPlayer extends Player {
     /**
      * Executes an AI turn.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @returns {Promise<void>}
      */
-    async takeTurn(room) {
+    async takeTurn(session) {
         await this.#waitForTurnDelay();
 
-        if (this.#isStillCurrent(room)) {
-            await this.#performTurnAction(room);
+        if (this.#isStillCurrent(session)) {
+            await this.#performTurnAction(session);
         }
     }
 
@@ -235,29 +235,29 @@ export class AIPlayer extends Player {
     /**
      * Checks whether this AI is still the turn owner.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @returns {boolean} True if this AI is current.
      */
-    #isStillCurrent(room) {
-        return TurnUtils.isTurnOwner(room.circle.turnOwnerKey, this.key);
+    #isStillCurrent(session) {
+        return TurnUtils.isTurnOwner(session.circle.turnOwnerKey, this.key);
     }
 
     /**
      * Executes the current turn action (pass, play, or draw).
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @returns {Promise<void>}
      */
-    async #performTurnAction(room) {
+    async #performTurnAction(session) {
         if (this.drawAllowance <= 0) {
-            await room.passTurn(this.name);
+            await session.passTurn(this.name);
         } else {
-            const card = this.#selectBestCard(room);
+            const card = this.#selectBestCard(session);
 
             if (card !== null) {
-                await room.discardCard(this.name, card.value, card.suit);
+                await session.discardCard(this.name, card.value, card.suit);
             } else {
-                await room.drawCards(this.name);
+                await session.drawCards(this.name);
             }
         }
     }
@@ -265,22 +265,22 @@ export class AIPlayer extends Player {
     /**
      * Picks the best legal card using a scoring system.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @returns {import("./Card.js").Card|null} Best card or null if none legal.
      */
-    #selectBestCard(room) {
-        const legalCards = this.#getPlayableCards(room);
+    #selectBestCard(session) {
+        const legalCards = this.#getPlayableCards(session);
         let selectedCard = null;
 
         if (legalCards.length > 0) {
-            const unseenCards = this.#getUnseenCards(room);
-            const selectableCards = !this.#hasRelevantCriticalThreat(room, legalCards) && legalCards.some(card => !card.isAce())
+            const unseenCards = this.#getUnseenCards(session);
+            const selectableCards = !this.#hasRelevantCriticalThreat(session, legalCards) && legalCards.some(card => !card.isAce())
                 ? legalCards.filter(card => !card.isAce())
                 : legalCards;
             const isUnderAttack = this.drawAllowance > 1;
             const scored = selectableCards.map(card => ({
                 card,
-                score: this.#calculateCardPriority(room, card, isUnderAttack, selectableCards.length, unseenCards)
+                score: this.#calculateCardPriority(session, card, isUnderAttack, selectableCards.length, unseenCards)
             }));
 
             scored.sort((a, b) => b.score - a.score);
@@ -296,12 +296,12 @@ export class AIPlayer extends Player {
     /**
      * Gets all legal cards in hand.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @returns {import("./Card.js").Card[]} Array of legal cards.
      */
-    #getPlayableCards(room) {
-        const top = room.getTopDiscard();
-        const declared = room.declaredSuit;
+    #getPlayableCards(session) {
+        const top = session.getTopDiscard();
+        const declared = session.declaredSuit;
         const allowance = this.drawAllowance;
         const legal = [];
 
@@ -322,12 +322,12 @@ export class AIPlayer extends Player {
      * Cards recycled from an old discard pile correctly become unseen again, which is why
      * persistent per-player discard memory would produce inaccurate card counts.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @returns {import("./Card.js").Card[]} Unseen cards.
      */
-    #getUnseenCards(room) {
+    #getUnseenCards(session) {
         const knownCardIds = new Set();
-        const discardPile = Array.isArray(room.discardPile) ? room.discardPile : [];
+        const discardPile = Array.isArray(session.discardPile) ? session.discardPile : [];
 
         for (const card of this.hand.cards) {
             knownCardIds.add(`${card.value}-${card.suit}`);
@@ -352,21 +352,21 @@ export class AIPlayer extends Player {
     /**
      * Scores a card based on AI strategy.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @param {import("./Card.js").Card} card - Card to score.
      * @param {boolean} isUnderAttack - Whether player is being attacked.
      * @param {number} totalLegal - Total number of legal cards.
      * @param {import("./Card.js").Card[]} unseenCards - Cards not publicly accounted for.
      * @returns {number} Card score.
      */
-    #calculateCardPriority(room, card, isUnderAttack, totalLegal, unseenCards) {
+    #calculateCardPriority(session, card, isUnderAttack, totalLegal, unseenCards) {
         const hasOtherOptions = totalLegal > 1;
         let score = card.score;
 
-        score += this.#calculateOpponentPressurePriority(room, card, totalLegal, unseenCards);
-        score += this.#calculateHandSetupPriority(room, card, unseenCards);
+        score += this.#calculateOpponentPressurePriority(session, card, totalLegal, unseenCards);
+        score += this.#calculateHandSetupPriority(session, card, unseenCards);
 
-        if (this.#pressesInferredEmptySuit(room, card)) {
+        if (this.#pressesInferredEmptySuit(session, card)) {
             score += AIPlayer.#PRIORITY_MEDIUM;
         }
 
@@ -396,14 +396,14 @@ export class AIPlayer extends Player {
         }
 
         // Skip/Reverse cards (8s, Jacks)
-        const playerCount = room.circle.players.size;
+        const playerCount = session.circle.players.size;
         if (card.isSkip(playerCount) || card.isReverse(playerCount)) {
             score += AIPlayer.#PRIORITY_LOW;
         }
 
-        // End game cards (7 of Hearts, last card)
-        if (card.isEndGameCard()) {
-            score = this.#calculateGameEndingPriority(room, card, unseenCards);
+        // Session-end cards (7 of Hearts, last card)
+        if (card.isSessionEndCard()) {
+            score = this.#calculateSessionEndingPriority(session, card, unseenCards);
         }
 
         return score;
@@ -416,18 +416,18 @@ export class AIPlayer extends Player {
      * the AI never reads an opponent's card identities or hand score. Publicly known cards
      * refine the probability that the projected opponent can legally respond.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @param {import("./Card.js").Card} card - Candidate discard.
      * @param {number} playableCardCount - Number of legal choices available to the AI.
      * @param {import("./Card.js").Card[]} unseenCards - Cards not publicly accounted for.
      * @returns {number} Strategy score adjustment.
      */
-    #calculateOpponentPressurePriority(room, card, playableCardCount, unseenCards) {
+    #calculateOpponentPressurePriority(session, card, playableCardCount, unseenCards) {
         let priority = 0;
 
-        if (playableCardCount > 1 && room.circle !== undefined) {
-            const immediatePlayer = room.circle.getRelativePlayer(1);
-            const projectedPlayer = this.#getPlayerAfterCandidate(room, card);
+        if (playableCardCount > 1 && session.circle !== undefined) {
+            const immediatePlayer = session.circle.getRelativePlayer(1);
+            const projectedPlayer = this.#getPlayerAfterCandidate(session, card);
             const immediateDanger = this.#calculateOpponentDanger(immediatePlayer);
             const projectedDanger = this.#calculateOpponentDanger(projectedPlayer);
             const isRerouted = immediatePlayer?.key !== projectedPlayer?.key;
@@ -438,7 +438,7 @@ export class AIPlayer extends Player {
 
             if (projectedDanger > 0 && projectedPlayer !== null) {
                 const responseProbability = this.#calculateLegalResponseProbability(
-                    room,
+                    session,
                     card,
                     projectedPlayer.hand.cards.length,
                     unseenCards
@@ -495,18 +495,18 @@ export class AIPlayer extends Player {
      * A two-player skip that returns an immediately playable final card to the AI receives
      * the strongest setup bonus.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @param {import("./Card.js").Card} card - Candidate discard.
      * @param {import("./Card.js").Card[]} unseenCards - Cards not publicly accounted for.
      * @returns {number} Setup priority.
      */
-    #calculateHandSetupPriority(room, card, unseenCards) {
+    #calculateHandSetupPriority(session, card, unseenCards) {
         const remainingCards = this.hand.cards.filter(heldCard => heldCard !== card);
         let priority = 0;
 
         if (remainingCards.length > 0) {
             const declaredSuit = card.isSuitChange()
-                ? this.#selectBestSuit(room, card, unseenCards)
+                ? this.#selectBestSuit(session, card, unseenCards)
                 : null;
             let continuationCount = 0;
 
@@ -522,7 +522,7 @@ export class AIPlayer extends Player {
                 AIPlayer.#PRIORITY_LOW * continuationCount / remainingCards.length
             );
 
-            const projectedPlayer = this.#getPlayerAfterCandidate(room, card);
+            const projectedPlayer = this.#getPlayerAfterCandidate(session, card);
             const createsImmediateFinish = projectedPlayer?.key === this.key &&
                 remainingCards.length === 1 &&
                 continuationCount === 1;
@@ -541,19 +541,19 @@ export class AIPlayer extends Player {
      * This is a hypergeometric estimate over unseen cards. It uses the opponent's public card
      * count, but never accesses the contents of that hand.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @param {import("./Card.js").Card} card - Candidate discard.
      * @param {number} cardCount - Visible opponent card count.
      * @param {import("./Card.js").Card[]} unseenCards - Cards not publicly accounted for.
      * @returns {number} Probability from zero through one.
      */
-    #calculateLegalResponseProbability(room, card, cardCount, unseenCards) {
+    #calculateLegalResponseProbability(session, card, cardCount, unseenCards) {
         let probability = 0;
 
         if (cardCount > 0 && unseenCards.length > 0) {
             const drawAllowance = card.isDrawFour() ? 4 : (card.isDrawTwo() ? 2 : 1);
             const declaredSuit = card.isSuitChange()
-                ? this.#selectBestSuit(room, card, unseenCards)
+                ? this.#selectBestSuit(session, card, unseenCards)
                 : null;
             let legalCardCount = 0;
 
@@ -589,20 +589,20 @@ export class AIPlayer extends Player {
     /**
      * Gets the player who would act after a candidate card resolves.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @param {import("./Card.js").Card} card - Candidate discard.
      * @returns {Player|null} Projected next actor.
      */
-    #getPlayerAfterCandidate(room, card) {
-        const playerCount = room.circle.players.size;
+    #getPlayerAfterCandidate(session, card) {
+        const playerCount = session.circle.players.size;
         let player;
 
         if (card.isSkip(playerCount)) {
-            player = room.circle.getRelativePlayer(2);
+            player = session.circle.getRelativePlayer(2);
         } else if (card.isReverse(playerCount)) {
-            player = room.circle.getRelativePlayer(-1);
+            player = session.circle.getRelativePlayer(-1);
         } else {
-            player = room.circle.getRelativePlayer(1);
+            player = session.circle.getRelativePlayer(1);
         }
 
         return player;
@@ -611,18 +611,18 @@ export class AIPlayer extends Player {
     /**
      * Checks whether a one- or two-card opponent can act after a legal candidate.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @param {import("./Card.js").Card[]} legalCards - Candidate legal cards.
      * @returns {boolean} True when a critical opponent exists.
      */
-    #hasRelevantCriticalThreat(room, legalCards) {
+    #hasRelevantCriticalThreat(session, legalCards) {
         let hasThreat = false;
 
-        if (room.circle !== undefined) {
-            hasThreat = this.#isCriticalOpponent(room.circle.getRelativePlayer(1));
+        if (session.circle !== undefined) {
+            hasThreat = this.#isCriticalOpponent(session.circle.getRelativePlayer(1));
 
             for (const card of legalCards) {
-                if (!hasThreat && this.#isCriticalOpponent(this.#getPlayerAfterCandidate(room, card))) {
+                if (!hasThreat && this.#isCriticalOpponent(this.#getPlayerAfterCandidate(session, card))) {
                     hasThreat = true;
                 }
             }
@@ -650,18 +650,18 @@ export class AIPlayer extends Player {
      * Playing the lowest ordinary rank suggests the previous player may have exhausted that
      * suit, so the AI presses the same suit when it has a legal choice.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @param {import("./Card.js").Card} card - Candidate discard.
      * @returns {boolean} True when the inferred empty suit is continued.
      */
-    #pressesInferredEmptySuit(room, card) {
-        const top = room.getTopDiscard();
-        const lastPlayer = typeof room.getLastDiscardPlayer === "function"
-            ? room.getLastDiscardPlayer()
+    #pressesInferredEmptySuit(session, card) {
+        const top = session.getTopDiscard();
+        const lastPlayer = typeof session.getLastDiscardPlayer === "function"
+            ? session.getLastDiscardPlayer()
             : null;
-        const projectedPlayer = room.circle === undefined
+        const projectedPlayer = session.circle === undefined
             ? null
-            : this.#getPlayerAfterCandidate(room, card);
+            : this.#getPlayerAfterCandidate(session, card);
 
         return top !== null &&
             lastPlayer !== null &&
@@ -682,20 +682,20 @@ export class AIPlayer extends Player {
     }
 
     /**
-     * Scores a game-ending card from public information.
+     * Scores a session-ending card from public information.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
-     * @param {import("./Card.js").Card} card - Candidate game-ending card.
+     * @param {import("./Session.js").Session} session - Session instance.
+     * @param {import("./Card.js").Card} card - Candidate session-ending card.
      * @param {import("./Card.js").Card[]} unseenCards - Cards not publicly accounted for.
      * @returns {number} Card score.
      */
-    #calculateGameEndingPriority(room, card, unseenCards) {
+    #calculateSessionEndingPriority(session, card, unseenCards) {
         let priority = AIPlayer.#SCORE_NEVER;
 
         if (this.hand.cards.length === 1) {
             priority = AIPlayer.#SCORE_WIN;
-        } else if (this.#hasEndGameCardCountAdvantage(room)) {
-            const winProbability = this.#calculateEndGameWinProbability(room, card, unseenCards);
+        } else if (this.#hasSessionEndCardCountAdvantage(session)) {
+            const winProbability = this.#calculateSessionEndWinProbability(session, card, unseenCards);
 
             if (winProbability >= AIPlayer.#MIN_END_GAME_WIN_PROBABILITY) {
                 priority = AIPlayer.#SCORE_WIN;
@@ -708,15 +708,15 @@ export class AIPlayer extends Player {
     /**
      * Checks whether discarding one card leaves the AI with fewer cards than every opponent.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @returns {boolean} Whether the AI has a visible card-count advantage.
      */
-    #hasEndGameCardCountAdvantage(room) {
+    #hasSessionEndCardCountAdvantage(session) {
         const remainingCardCount = this.hand.cards.length - 1;
         let hasOpponent = false;
         let hasAdvantage = true;
 
-        for (const player of room.circle.players.values()) {
+        for (const player of session.circle.players.values()) {
             if (player.key !== this.key) {
                 hasOpponent = true;
 
@@ -735,16 +735,16 @@ export class AIPlayer extends Player {
      * Opponent hands are treated as random samples from unseen cards. Individual opponent
      * estimates are combined conservatively without inspecting any hidden card or score.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
-     * @param {import("./Card.js").Card} card - Candidate game-ending card.
+     * @param {import("./Session.js").Session} session - Session instance.
+     * @param {import("./Card.js").Card} card - Candidate session-ending card.
      * @param {import("./Card.js").Card[]} unseenCards - Cards not publicly accounted for.
      * @returns {number} Estimated probability from zero through one.
      */
-    #calculateEndGameWinProbability(room, card, unseenCards) {
+    #calculateSessionEndWinProbability(session, card, unseenCards) {
         const remainingScore = this.hand.score - card.score;
         let winProbability = 1;
 
-        for (const player of room.circle.players.values()) {
+        for (const player of session.circle.players.values()) {
             if (player.key !== this.key) {
                 const opponentProbability = this.#calculateScoreAtLeastProbability(remainingScore, player.hand.cards.length, unseenCards);
                 winProbability *= opponentProbability;
@@ -818,30 +818,30 @@ export class AIPlayer extends Player {
     /**
      * Chooses and submits a suit for wild cards.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @returns {Promise<void>}
      */
-    async chooseSuit(room) {
+    async chooseSuit(session) {
         await this.#waitForTurnDelay();
-        if (this.#isStillCurrent(room)) {
-            const unseenCards = this.#getUnseenCards(room);
+        if (this.#isStillCurrent(session)) {
+            const unseenCards = this.#getUnseenCards(session);
 
-            await room.declareSuit(this.#selectBestSuit(room, null, unseenCards));
+            await session.declareSuit(this.#selectBestSuit(session, null, unseenCards));
         }
     }
 
     /**
      * Chooses the best suit from hand strength and public card scarcity.
      *
-     * @param {import("./Room.js").Room} room - Room instance.
+     * @param {import("./Session.js").Session} session - Session instance.
      * @param {import("./Card.js").Card|null} excludedCard - Candidate card to exclude.
      * @param {import("./Card.js").Card[]|null} unseenCards - Cards not publicly accounted for.
      * @returns {string} Selected suit.
      */
-    #selectBestSuit(room, excludedCard = null, unseenCards = null) {
+    #selectBestSuit(session, excludedCard = null, unseenCards = null) {
         const counts = this.#countCardsBySuit();
         const unseenCounts = this.#countCardsBySuit();
-        const availableCards = unseenCards ?? this.#getUnseenCards(room);
+        const availableCards = unseenCards ?? this.#getUnseenCards(session);
 
         for (const card of this.hand.cards) {
             if (card === excludedCard) {

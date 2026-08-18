@@ -11,13 +11,13 @@ import { Serializable } from "../src/core/Serializable.js";
 import { StateMapper } from "../src/core/StateMapper.js";
 import { TurnUtils } from "../src/core/TurnUtils.js";
 import { UserNotification } from "../src/core/UserNotification.js";
-import { RoomRowUtils } from "../src/server/RoomRowUtils.js";
+import { SessionRowUtils } from "../src/ui/SessionRowUtils.js";
 import { ThrottleGuard } from "../src/server/ThrottleGuard.js";
 import { NotificationUtils } from "../src/ui/NotificationUtils.js";
 import { OpponentUtils } from "../src/ui/OpponentUtils.js";
 import { TemplateUtils } from "../src/ui/TemplateUtils.js";
 
-const INDEX_HTML = readFileSync(new URL("../web/server/index.html", import.meta.url), "utf8");
+const INDEX_HTML = readFileSync(new URL("../session/index.html", import.meta.url), "utf8");
 const OVERLAYS_CSS = readFileSync(new URL("../web/shared/styles/overlays.css", import.meta.url), "utf8");
 
 test("browser controller, custom element, and template utility families share their intended APIs", async () => {
@@ -39,20 +39,20 @@ test("browser controller, custom element, and template utility families share th
         const [
             { AlertController },
             { CountdownController },
-            { GameEndController },
-            { LobbyController },
+            { SessionEndController },
+            { GameController },
             { LocalPlayerController },
-            { ServerRoomController },
+            { SessionController },
             { SuitSelectionController },
             { ViewController },
             { PlayingCard }
         ] = await Promise.all([
             import("../src/ui/AlertController.js"),
             import("../src/ui/CountdownController.js"),
-            import("../src/ui/GameEndController.js"),
-            import("../src/server/LobbyController.js"),
+            import("../src/ui/SessionEndController.js"),
+            import("../src/ui/GameController.js"),
             import("../src/ui/LocalPlayerController.js"),
-            import("../src/server/ServerRoomController.js"),
+            import("../src/ui/SessionController.js"),
             import("../src/ui/SuitSelectionController.js"),
             import("../src/ui/ViewController.js"),
             import("../src/ui/PlayingCard.js")
@@ -60,10 +60,10 @@ test("browser controller, custom element, and template utility families share th
         const overlayTypes = [
             AlertController,
             CountdownController,
-            GameEndController,
+            SessionEndController,
             SuitSelectionController
         ];
-        const viewTypes = [LobbyController, ServerRoomController];
+        const viewTypes = [GameController, SessionController];
         const playingCardMethods = [
             "update",
             "getCard",
@@ -88,7 +88,7 @@ test("browser controller, custom element, and template utility families share th
             assert.equal(typeof Type.prototype.hide, "function");
         }
 
-        for (const Type of [OpponentUtils, RoomRowUtils]) {
+        for (const Type of [OpponentUtils, SessionRowUtils]) {
             assert.equal(Type.prototype instanceof TemplateUtils, true);
             assert.equal(typeof Type.load, "function");
             assert.equal(typeof Type.create, "function");
@@ -155,17 +155,16 @@ test("Serializable handles nested models, dates, arrays, objects, maps, sets, an
     assert.deepEqual(model.toJSON(["child", "date"], ["date"]), {child: {value: 2}});
 });
 
-test("StateMapper builds immutable response, message, lobby, and detailed room payloads", () => {
+test("StateMapper builds immutable response, message, game, and detailed session payloads", () => {
     const message = StateMapper.toMessage(Constants.STATUS.INFO, "Ready", "Take your turn.");
-    const response = StateMapper.toResponse(Constants.VIEWS.ROOM, message, {version: 1});
+    const response = StateMapper.toResponse(Constants.VIEWS.SESSION, message, {version: 1});
     const state = {
-        name: "Mapped Room",
+        name: "Mapped Session",
         status: Constants.STATUS.PLAYING,
         capacity: 4,
         createdAt: "invalid",
         lastActiveAt: 0,
-        visitors: ["one", "two"],
-        session: {playerName: "Alice"},
+        viewers: ["one", "two"],
         circle: {
             playerCount: 1,
             turnOwnerKey: "alice",
@@ -190,22 +189,17 @@ test("StateMapper builds immutable response, message, lobby, and detailed room p
         isAwaitingSuit: true,
         declaredSuit: Constants.CARD.SUIT.SPADES
     };
-    const room = {
-        setSessionPlayer(playerName) {
-            state.session.playerName = playerName;
-        },
-        toJSON: () => state
-    };
+    const session = {toJSON: () => state};
 
     assert.equal(Object.isFrozen(message), true);
     assert.equal(Object.isFrozen(response), true);
     assert.equal(response.message.title, "Ready");
 
-    const lobby = StateMapper.toLobbyPayload([room]);
-    assert.equal(lobby.rooms[0].visitorCount, 2);
-    assert.equal(lobby.rooms[0].createdAt, "");
+    const game = StateMapper.toGamePayload([session]);
+    assert.equal(game.sessions[0].viewerCount, 2);
+    assert.equal(game.sessions[0].createdAt, "");
 
-    const payload = StateMapper.toRoomPayload(room, "Alice");
+    const payload = StateMapper.toSessionPayload(session, "Alice");
     assert.equal(payload.circle.turnOwnerKey, "alice");
     assert.equal(
         TurnUtils.isTurnOwner(payload.circle.turnOwnerKey, payload.circle.players[0].key),
@@ -219,15 +213,14 @@ test("StateMapper builds immutable response, message, lobby, and detailed room p
     assert.deepEqual(payload.scores, {Alice: 5});
 });
 
-test("StateMapper supplies safe defaults for incomplete room state", () => {
+test("StateMapper supplies safe defaults for incomplete session state", () => {
     const state = {
         name: "Empty",
         status: Constants.STATUS.WAITING,
         capacity: 2,
         createdAt: null,
         lastActiveAt: null,
-        visitors: 3,
-        session: {playerName: null},
+        viewers: 3,
         circle: null,
         discardPile: null,
         deck: null,
@@ -236,11 +229,11 @@ test("StateMapper supplies safe defaults for incomplete room state", () => {
         isAwaitingSuit: false,
         declaredSuit: null
     };
-    const room = {setSessionPlayer() {}, toJSON: () => state};
-    const payload = StateMapper.toRoomPayload(room);
+    const session = {toJSON: () => state};
+    const payload = StateMapper.toSessionPayload(session);
 
     assert.equal(payload.playerCount, 0);
-    assert.equal(payload.visitorCount, 3);
+    assert.equal(payload.viewerCount, 3);
     assert.deepEqual(payload.circle.players, []);
     assert.deepEqual(payload.discardPile, []);
     assert.deepEqual(payload.winners, []);
@@ -261,12 +254,12 @@ test("ThrottleGuard isolates scopes and supports reset, pruning, and validation"
     guard.reset("socket:tab");
     guard.enforceSocketThrottle({tabId: "tab"}, "sync", 1000);
     guard.enforcePlayerThrottle("player-tab", "move", 0);
-    guard.enforceRoomThrottle("room-key", "start", 0);
+    guard.enforceSessionThrottle("session-key", "start", 0);
     guard.prune(0);
     guard.resetAll();
 
     assert.throws(() => guard.enforcePlayerThrottle("", "move", 1), /cannot be empty/);
-    assert.throws(() => guard.enforceRoomThrottle("room", "move", -1), /non-negative integer/);
+    assert.throws(() => guard.enforceSessionThrottle("session", "move", -1), /non-negative integer/);
 });
 
 test("CardSortUtils supports every sort mode without mutating its input", () => {
@@ -285,13 +278,11 @@ test("CardSortUtils supports every sort mode without mutating its input", () => 
     assert.throws(() => CardSortUtils.sorted(cards, "unknown"), /Invalid card sort key/);
 });
 
-test("card-sort HTML initializes every canonical option", () => {
-    const selectMarkup = INDEX_HTML.match(/<select id="card-sort-key-select">([\s\S]*?)<\/select>/)?.[1] ?? "";
-    const optionValues = Array.from(selectMarkup.matchAll(/<option value="([^"]+)">/g), function (match) {
-        return match[1];
-    });
+test("the shared guide initializes canonical card-sort options", () => {
+    const controller = readFileSync(new URL("../src/ui/GuideController.js", import.meta.url), "utf8");
 
-    assert.deepEqual(optionValues.sort(), [...Constants.CARD.SORT_OPTIONS].sort());
+    assert.match(INDEX_HTML, /<select id="card-sort-key-select"><\/select>/);
+    assert.match(controller, /Constants\.CARD\.SORT_OPTIONS/);
 });
 
 test("the countdown strobes its box shadow and respects reduced motion", () => {

@@ -20,28 +20,24 @@ export class Constants {
     static PLAYER_INITIAL_CARD_COUNT = 7;
 
     /**
-     * Maximum number of players allowed in a room.
+     * Maximum number of players allowed in a session.
      */
-    static ROOM_MAX_CAPACITY = 4;
+    static SESSION_MAX_CAPACITY = 4;
 
     /**
-     * Ordered display names for the static edition's AI opponents.
-     *
-     * The static game engine creates one opponent for every name in this
-     * collection, so its lineup can be maintained without changing engine
-     * logic.
+     * Ordered display names for local AI opponents.
      */
-    static STATIC_OPPONENT_NAMES = Object.freeze(["A", "B", "C"]);
+    static LOCAL_OPPONENT_NAMES = Object.freeze(["AI 1", "AI 2", "AI 3"]);
 
     /**
-     * Default room names created when the server starts.
+     * Default sessions available in Local and Server registries.
      */
-    static DEFAULT_ROOM_NAMES = Object.freeze(["Default-R0", "Default-R1", "Default-R2", "Default-R3"]);
-
-    /**
-     * Number of default rooms initialized with two AI players.
-     */
-    static DEFAULT_DUAL_AI_ROOM_COUNT = 2;
+    static DEFAULT_SESSIONS = Object.freeze([
+        Object.freeze({name: "Default-S0", capacity: 4, aiCount: 2}),
+        Object.freeze({name: "Default-S1", capacity: 4, aiCount: 2}),
+        Object.freeze({name: "Default-S2", capacity: 4, aiCount: 1}),
+        Object.freeze({name: "Default-S3", capacity: 4, aiCount: 1})
+    ]);
 
     /**
      * Emoji groups used by game messages.
@@ -298,8 +294,8 @@ export class Constants {
      * Application views.
      */
     static VIEWS = Object.freeze({
-        LOBBY: "lobby",
-        ROOM: "room"
+        GAME: "game",
+        SESSION: "session"
     });
 
     // ============================================================
@@ -311,20 +307,16 @@ export class Constants {
      * These actions are also sent to the server.
      */
     static ACTIONS = Object.freeze({
-        VIEW_LOBBY: "view_lobby",
-        CREATE_ROOM: "create_room",
-        ADMIT_VISITOR: "admit_visitor",
-        ADMIT_PLAYER: "admit_player",
-        PROMOTE_VISITOR: "promote_visitor",
-        DEMOTE_PLAYER: "demote_player",
-        EVICT_OCCUPANT: "evict_occupant",
-
-        START_GAME: "start_game",
-        PASS_PLAYER: "pass_player",
-
-        DRAW_CARD: "draw_card",
-        DISCARD_CARD: "discard_card",
-        SUIT_CHANGE: "suit_change"
+        LIST: "list",
+        CREATE: "create",
+        VIEW: "view",
+        JOIN: "join",
+        LEAVE: "leave",
+        START: "start",
+        PASS: "pass",
+        DRAW: "draw",
+        DISCARD: "discard",
+        DECLARE: "declare"
     });
 
     // ============================================================

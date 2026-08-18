@@ -2,66 +2,65 @@
 
 ## 1. Purpose and scope
 
-Pick 2 is a multiplayer browser card game with server and static editions. Both editions use the same `src/core` rules and `src/ui` browser components. In the server edition, the server owns rooms, membership, turns, and synchronized sessions. In the static edition, a browser-local service owns one table for a human and three AI players.
+Pick 2 is a browser card game with Local and Server play modes. Both modes use the same game page, session page, UI controllers, `GameClient` API, action vocabulary, response envelopes, and `src/core` rules. Server mode uses the Node server; Local mode uses an in-browser `LocalServer` and fills `capacity - 1` seats with AI players.
 
-This document describes the shared model and the server edition in detail. User-facing rules are summarized in the project README and in the guides embedded in `web/server/index.html` and the static edition's root `index.html`.
+User-facing rules are summarized in the project README and in the guide embedded in `session/index.html`.
 
 ## 2. System architecture
 
 All JavaScript is organized beneath one source root:
 
 ```text
-index.html       GitHub Pages entry point for the static edition
+index.html          Shared Game and session registry
+session/index.html  Shared Session and guide
+src/client          GameClient, client state, and transports
 src/core         Rules, models, AI behavior, and DTO mapping
 src/ui           Shared controllers, card element, and browser utilities
-src/server       Express/WebSocket transport, lobby, and shared rooms
-src/static       Browser-local service and fixed AI table
+src/local        In-browser LocalServer
+src/server       Express/WebSocket Server and shared Server sessions
 web/shared       Shared styles, templates, and artwork
-web/server       Server-edition HTML
-web/static       Static-edition layout additions
 ```
 
-The four source folders are deliberately flat. Application folders contain only
-edition-specific composition and flow, while shared rules and presentation are
-maintained once in `core`, `ui`, and `web/shared`.
+The Node server and static hosts serve the same two HTML files and assets. Play
+mode is selected by choosing a transport, not by loading an edition-specific UI.
 
 ```text
 Browser
-  AppController
-    LobbyController
-    RoomController
-      LocalPlayerController
-      overlay controllers
-  ConnectionService
-          │ WebSocket actions and response envelopes
-          ▼
-Server
-  Server
-    session registry and action routing
+  GameController / SessionController
+             │
+         GameClient
+             │ canonical actions and response envelopes
+       ┌─────┴──────────┐
+  LocalTransport   WebSocketTransport
+       │                  │
+  LocalServer           Server
+       └─────┬────────────┘
     StateMapper ───────────────► stable client DTOs
-    Room
+    Session
       PlayerCircle
       Player / AI behavior
       Deck, Hand, Card
 ```
 
-Express serves the static browser application and `/health`. The WebSocket server shares the HTTP server and handles all live commands and synchronization.
+Express serves the same game, session, source, and web assets as a static host, plus `/health`. The WebSocket server shares the HTTP server and handles Server-mode commands and synchronization.
 
 ### 2.1 Browser responsibilities
 
-- `AppController` starts component dependencies and switches between lobby and room views.
-- `ConnectionService` owns the WebSocket, reconnection, response parsing, the per-tab identifier, and the temporary hand sort key.
-- View controllers render server snapshots and translate user interactions into named actions.
-- Template utilities create reusable room rows and opponent panels.
+- `src/main.js` starts either the game or session controller from `body[data-page]`.
+- `GameClient` owns response parsing, the per-tab identifier, and the temporary hand sort key.
+- `LocalTransport` and `WebSocketTransport` implement the same `connect`, `send`, and `close` API.
+- View controllers render snapshots and translate user interactions into named actions without knowing which transport is active.
+- Template utilities create reusable session rows and opponent panels.
 - The `PlayingCard` custom element owns card rendering, face state, accessibility, and drag interaction through explicit method APIs.
 - `DomUtils`, `NormalizeUtils`, `AssertUtils`, and `NotificationUtils` provide common contracts rather than repeating normalization or DOM-state logic.
 
-The client does not normalize different player variants. Every player has one DTO shape, and `room.session.playerName` identifies the local player.
+The client does not normalize different player variants. Every player has one DTO shape, and `localPlayerName` identifies the local player in a Session payload.
 
 ### 2.2 Server responsibilities
 
-- `Server` starts HTTP and WebSocket services, registers rooms and sessions, routes actions, throttles requests, sends notifications, monitors connections, and closes abandoned rooms.
-- `Room` serializes state-changing operations, enforces membership and game rules, advances turns, manages idle players, and completes games.
+- `LocalServer` implements the canonical action protocol in the browser, stores local session configurations, creates one human, and fills the remaining session capacity with AI players.
+- `Server` starts HTTP and WebSocket services, registers shared sessions and clients, routes actions, throttles requests, sends notifications, monitors connections, and closes abandoned sessions.
+- `Session` serializes state-changing operations, enforces membership and game rules, advances turns, manages idle players, and completes games.
 - `Player` contains player state and automated-player card selection.
 - `PlayerCircle` maintains circular turn links, direction, and the nullable turn-owner cursor.
 - `Card`, `Deck`, and `Hand` implement the card domain and collection behavior.
@@ -73,8 +72,8 @@ The client does not normalize different player variants. Every player has one DT
 `src/core/Constants.js` is deliberately shared by both applications and the server runtime. It owns:
 
 - action names;
-- room, game, connection, and notification statuses;
-- initial hand size, room capacity, default rooms, static opponent names, and idle duration;
+- session, game, connection, and notification statuses;
+- initial hand size, session capacity, default sessions, local opponent names, and idle duration;
 - standard values, standard suits, joker suits, rank/value/suit/score sort options, and score overrides;
 - card score calculation;
 - reusable emoji groups and random emoji selection.
@@ -87,76 +86,71 @@ Generic development validation belongs in the shared assertion and normalization
 
 ### 4.1 Startup
 
-1. `src/server/index.js` registers termination and fatal-error handlers.
-2. `Server` creates the Express application, HTTP server, and WebSocket server.
-3. Static files and `/health` are registered.
-4. Default rooms and their AI players are created. The first two default rooms receive two AI players; the remaining rooms receive one.
-5. Heartbeat monitoring starts.
-6. The browser registers custom elements, loads the remaining templates, establishes a WebSocket, and requests the lobby.
+1. The browser loads `src/main.js` from either the game or session page.
+2. Local mode constructs `GameClient → LocalTransport → LocalServer`, seeds `Constants.DEFAULT_SESSIONS`, and works on any static host.
+3. The game probes the configured WebSocket server and enables Server mode when it is reachable.
+4. Server mode constructs `GameClient → WebSocketTransport → Server`.
+5. When Node is running, `src/server/index.js` starts HTTP and WebSocket services, registers `/health`, serves the shared pages and assets, creates default sessions, and starts heartbeat monitoring.
 
-### 4.2 Room membership
+### 4.2 Session membership
 
-The membership vocabulary is consistent across constants, routing, and domain operations:
+The Session vocabulary is consistent across constants, routing, and domain operations:
 
-- **create** creates and registers a room;
-- **admit** enters a room as a visitor or player;
-- **promote** changes a visitor into a player;
-- **demote** changes a player into a visitor;
-- **evict** removes an occupant.
+- **list** returns the Game's session registry;
+- **create** creates a Session and joins its first Player;
+- **view** opens an existing Session without joining as a Player;
+- **join** adds the client as a Player, including after `view`;
+- **leave** removes the client from the Session and returns it to the Game.
 
-New admissions, promotions, and demotions are locked while the room is starting, playing, or awaiting a suit declaration. Visitors and players may still exit at any time; self-exit removes their room session and returns their client to the lobby before any remaining automated turns continue. Player names are unique within a room, and room capacity applies to player seats.
+Joining is locked while the Session is playing or awaiting a suit declaration. Viewers and Players may leave at any time. Player names are unique within a Session, and Session capacity applies only to Player seats.
 
 ### 4.3 Game flow
 
 1. Starting requires at least two players.
-2. The room creates and shuffles the deck, deals seven cards per player, chooses a valid initial discard, and selects the first player.
-3. The turn owner may draw, discard, or pass subject to room rules.
+2. The session creates and shuffles the deck, deals seven cards per player, chooses a valid initial discard, and selects the first player.
+3. The turn owner may draw, discard, or pass subject to session rules.
 4. Draw and pass actions permanently commit the player's selected hand sort. A discard commits the order while removing the selected card.
 5. A newly drawn card resets the client's temporary sort to `none`, so it is visibly new until the player sorts again.
-6. Suit-changing aces move the room to `pending` until the turn owner declares a standard suit.
+6. Suit-changing aces move the session to `pending` until the turn owner declares a standard suit.
 
-While a room is `waiting`, `circle.turnOwnerKey` is `null`. With no turn owner, any seated player may draw one card or discard a card without turn-order or discard-legality checks. Starting a game assigns a random turn owner; resetting to `waiting` clears the cursor again.
+While a session is `waiting`, `circle.turnOwnerKey` is `null`. With no turn owner, any seated player may draw one card or discard a card without turn-order or discard-legality checks. Starting the Session assigns a random turn owner; resetting to `waiting` clears the cursor again.
 7. Emptying a hand or playing the seven of hearts finishes a playing game.
 8. Remaining hand scores determine the winner or tied winners.
 
-Card rules and game-ending rules are enforced only while the room is actively playing. Outside play, any card may be placed on any other card.
+Card rules and session-ending rules are enforced only while the session is actively playing. Outside play, any card may be placed on any other card.
 
-In the static edition, the browser user may leave while any turn is resolving.
-The three AI seats continue an active round and the `Leave` control becomes
-`Stop`. Stopping returns the same table to `waiting` and restores the local
-seat. If the AI round finishes before Stop is selected, the engine restores the
-local seat automatically, leaving only `Play` and `Leave` available. Hand
-sorting remains a local presentation action and is available while any player
-owns the turn. A seated player can select `Play` from either `waiting` or
-`finished`, so completed rounds restart without a separate new-table action.
+In Local mode, leaving ends the browser-local session and returns to the game.
+User-created session entries are removed when their player leaves, while sessions
+from the shared `Constants.DEFAULT_SESSIONS` configuration remain available. A
+seated Local player can select `Play` from either `waiting` or `finished`, so
+completed rounds restart without creating a new session.
 
-### 4.4 Idle and empty-room cleanup
+### 4.4 Idle and empty-session cleanup
 
-When a player exceeds `Constants.MAX_IDLE_MS`, the server removes or demotes that player and sends the relevant notification. If no players remain, the server schedules an empty-room check for another `MAX_IDLE_MS`. The closure callback checks the room again before evicting remaining visitors and removing the room, preventing a stale timer from closing an occupied room.
+When a Player exceeds `Constants.MAX_IDLE_MS`, the server removes that Player while leaving the client in viewing state, then sends a notification. If no Players remain, the server schedules an empty-session check for another `MAX_IDLE_MS`. The closure callback checks the Session again before returning its viewers to the Game and removing it, preventing a stale timer from closing an occupied Session.
 
-## 5. WebSocket protocol
+## 5. Game protocol
 
 ### 5.1 Client request
 
-Requests contain an action `type` from `Constants.ACTIONS` and a `payload` object. ConnectionService also associates the browser-tab identity with the connection.
+Local and Server requests contain an action `type` from `Constants.ACTIONS` and a `payload` object. `GameClient` adds the browser-tab identity and current hand sort key before delegating to either transport.
 
 Supported action families are:
 
 | Area | Actions |
 | --- | --- |
-| Navigation | `view_lobby` |
-| Membership | `create_room`, `admit_visitor`, `admit_player`, `promote_visitor`, `demote_player`, `evict_occupant` |
-| Game | `start_game`, `draw_card`, `discard_card`, `pass_player`, `suit_change` |
+| Session | `list`, `create`, `view`, `join`, `leave` |
+| Play | `start`, `draw`, `discard`, `pass`, `declare` |
 
 Action handlers validate session ownership on the server. A client-provided name never grants control of another player's session.
 
-### 5.2 Server response
+### 5.2 Response
 
-Every response uses the envelope produced by `StateMapper.toResponse`:
+Both servers use the envelope produced by `StateMapper.toResponse`:
 
 ```js
 {
-    view: "lobby" | "room" | null,
+    view: "game" | "session" | null,
     message: { status, title, message } | null,
     sync: Object | null
 }
@@ -164,9 +158,9 @@ Every response uses the envelope produced by `StateMapper.toResponse`:
 
 The first meaningful statement is placed in `title`; the body contains only the remaining message so notifications do not repeat their opening text.
 
-### 5.3 Room payload
+### 5.3 Session payload
 
-The room sync contains room metadata, session identity, a browser-safe `circle`, discard pile, deck count, winners, scores, and suit-selection state. The circle preserves the server-side ownership field names and nesting:
+The Session sync contains Session metadata, `localPlayerName`, a browser-safe `circle`, discard pile, deck count, winners, scores, and suit-selection state. The circle preserves the server-side ownership field names and nesting:
 
 ```js
 {
@@ -193,7 +187,7 @@ Both server and browser code use the shared `TurnUtils.hasTurnOwner(turnOwnerKey
 }
 ```
 
-The browser finds the local player by comparing `room.session.playerName` with `player.name`. Visitors have no local player match. Card count remains derived from `player.hand.cards.length` on both sides.
+The browser finds the local Player by comparing `localPlayerName` with `player.name`. Viewers have no local Player match. Card count remains derived from `player.hand.cards.length` on both sides.
 
 Boolean fields and boolean DOM dataset states use `is` names, such as `isWinner`, `data-is-turn-owner`, `data-is-selected`, and `data-is-face-down`.
 
@@ -203,7 +197,7 @@ A card DTO contains `value`, `suit`, `score`, and `rotation`. Standard cards use
 
 `Hand` owns `cards`, `score`, and the persisted `sortKey`. Its score updates whenever cards are added or removed. Card count is derived from `cards.length` rather than stored as duplicate domain state.
 
-Temporary browser sorting uses `CardSortUtils` and does not mutate the server for each selection. The sort key is sent with the player's next draw, discard, or pass, at which point the room commits the order and resets the temporary selection.
+Temporary browser sorting uses `CardSortUtils` and does not mutate the server for each selection. The sort key is sent with the player's next draw, discard, or pass, at which point the session commits the order and resets the temporary selection.
 
 ## 7. Automated-player policy
 
@@ -215,7 +209,7 @@ The AI does not keep a duplicate per-opponent history. Discarded cards can retur
 
 The AI avoids spending the ace of spades when there is no draw attack, but uses legal defenses rather than accepting a draw penalty based on hidden knowledge. For the seven of hearts, it finishes immediately when that empties its hand. Otherwise, it considers ending only when the discard leaves it with fewer cards than every opponent. It then uses the scores of unseen cards and each opponent's visible card count to estimate the chance that its remaining score will tie or beat every opponent, ending the game only when that estimate reaches the configured confidence threshold. After an opponent discards the three of a standard suit—the lowest ordinary card—the AI treats that suit as potentially exhausted and prefers to continue pressing it only when the candidate card would make that same opponent the next actor.
 
-These decisions remain subordinate to the same `Room` and `Card` legality rules used for human players.
+These decisions remain subordinate to the same `Session` and `Card` legality rules used for human players.
 
 ## 8. Client interaction rules
 
@@ -223,8 +217,8 @@ These decisions remain subordinate to the same `Room` and `Card` legality rules 
 - All displayed cards can begin a drag interaction.
 - Only cards in the local player's hand receive the discardable state and can be dropped onto the discard pile.
 - The entire discard-pile rectangle is the drop target.
-- Visitors do not receive player-only start or game-end overlays.
-- The game-end statistics table selects a player and displays that player's remaining cards.
+- Viewers do not receive player-only start or session-end overlays.
+- The session-end statistics table selects a player and displays that player's remaining cards.
 
 HTML initializes mutable `data-*` states so the initial component contract is visible in the markup. Runtime boolean dataset assignments go through `DomUtils.setBooleanState`.
 
@@ -238,16 +232,16 @@ Do not replace development errors with `UserNotification`; players cannot take u
 
 ## 10. Styling and responsive design
 
-The interface is mobile-first and has two responsive stages: small screens, then a shared tablet/desktop layout beginning at 641 px. Common spacing, radius, and control dimensions are inherited through stylesheet tokens and container rules. Room actions and room information remain stacked, while room admission actions remain side by side.
+The interface is mobile-first and has two responsive stages: small screens, then a shared tablet/desktop layout beginning at 641 px. Common spacing, radius, and control dimensions are inherited through stylesheet tokens and container rules. Session actions and Session information remain stacked, while create/join controls remain side by side.
 
 Stylesheets are organized in page order and by responsibility:
 
 - `tokens.css`: common design values;
-- `app.css`: page, lobby, room, guide, and footer;
+- `app.css`: page, game, session, guide, and footer;
 - `playing-card.css`: card containers and card faces;
 - `opponent.css`: opponent presentation;
 - `table-data.css`: tabular information;
-- `overlays.css`: alerts, countdown, suit selection, and game end.
+- `overlays.css`: alerts, countdown, suit selection, and Session results.
 
 ## 11. Testing
 
@@ -258,7 +252,7 @@ Tests are grouped by domain:
 - `card.test.js`: constants, scoring, card rules, and shared client utilities;
 - `collections.test.js`: deck, hand, sorting, and player-circle behavior;
 - `infrastructure.test.js`: serialization, state mapping, and throttling;
-- `room.test.js`: membership, lifecycle, game flow, and AI choices;
+- `session.test.js`: membership, lifecycle, game flow, and AI choices;
 - `user-notification.test.js`: expected versus developmental error classification.
 
 New behavior should receive a focused regression test at the lowest stable layer. Pure CSS fixes should be verified in both responsive stages because the Node suite does not perform visual layout testing.
@@ -268,9 +262,9 @@ New behavior should receive a focused regression test at the lowest stable layer
 When adding a feature:
 
 1. Add shared action, status, card, timing, or score values to `Constants`.
-2. Put authoritative policy in the server domain, normally `Room`, `Player`, or `Card`.
+2. Put authoritative policy in the server domain, normally `Session`, `Player`, or `Card`.
 3. Add or update the stable DTO in `StateMapper`; do not make controllers normalize competing payload shapes.
-4. Route a named action through `Server` and validate its room/player session.
+4. Route a named action through `Server` and validate its session/player session.
 5. Use an existing controller API pattern for the client interaction.
 6. Initialize mutable HTML dataset state in the markup.
 7. Reuse shared validation, notification, sorting, and DOM utilities.

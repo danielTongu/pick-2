@@ -1,0 +1,91 @@
+/* Shared game and session page additions. */
+
+#game-header {
+    display: grid;
+    gap: var(--container-spacing);
+    align-items: center;
+    grid-template-columns: 1fr;
+}
+
+#game-view {
+    grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+#game-header p {
+    color: rgba(255, 255, 255, .72);
+}
+
+#field-group {
+    grid-template-columns: 1fr;
+}
+
+button:disabled,
+select:disabled {
+    cursor: not-allowed;
+    opacity: .42;
+}
+
+#session-list-table tbody .empty-session-row {
+    cursor: default;
+}
+
+#connection-status:has(input[name="connection-mode"]) {
+    grid-template-columns: repeat(2, minmax(4.5rem, max-content));
+    gap: 2px;
+    padding: 2px;
+}
+
+#connection-status:has(input[name="connection-mode"]) label {
+    display: grid;
+    cursor: pointer;
+    color: rgba(255, 255, 255, .65);
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+#connection-status:has(input[name="connection-mode"]) label > span {
+    display: grid;
+    place-items: center;
+    min-height: 2.25rem;
+    padding: 0 .75rem;
+    border-radius: var(--container-radius);
+    transition: background .3s ease, color .3s ease;
+}
+
+#connection-status:has(input[name="connection-mode"]) label:has(input:checked) > span {
+    color: #2d211a;
+    background: var(--connection-status-color);
+}
+
+#connection-status:has(input[name="connection-mode"]) label:has(input:disabled) {
+    cursor: not-allowed;
+    opacity: .42;
+}
+
+#connection-status:has(input[name="connection-mode"]) input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+#session-list-table tbody .empty-session-row:hover {
+    background: transparent;
+}
+
+.empty-session-row td,
+.placeholder-row td {
+    padding: calc(var(--container-spacing) * 2);
+    color: rgba(255, 255, 255, .65);
+    text-align: center;
+}
+
+@media (min-width: 700px) {
+    #session-registration-form {
+        grid-template-columns: 1fr auto auto;
+    }
+
+    #field-group {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}

@@ -46,19 +46,19 @@ export class LocalPlayerController extends ViewController {
     #passButton;
 
     /** @type {boolean} */
-    #canRestartFinishedGame;
+    #canRestartFinishedSession;
 
     /**
      * Creates a local-player region controller.
      *
      * @param {string} selector - Local-player region selector.
-     * @param {Object} [options={}] - Edition-specific control options.
-     * @param {boolean} [options.canRestartFinishedGame=false] - Whether Play is available after a finished round.
+     * @param {Object} [options={}] - Control options.
+     * @param {boolean} [options.canRestartFinishedSession=false] - Whether Play is available after a finished Session.
      * @throws {Error}
      */
-    constructor(selector, {canRestartFinishedGame = false} = {}) {
+    constructor(selector, {canRestartFinishedSession = false} = {}) {
         super(selector);
-        this.#canRestartFinishedGame = canRestartFinishedGame === true;
+        this.#canRestartFinishedSession = canRestartFinishedSession === true;
         this.#playerHeader = DomUtils.requireChild(this.root, "header", HTMLElement);
         this.#handElement = DomUtils.requireChild(this.root, "#local-player-hand", HTMLDivElement);
         this.#drawButton = DomUtils.requireChild(this.root, "#draw-card-button", HTMLButtonElement);
@@ -70,7 +70,7 @@ export class LocalPlayerController extends ViewController {
         }
         this.#sortButton = DomUtils.requireChild(this.root, "#card-sort-control-button", HTMLButtonElement);
         this.#sortControl = DomUtils.requireChild(this.#sortButton, "#card-sort-key-select", HTMLSelectElement);
-        this.#startButton = DomUtils.requireChild(this.root, "#start-game-button", HTMLButtonElement);
+        this.#startButton = DomUtils.requireChild(this.root, "#start-session-button", HTMLButtonElement);
         this.#passButton = DomUtils.requireChild(this.root, "#pass-turn-button", HTMLButtonElement);
 
         if (this.#idleSecondsOutput !== null) {
@@ -108,12 +108,21 @@ export class LocalPlayerController extends ViewController {
     }
 
     /**
+     * Controls whether a finished Local Session can restart.
+     *
+     * @param {boolean} value - Restart capability.
+     */
+    setCanRestartFinishedSession(value) {
+        this.#canRestartFinishedSession = value === true;
+    }
+
+    /**
      * Initializes local-player event bindings.
      */
     initialize() {
-        this.#bindActionButton(this.#drawButton, Constants.ACTIONS.DRAW_CARD);
-        this.#bindActionButton(this.#passButton, Constants.ACTIONS.PASS_PLAYER);
-        this.#bindActionButton(this.#startButton, Constants.ACTIONS.START_GAME);
+        this.#bindActionButton(this.#drawButton, Constants.ACTIONS.DRAW);
+        this.#bindActionButton(this.#passButton, Constants.ACTIONS.PASS);
+        this.#bindActionButton(this.#startButton, Constants.ACTIONS.START);
 
         this.#sortControl.addEventListener("change", function () {
             this.#submitSortChange();
@@ -139,16 +148,16 @@ export class LocalPlayerController extends ViewController {
      * Shows and updates the local-player region.
      *
      * @param {Object} player - Player payload.
-     * @param {Object} room - Room payload.
+     * @param {Object} session - Session payload.
      * @param {string} sortKey - Selected sort key.
      * @throws {Error}
      */
-    show(player, room, sortKey) {
+    show(player, session, sortKey) {
         const data = {
             ...player,
-            status: room.status,
-            turnOwnerKey: room.circle?.turnOwnerKey ?? null,
-            isBusy: room.isBusy === true
+            status: session.status,
+            turnOwnerKey: session.circle?.turnOwnerKey ?? null,
+            isBusy: session.isBusy === true
         };
 
         super.show();
@@ -249,10 +258,10 @@ export class LocalPlayerController extends ViewController {
         this.#drawButton.disabled = !LocalPlayerController.#isDrawButtonUsable(data);
         this.#sortControl.value = sortKey;
         this.#sortControl.disabled = false;
-        const canStartGame = data.status === Constants.STATUS.WAITING ||
-            (this.#canRestartFinishedGame && data.status === Constants.STATUS.FINISHED);
+        const canStartSession = data.status === Constants.STATUS.WAITING ||
+            (this.#canRestartFinishedSession && data.status === Constants.STATUS.FINISHED);
 
-        this.#startButton.disabled = data.isBusy || !canStartGame;
+        this.#startButton.disabled = data.isBusy || !canStartSession;
         this.#passButton.disabled = data.isBusy ||
             data.status !== Constants.STATUS.PLAYING ||
             !TurnUtils.isTurnOwner(data.turnOwnerKey, data.key);

@@ -7,135 +7,135 @@ import { Card } from "../src/core/Card.js";
 import { Constants } from "../src/core/Constants.js";
 import { AIPlayer, Player } from "../src/core/Player.js";
 import { PlayerCircle } from "../src/core/PlayerCircle.js";
-import { Room } from "../src/core/Room.js";
+import { Session } from "../src/core/Session.js";
 import { StateMapper } from "../src/core/StateMapper.js";
 import { TurnUtils } from "../src/core/TurnUtils.js";
 
-function stopIdleMonitoring(room) {
-    for (const player of room.circle.players.values()) {
+function stopIdleMonitoring(session) {
+    for (const player of session.circle.players.values()) {
         player.stopIdleMonitoring();
     }
 }
 
-async function createPlayingRoom(t, playerNames = ["Alice", "Bob", "Casey"]) {
-    const room = new Room(`Rules ${Math.random()}`, playerNames.length);
-    t.after(() => stopIdleMonitoring(room));
+async function createPlayingSession(t, playerNames = ["Alice", "Bob", "Casey"]) {
+    const session = new Session(`Rules ${Math.random()}`, playerNames.length);
+    t.after(() => stopIdleMonitoring(session));
 
     for (const name of playerNames) {
-        await room.admitPlayer(name);
+        await session.join(name);
     }
 
-    room.status = Constants.STATUS.PLAYING;
-    room.circle.setTurnOwner(playerNames[0]);
-    room.discardPile = [new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS)];
+    session.status = Constants.STATUS.PLAYING;
+    session.circle.setTurnOwner(playerNames[0]);
+    session.discardPile = [new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS)];
 
-    for (const player of room.circle.players.values()) {
+    for (const player of session.circle.players.values()) {
         player.hand.clear();
         player.drawAllowance = 1;
     }
 
-    return room;
+    return session;
 }
 
-test("room lifecycle predicates describe active and membership-locked states", () => {
-    const room = new Room("Lifecycle Room", 2);
+test("session lifecycle predicates describe active and membership-locked states", () => {
+    const session = new Session("Lifecycle Session", 2);
 
-    assert.equal(room.isGameActive(), false);
-    assert.equal(room.isMembershipLocked(), false);
+    assert.equal(session.isActive(), false);
+    assert.equal(session.isMembershipLocked(), false);
 
     for (const status of [Constants.STATUS.PLAYING, Constants.STATUS.PENDING]) {
-        room.status = status;
-        assert.equal(room.isGameActive(), true);
-        assert.equal(room.isMembershipLocked(), true);
+        session.status = status;
+        assert.equal(session.isActive(), true);
+        assert.equal(session.isMembershipLocked(), true);
     }
 
-    room.status = Constants.STATUS.FINISHED;
-    assert.equal(room.isGameActive(), false);
-    assert.equal(room.isMembershipLocked(), false);
+    session.status = Constants.STATUS.FINISHED;
+    assert.equal(session.isActive(), false);
+    assert.equal(session.isMembershipLocked(), false);
 });
 
-test("stopping a completed round returns the same table to waiting", async (t) => {
-    const room = new Room("Completed Table", 2);
+test("stopping a completed round returns the same session to waiting", async (t) => {
+    const session = new Session("Completed Session", 2);
 
-    t.after(() => stopIdleMonitoring(room));
-    await room.admitPlayer("Alice");
-    await room.admitPlayer("Bob");
-    await room.startGame();
-    room.status = Constants.STATUS.FINISHED;
+    t.after(() => stopIdleMonitoring(session));
+    await session.join("Alice");
+    await session.join("Bob");
+    await session.start();
+    session.status = Constants.STATUS.FINISHED;
 
-    assert.equal(await room.stopGame(), true);
-    assert.equal(room.status, Constants.STATUS.WAITING);
-    assert.equal(room.circle.turnOwnerKey, null);
-    assert.equal(room.circle.players.size, 2);
+    assert.equal(await session.stop(), true);
+    assert.equal(session.status, Constants.STATUS.WAITING);
+    assert.equal(session.circle.turnOwnerKey, null);
+    assert.equal(session.circle.players.size, 2);
 });
 
-test("room membership enforces uniqueness and capacity", async (t) => {
-    const room = new Room("Test Room", 2);
-    t.after(() => stopIdleMonitoring(room));
+test("session membership enforces uniqueness and capacity", async (t) => {
+    const session = new Session("Test Session", 2);
+    t.after(() => stopIdleMonitoring(session));
 
-    await room.admitPlayer("Alice");
-    await room.admitPlayer("Bob");
+    await session.join("Alice");
+    await session.join("Bob");
 
-    assert.equal(room.isFull(), true);
-    assert.equal(room.isPlayerPresent("alice"), true);
-    await assert.rejects(room.admitPlayer("Casey"), /Room is full/);
+    assert.equal(session.isFull(), true);
+    assert.equal(session.isPlayerPresent("alice"), true);
+    await assert.rejects(session.join("Casey"), /Session is full/);
 });
 
-test("visitors can be promoted to players", async (t) => {
-    const room = new Room("Promotion Room", 2);
-    t.after(() => stopIdleMonitoring(room));
+test("a viewer can join the session as a player", async (t) => {
+    const session = new Session("Viewed Session", 2);
+    t.after(() => stopIdleMonitoring(session));
 
-    assert.equal(room.admitVisitor("tab-1"), true);
-    const player = await room.promoteVisitor("tab-1", "Alice");
+    assert.equal(session.view("tab-1"), true);
+    const player = await session.join("Alice", false, "tab-1");
 
     assert.equal(player.name, "Alice");
-    assert.equal(room.visitors.has("tab-1"), false);
-    assert.equal(room.isPlayerPresent("Alice"), true);
-    await assert.rejects(room.promoteVisitor("missing", "Bob"), /Visitor not found/);
+    assert.equal(session.viewers.has("tab-1"), false);
+    assert.equal(session.isPlayerPresent("Alice"), true);
+    await assert.rejects(session.join("Bob", false, "missing"), /Viewer not found/);
 });
 
-test("room membership supports visitor eviction, player demotion, and player eviction", async (t) => {
-    const room = new Room("Transitions", 3);
-    t.after(() => stopIdleMonitoring(room));
+test("sessions support viewing, idle-player removal, and leaving", async (t) => {
+    const session = new Session("Transitions", 3);
+    t.after(() => stopIdleMonitoring(session));
 
-    assert.equal(room.admitVisitor("visitor-1"), true);
-    assert.equal(room.admitVisitor("visitor-1"), false);
-    assert.equal(room.evictVisitor("visitor-1"), true);
-    assert.equal(room.evictVisitor("visitor-1"), false);
+    assert.equal(session.view("viewer-1"), true);
+    assert.equal(session.view("viewer-1"), false);
+    assert.equal(session.leaveViewer("viewer-1"), true);
+    assert.equal(session.leaveViewer("viewer-1"), false);
 
-    const alice = await room.admitPlayer("Alice");
+    const alice = await session.join("Alice");
     alice.hand.draw(new Card(Constants.CARD.VALUE.THREE.id, Constants.CARD.SUIT.CLUBS));
-    assert.equal((await room.demotePlayer("Alice", "alice-tab")).name, "Alice");
-    assert.equal(room.visitors.has("alice-tab"), true);
-    assert.equal(room.isPlayerPresent("Alice"), false);
-    await assert.rejects(room.demotePlayer("missing", "tab"), /Player does not exist/);
+    assert.equal((await session.movePlayerToView("Alice", "alice-tab")).name, "Alice");
+    assert.equal(session.viewers.has("alice-tab"), true);
+    assert.equal(session.isPlayerPresent("Alice"), false);
+    await assert.rejects(session.movePlayerToView("missing", "tab"), /Player does not exist/);
 
-    await room.admitPlayer("Bob");
-    assert.equal((await room.evictPlayer("Bob")).name, "Bob");
-    await assert.rejects(room.evictPlayer("Bob"), /Player does not exist/);
-    assert.equal(room.isEmpty(), true);
+    await session.join("Bob");
+    assert.equal((await session.leavePlayer("Bob")).name, "Bob");
+    await assert.rejects(session.leavePlayer("Bob"), /Player does not exist/);
+    assert.equal(session.isEmpty(), true);
 });
 
-test("players and visitors can exit while a game is active", async (t) => {
-    const room = await createPlayingRoom(t);
+test("players and viewers can leave while a session is active", async (t) => {
+    const session = await createPlayingSession(t);
 
-    assert.equal(room.admitVisitor("active-visitor"), true);
-    assert.equal((await room.evictPlayer("Alice")).name, "Alice");
-    assert.equal(room.evictVisitor("active-visitor"), true);
-    assert.equal(room.status, Constants.STATUS.PLAYING);
-    assert.equal(room.isPlayerPresent("Alice"), false);
-    assert.equal(room.visitors.has("active-visitor"), false);
+    assert.equal(session.view("active-viewer"), true);
+    assert.equal((await session.leavePlayer("Alice")).name, "Alice");
+    assert.equal(session.leaveViewer("active-viewer"), true);
+    assert.equal(session.status, Constants.STATUS.PLAYING);
+    assert.equal(session.isPlayerPresent("Alice"), false);
+    assert.equal(session.viewers.has("active-viewer"), false);
 });
 
-test("room payload uses one player shape and session identifies the local player", async (t) => {
-    const room = new Room("Payload Room", 2);
-    t.after(() => stopIdleMonitoring(room));
+test("session payload uses one player shape and localPlayerName identifies the local player", async (t) => {
+    const session = new Session("Payload Session", 2);
+    t.after(() => stopIdleMonitoring(session));
 
-    await room.admitPlayer("Alice");
-    await room.admitPlayer("Bob");
+    await session.join("Alice");
+    await session.join("Bob");
 
-    const localPayload = StateMapper.toRoomPayload(room, "Alice");
-    const visitorPayload = StateMapper.toRoomPayload(room, null);
+    const localPayload = StateMapper.toSessionPayload(session, "Alice");
+    const viewerPayload = StateMapper.toSessionPayload(session, null);
     const expectedKeys = [
         "drawAllowance",
         "hand",
@@ -144,140 +144,140 @@ test("room payload uses one player shape and session identifies the local player
         "name"
     ];
 
-    assert.equal(localPayload.session.playerName, "Alice");
-    assert.equal(visitorPayload.session.playerName, null);
+    assert.equal(localPayload.localPlayerName, "Alice");
+    assert.equal(viewerPayload.localPlayerName, null);
     assert.equal(localPayload.circle.turnOwnerKey, null);
     assert.deepEqual(Object.keys(localPayload.circle.players[0]).sort(), expectedKeys);
     assert.deepEqual(Object.keys(localPayload.circle.players[1]).sort(), expectedKeys);
 });
 
 test("a game requires two players", async (t) => {
-    const room = new Room("Small Room", 2);
-    t.after(() => stopIdleMonitoring(room));
+    const session = new Session("Small Session", 2);
+    t.after(() => stopIdleMonitoring(session));
 
-    await room.admitPlayer("Alice");
-    await assert.rejects(room.startGame(), /Need at least two players/);
+    await session.join("Alice");
+    await assert.rejects(session.start(), /Need at least two players/);
 });
 
-test("waiting rooms have no turn owner and allow every player to draw or discard", async (t) => {
-    const room = new Room("Waiting Room", 2);
-    t.after(() => stopIdleMonitoring(room));
+test("waiting sessions have no turn owner and allow every player to draw or discard", async (t) => {
+    const session = new Session("Waiting Session", 2);
+    t.after(() => stopIdleMonitoring(session));
 
-    const alice = await room.admitPlayer("Alice");
-    const bob = await room.admitPlayer("Bob");
+    const alice = await session.join("Alice");
+    const bob = await session.join("Bob");
     alice.hand.draw({ value: "5", suit: "clubs" });
     bob.hand.draw({ value: "k", suit: "hearts" });
 
-    await room.discardCard("Alice", "5", "clubs");
-    await room.discardCard("Bob", "k", "hearts");
+    await session.discardCard("Alice", "5", "clubs");
+    await session.discardCard("Bob", "k", "hearts");
 
-    assert.equal(room.status, Constants.STATUS.WAITING);
-    assert.equal(room.circle.getTurnOwner(), null);
-    assert.equal(room.circle.turnOwnerKey, null);
-    assert.equal(TurnUtils.hasTurnOwner(room.circle.turnOwnerKey), false);
-    assert.equal(TurnUtils.isTurnOwner(room.circle.turnOwnerKey, alice.key), false);
-    assert.throws(() => room.circle.requireTurnOwner(), /Turn owner is not assigned/);
+    assert.equal(session.status, Constants.STATUS.WAITING);
+    assert.equal(session.circle.getTurnOwner(), null);
+    assert.equal(session.circle.turnOwnerKey, null);
+    assert.equal(TurnUtils.hasTurnOwner(session.circle.turnOwnerKey), false);
+    assert.equal(TurnUtils.isTurnOwner(session.circle.turnOwnerKey, alice.key), false);
+    assert.throws(() => session.circle.requireTurnOwner(), /Turn owner is not assigned/);
     assert.equal(alice.hand.cards.length, 0);
     assert.equal(bob.hand.cards.length, 0);
     assert.equal(alice.drawAllowance, 1);
     assert.equal(bob.drawAllowance, 1);
-    assert.equal(room.declaredSuit, null);
-    assert.deepEqual(room.winners, []);
-    assert.equal(room.getTopDiscard().getId(), "k-hearts");
+    assert.equal(session.declaredSuit, null);
+    assert.deepEqual(session.winners, []);
+    assert.equal(session.getTopDiscard().getId(), "k-hearts");
 
-    assert.equal((await room.drawCards("Alice")).length, 1);
-    assert.equal((await room.drawCards("Bob")).length, 1);
-    assert.equal(room.circle.getTurnOwner(), null);
+    assert.equal((await session.drawCards("Alice")).length, 1);
+    assert.equal((await session.drawCards("Bob")).length, 1);
+    assert.equal(session.circle.getTurnOwner(), null);
 });
 
 test("a null turn owner bypasses playing turn and card-legality checks", async (t) => {
-    const room = await createPlayingRoom(t, ["Alice", "Bob"]);
-    const alice = room.circle.getPlayer("Alice");
-    const bob = room.circle.getPlayer("Bob");
+    const session = await createPlayingSession(t, ["Alice", "Bob"]);
+    const alice = session.circle.getPlayer("Alice");
+    const bob = session.circle.getPlayer("Bob");
 
-    room.circle.setTurnOwner(null);
+    session.circle.setTurnOwner(null);
     bob.hand.drawMany([
         new Card(Constants.CARD.VALUE.KING.id, Constants.CARD.SUIT.CLUBS),
         new Card(Constants.CARD.VALUE.FOUR.id, Constants.CARD.SUIT.CLUBS)
     ]);
 
-    await room.discardCard(
+    await session.discardCard(
         bob.name,
         Constants.CARD.VALUE.KING.id,
         Constants.CARD.SUIT.CLUBS
     );
 
     alice.drawAllowance = 0;
-    const drawn = await room.drawCards(alice.name);
+    const drawn = await session.drawCards(alice.name);
 
-    assert.equal(room.status, Constants.STATUS.PLAYING);
-    assert.equal(room.circle.getTurnOwner(), null);
-    assert.equal(room.getTopDiscard().getId(), "k-clubs");
+    assert.equal(session.status, Constants.STATUS.PLAYING);
+    assert.equal(session.circle.getTurnOwner(), null);
+    assert.equal(session.getTopDiscard().getId(), "k-clubs");
     assert.equal(drawn.length, 1);
 });
 
-test("starting a game deals seven cards and selects an ordinary discard", async (t) => {
-    const room = new Room("Game Room", 2);
-    t.after(() => stopIdleMonitoring(room));
+test("starting a session deals seven cards and selects an ordinary discard", async (t) => {
+    const session = new Session("Started Session", 2);
+    t.after(() => stopIdleMonitoring(session));
 
-    await room.admitPlayer("Alice");
-    await room.admitPlayer("Bob");
-    await room.startGame();
+    await session.join("Alice");
+    await session.join("Bob");
+    await session.start();
 
-    assert.equal(room.status, Constants.STATUS.PLAYING);
-    assert.equal(room.discardPile.length, 1);
-    assert.equal(room.getTopDiscard().isSpecial(), false);
-    assert.equal(room.circle.getTurnOwner() === null, false);
-    assert.equal(TurnUtils.hasTurnOwner(room.circle.turnOwnerKey), true);
+    assert.equal(session.status, Constants.STATUS.PLAYING);
+    assert.equal(session.discardPile.length, 1);
+    assert.equal(session.getTopDiscard().isSpecial(), false);
+    assert.equal(session.circle.getTurnOwner() === null, false);
+    assert.equal(TurnUtils.hasTurnOwner(session.circle.turnOwnerKey), true);
     assert.equal(
-        TurnUtils.isTurnOwner(room.circle.turnOwnerKey, room.circle.requireTurnOwner().key),
+        TurnUtils.isTurnOwner(session.circle.turnOwnerKey, session.circle.requireTurnOwner().key),
         true
     );
 
-    for (const player of room.circle.players.values()) {
+    for (const player of session.circle.players.values()) {
         assert.equal(player.hand.cards.length, Constants.PLAYER_INITIAL_CARD_COUNT);
     }
 
-    assert.equal(room.deck.cards.length, 39);
+    assert.equal(session.deck.cards.length, 39);
 });
 
 test("only the turn owner can act and passing advances the turn", async (t) => {
-    const room = new Room("Turn Room", 2);
-    t.after(() => stopIdleMonitoring(room));
+    const session = new Session("Turn Session", 2);
+    t.after(() => stopIdleMonitoring(session));
 
-    await room.admitPlayer("Alice");
-    await room.admitPlayer("Bob");
-    await room.startGame();
+    await session.join("Alice");
+    await session.join("Bob");
+    await session.start();
 
-    const current = room.circle.getTurnOwner();
-    const other = [...room.circle.players.values()].find((player) => player.key !== current.key);
+    const current = session.circle.getTurnOwner();
+    const other = [...session.circle.players.values()].find((player) => player.key !== current.key);
     const initialCount = current.hand.cards.length;
 
-    await assert.rejects(room.passTurn(other.name), /Not your turn/);
-    const drawn = await room.passTurn(current.name);
+    await assert.rejects(session.passTurn(other.name), /Not your turn/);
+    const drawn = await session.passTurn(current.name);
 
     assert.equal(drawn.length, 1);
     assert.equal(current.hand.cards.length, initialCount + 1);
-    assert.equal(room.circle.getTurnOwner().key, other.key);
+    assert.equal(session.circle.getTurnOwner().key, other.key);
 });
 
 test("drawing consumes allowances and rejects additional draws", async (t) => {
-    const room = await createPlayingRoom(t, ["Alice", "Bob"]);
-    const alice = room.circle.getPlayer("Alice");
+    const session = await createPlayingSession(t, ["Alice", "Bob"]);
+    const alice = session.circle.getPlayer("Alice");
     alice.drawAllowance = 2;
 
-    const cards = await room.drawCards("Alice");
+    const cards = await session.drawCards("Alice");
 
     assert.equal(cards.length, 2);
     assert.equal(alice.drawAllowance, 0);
-    assert.equal(room.circle.getTurnOwner().name, "Bob");
+    assert.equal(session.circle.getTurnOwner().name, "Bob");
 
-    room.circle.setTurnOwner("Alice");
-    await assert.rejects(room.drawCards("Alice"), /No draw allowance remaining/);
-    await assert.rejects(room.drawCards("Missing"), /Player does not exist/);
+    session.circle.setTurnOwner("Alice");
+    await assert.rejects(session.drawCards("Alice"), /No draw allowance remaining/);
+    await assert.rejects(session.drawCards("Missing"), /Player does not exist/);
 });
 
-test("special discards apply skip, reverse, draw, suit, and game-ending effects", async (t) => {
+test("special discards apply skip, reverse, draw, suit, and session-ending effects", async (t) => {
     const scenarios = [
         {value: Constants.CARD.VALUE.EIGHT.id, expectedPlayer: "Casey", expectedAllowance: 1},
         {value: Constants.CARD.VALUE.JACK.id, expectedPlayer: "Casey", expectedAllowance: 1},
@@ -285,66 +285,66 @@ test("special discards apply skip, reverse, draw, suit, and game-ending effects"
     ];
 
     for (const scenario of scenarios) {
-        const room = await createPlayingRoom(t);
-        const alice = room.circle.getPlayer("Alice");
+        const session = await createPlayingSession(t);
+        const alice = session.circle.getPlayer("Alice");
         alice.hand.drawMany([
             new Card(scenario.value, Constants.CARD.SUIT.HEARTS),
             new Card(Constants.CARD.VALUE.KING.id, Constants.CARD.SUIT.CLUBS)
         ]);
 
-        await room.discardCard("Alice", scenario.value, Constants.CARD.SUIT.HEARTS);
+        await session.discardCard("Alice", scenario.value, Constants.CARD.SUIT.HEARTS);
 
-        assert.equal(room.circle.getTurnOwner().name, scenario.expectedPlayer);
-        assert.equal(room.circle.getTurnOwner().drawAllowance, scenario.expectedAllowance);
+        assert.equal(session.circle.getTurnOwner().name, scenario.expectedPlayer);
+        assert.equal(session.circle.getTurnOwner().drawAllowance, scenario.expectedAllowance);
     }
 
-    const suitRoom = await createPlayingRoom(t, ["Alice", "Bob"]);
-    suitRoom.circle.getPlayer("Alice").hand.drawMany([
+    const suitSession = await createPlayingSession(t, ["Alice", "Bob"]);
+    suitSession.circle.getPlayer("Alice").hand.drawMany([
         new Card(Constants.CARD.VALUE.ACE.id, Constants.CARD.SUIT.HEARTS),
         new Card(Constants.CARD.VALUE.KING.id, Constants.CARD.SUIT.CLUBS)
     ]);
-    await suitRoom.discardCard("Alice", Constants.CARD.VALUE.ACE.id, Constants.CARD.SUIT.HEARTS);
-    assert.equal(suitRoom.status, Constants.STATUS.PENDING);
-    assert.equal(await suitRoom.declareSuit(Constants.CARD.SUIT.CLUBS), true);
-    assert.equal(suitRoom.declaredSuit, Constants.CARD.SUIT.CLUBS);
-    assert.equal(suitRoom.circle.getTurnOwner().name, "Bob");
+    await suitSession.discardCard("Alice", Constants.CARD.VALUE.ACE.id, Constants.CARD.SUIT.HEARTS);
+    assert.equal(suitSession.status, Constants.STATUS.PENDING);
+    assert.equal(await suitSession.declareSuit(Constants.CARD.SUIT.CLUBS), true);
+    assert.equal(suitSession.declaredSuit, Constants.CARD.SUIT.CLUBS);
+    assert.equal(suitSession.circle.getTurnOwner().name, "Bob");
 
-    const finishRoom = await createPlayingRoom(t, ["Alice", "Bob"]);
-    finishRoom.circle.getPlayer("Alice").hand.draw(new Card(
+    const finishSession = await createPlayingSession(t, ["Alice", "Bob"]);
+    finishSession.circle.getPlayer("Alice").hand.draw(new Card(
         Constants.CARD.VALUE.SEVEN.id,
         Constants.CARD.SUIT.HEARTS
     ));
-    finishRoom.circle.getPlayer("Bob").hand.draw(new Card(
+    finishSession.circle.getPlayer("Bob").hand.draw(new Card(
         Constants.CARD.VALUE.KING.id,
         Constants.CARD.SUIT.CLUBS
     ));
-    await finishRoom.discardCard("Alice", Constants.CARD.VALUE.SEVEN.id, Constants.CARD.SUIT.HEARTS);
-    assert.equal(finishRoom.status, Constants.STATUS.FINISHED);
-    assert.equal(finishRoom.winners.includes("Alice"), true);
-    assert.equal(finishRoom.scores.Bob, 13);
+    await finishSession.discardCard("Alice", Constants.CARD.VALUE.SEVEN.id, Constants.CARD.SUIT.HEARTS);
+    assert.equal(finishSession.status, Constants.STATUS.FINISHED);
+    assert.equal(finishSession.winners.includes("Alice"), true);
+    assert.equal(finishSession.scores.Bob, 13);
 });
 
-test("room input validation rejects invalid capacity and suit", async (t) => {
-    assert.throws(() => new Room("Invalid", 1), /Capacity must be between/);
-    assert.throws(() => Room.normalizeSuit("purple"), /Invalid suit/);
+test("session input validation rejects invalid capacity and suit", async (t) => {
+    assert.throws(() => new Session("Invalid", 1), /Capacity must be between/);
+    assert.throws(() => Session.normalizeSuit("purple"), /Invalid suit/);
 
-    const room = new Room("Suit Room", 2);
-    t.after(() => stopIdleMonitoring(room));
-    await assert.rejects(room.declareSuit("hearts"), /No suit pending declaration/);
+    const session = new Session("Suit Session", 2);
+    t.after(() => stopIdleMonitoring(session));
+    await assert.rejects(session.declareSuit("hearts"), /No suit pending declaration/);
 });
 
-test("a room commits the selected card order when the player moves", async (t) => {
-    const room = new Room("Sort Room", 2);
-    t.after(() => stopIdleMonitoring(room));
+test("a session commits the selected card order when the player moves", async (t) => {
+    const session = new Session("Sort Session", 2);
+    t.after(() => stopIdleMonitoring(session));
 
-    const player = await room.admitPlayer("Alice");
+    const player = await session.join("Alice");
     player.hand.drawMany([
         { value: "k", suit: "clubs" },
         { value: "3", suit: "hearts" },
         { value: "8", suit: "spades" }
     ]);
 
-    await room.passTurn("Alice", "value");
+    await session.passTurn("Alice", "value");
 
     assert.deepEqual(player.hand.toArray().map(String), ["3-hearts", "8-spades", "k-clubs"]);
 });
@@ -370,7 +370,7 @@ test("AI preserves the ace of spades when no draw attack is active", async (t) =
     circle.addPlayer(ai);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         getTopDiscard: () => new Card("5", Constants.CARD.SUIT.SPADES),
@@ -382,7 +382,7 @@ test("AI preserves the ace of spades when no draw attack is active", async (t) =
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(isCardDrawn, true);
     assert.equal(isCardDiscarded, false);
@@ -412,7 +412,7 @@ test("AI preserves an ace when another legal card is available", async (t) => {
     circle.addPlayer(opponent);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         getTopDiscard: () => new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS),
@@ -422,12 +422,12 @@ test("AI preserves an ace when another legal card is available", async (t) => {
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
     assert.deepEqual(discardedCardIds, ["5-clubs"]);
 
     ai.hand.clear();
     ai.hand.draw(new Card(Constants.CARD.VALUE.ACE.id, Constants.CARD.SUIT.HEARTS));
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.deepEqual(discardedCardIds, ["5-clubs", "a-hearts"]);
 });
@@ -464,7 +464,7 @@ test("AI uses its ace of spades against draw two without inspecting the next pla
     circle.addPlayer(nextPlayer);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         getTopDiscard: () => new Card(Constants.CARD.VALUE.TWO.id, Constants.CARD.SUIT.HEARTS),
@@ -476,7 +476,7 @@ test("AI uses its ace of spades against draw two without inspecting the next pla
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(isCardDrawn, false);
     assert.equal(isCardDiscarded, true);
@@ -521,7 +521,7 @@ test("AI treats a visible one-card count as a threat without reading the hidden 
     circle.addPlayer(nextPlayer);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         getTopDiscard: () => new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS),
@@ -531,7 +531,7 @@ test("AI treats a visible one-card count as a threat without reading the hidden 
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(discardedCard.getId(), "5-clubs");
 });
@@ -585,7 +585,7 @@ test("AI uses discard-pile card counting to reduce a one-card opponent's respons
         Constants.CARD.VALUE.KING.id,
         Constants.CARD.VALUE.ACE.id
     ].map(value => new Card(value, Constants.CARD.SUIT.HEARTS));
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         discardPile: [
@@ -605,16 +605,16 @@ test("AI uses discard-pile card counting to reduce a one-card opponent's respons
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(discardedCard.getId(), "3-hearts");
 });
 
-test("room remembers which player made the latest gameplay discard", async (t) => {
-    const room = await createPlayingRoom(t, ["Alice", "Bob"]);
-    const alice = room.circle.getPlayer("Alice");
+test("session remembers which player made the latest gameplay discard", async (t) => {
+    const session = await createPlayingSession(t, ["Alice", "Bob"]);
+    const alice = session.circle.getPlayer("Alice");
 
-    room.discardPile = [new Card(
+    session.discardPile = [new Card(
         Constants.CARD.VALUE.FIVE.id,
         Constants.CARD.SUIT.DIAMONDS
     )];
@@ -623,15 +623,15 @@ test("room remembers which player made the latest gameplay discard", async (t) =
         new Card(Constants.CARD.VALUE.KING.id, Constants.CARD.SUIT.CLUBS)
     ]);
 
-    assert.equal(room.getLastDiscardPlayer(), null);
+    assert.equal(session.getLastDiscardPlayer(), null);
 
-    await room.discardCard(
+    await session.discardCard(
         alice.name,
         Constants.CARD.VALUE.THREE.id,
         Constants.CARD.SUIT.DIAMONDS
     );
 
-    assert.equal(room.getLastDiscardPlayer(), alice);
+    assert.equal(session.getLastDiscardPlayer(), alice);
 });
 
 test("AI presses the suit after an opponent discards its lowest ordinary card", async (t) => {
@@ -661,7 +661,7 @@ test("AI presses the suit after an opponent discards its lowest ordinary card", 
     circle.addPlayer(previousPlayer);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         getLastDiscardPlayer: () => previousPlayer,
@@ -675,7 +675,7 @@ test("AI presses the suit after an opponent discards its lowest ordinary card", 
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(discardedCard.getId(), "2-diamonds");
 });
@@ -711,7 +711,7 @@ test("AI ignores a low-discard suit inference when that opponent will not act ne
     circle.addPlayer(previousPlayer);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         getLastDiscardPlayer: () => previousPlayer,
@@ -725,7 +725,7 @@ test("AI ignores a low-discard suit inference when that opponent will not act ne
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(discardedCard.getId(), "3-hearts");
 });
@@ -763,7 +763,7 @@ test("AI uses a skip to bypass an immediate one-card opponent", async (t) => {
     circle.addPlayer(followingPlayer);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         getTopDiscard: () => new Card(
@@ -776,7 +776,7 @@ test("AI uses a skip to bypass an immediate one-card opponent", async (t) => {
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(discardedCard.getId(), "8-hearts");
 });
@@ -809,7 +809,7 @@ test("AI uses a two-player skip to prepare an immediate final discard", async (t
     circle.addPlayer(opponent);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         getTopDiscard: () => new Card(
@@ -822,7 +822,7 @@ test("AI uses a two-player skip to prepare an immediate final discard", async (t
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(discardedCard.getId(), "8-clubs");
 });
@@ -860,7 +860,7 @@ test("AI uses the visible card count of the player reached by a skip", async (t)
     circle.addPlayer(projectedPlayer);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         getTopDiscard: () => new Card(
@@ -873,7 +873,7 @@ test("AI uses the visible card count of the player reached by a skip", async (t)
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(discardedCard.getId(), "5-clubs");
 });
@@ -911,7 +911,7 @@ test("AI uses the visible card count of the player reached by a reverse", async 
     circle.addPlayer(reversedNextPlayer);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         getTopDiscard: () => new Card(
@@ -924,7 +924,7 @@ test("AI uses the visible card count of the player reached by a reverse", async 
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(discardedCard.getId(), "3-hearts");
 });
@@ -956,7 +956,7 @@ test("AI uses a suit-changing ace to take control against a visible one-card thr
     circle.addPlayer(nextPlayer);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         getTopDiscard: () => new Card(
@@ -969,7 +969,7 @@ test("AI uses a suit-changing ace to take control against a visible one-card thr
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(discardedCard.getId(), "a-hearts");
 });
@@ -1001,7 +1001,7 @@ test("AI breaks equal suit strength toward the scarcest publicly unseen suit", a
     circle.addPlayer(opponent);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         discardPile: [
             Constants.CARD.VALUE.TWO.id,
@@ -1020,7 +1020,7 @@ test("AI breaks equal suit strength toward the scarcest publicly unseen suit", a
         }
     };
 
-    await ai.chooseSuit(room);
+    await ai.chooseSuit(session);
 
     assert.equal(declaredSuit, Constants.CARD.SUIT.CLUBS);
 });
@@ -1052,7 +1052,7 @@ test("AI forces a visible one-card opponent to draw when legally possible", asyn
     circle.addPlayer(nextPlayer);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         getTopDiscard: () => new Card(
@@ -1065,7 +1065,7 @@ test("AI forces a visible one-card opponent to draw when legally possible", asyn
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(discardedCard.getId(), "2-hearts");
 });
@@ -1106,7 +1106,7 @@ test("AI starts pressuring an opponent before they reach one card", async (t) =>
     circle.addPlayer(nextPlayer);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         discardPile: [
@@ -1128,7 +1128,7 @@ test("AI starts pressuring an opponent before they reach one card", async (t) =>
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(discardedCard.getId(), "2-hearts");
 });
@@ -1186,7 +1186,7 @@ test("AI releases seven of hearts only when its public score estimate is favorab
     circle.addPlayer(otherOpponent);
     circle.setTurnOwner(ai.name);
 
-    const room = {
+    const session = {
         circle,
         declaredSuit: null,
         getTopDiscard: () => new Card(
@@ -1201,7 +1201,7 @@ test("AI releases seven of hearts only when its public score estimate is favorab
         }
     };
 
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(drawCount, 0);
     assert.deepEqual(discardedCardIds, ["7-hearts"]);
@@ -1211,14 +1211,14 @@ test("AI releases seven of hearts only when its public score estimate is favorab
         new Card(Constants.CARD.VALUE.SEVEN.id, Constants.CARD.SUIT.HEARTS),
         new Card(Constants.CARD.VALUE.ACE.id, Constants.CARD.SUIT.SPADES)
     ]);
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(drawCount, 1);
     assert.deepEqual(discardedCardIds, ["7-hearts"]);
 
     ai.hand.clear();
     ai.hand.draw(new Card(Constants.CARD.VALUE.SEVEN.id, Constants.CARD.SUIT.HEARTS));
-    await ai.takeTurn(room);
+    await ai.takeTurn(session);
 
     assert.equal(drawCount, 1);
     assert.deepEqual(discardedCardIds, ["7-hearts", "7-hearts"]);

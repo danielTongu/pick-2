@@ -138,50 +138,36 @@ input::placeholder {
    ======================================== */
 
 #connection-status {
+    --connection-status-color: gray;
+
     display: grid;
-    grid-template-columns: max-content max-content;
+    grid-template-columns: max-content;
     justify-self: end;
     align-items: center;
     gap: var(--container-spacing);
     padding: var(--container-spacing);
+    border: 1px solid var(--connection-status-color);
     border-radius: var(--container-radius);
     background: rgba(255, 255, 255, .08);
     font-size: small;
     font-weight: 800;
     text-transform: uppercase;
-    transition: background 0.3s ease;
+    transition: background .3s ease, border-color .3s ease;
 }
 
-#connection-status-indicator {
-    width: .75rem;
-    height: .75rem;
-    border-radius: var(--container-radius);
-    background: gray;
-    transition: background 0.3s ease;
+#connection-status[data-status="connecting"] {
+    --connection-status-color: gold;
 }
 
-#connection-status[data-status="connecting"] #connection-status-indicator {
-    background: gold;
-    animation: pulse 1.5s ease-in-out infinite;
-}
-
-#connection-status[data-status="connected"] #connection-status-indicator {
-    background: #22c55e;
+#connection-status[data-status="connected"] {
+    --connection-status-color: #22c55e;
 }
 
 #connection-status[data-status="disconnected"],
 #connection-status[data-status="error"] {
+    --connection-status-color: #ef4444;
+
     background: rgba(220, 38, 38, .18);
-}
-
-#connection-status[data-status="disconnected"] #connection-status-indicator,
-#connection-status[data-status="error"] #connection-status-indicator {
-    background: #ef4444;
-}
-
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.3; }
 }
 
 main {
@@ -198,17 +184,17 @@ main {
 }
 
 /* ========================================
-   LOBBY VIEW
+   GAME VIEW
    ======================================== */
 
-#lobby-view {
+#game-view {
     padding: var(--container-spacing);
     background: linear-gradient(to bottom, rgba(18, 92, 44, .95), rgba(10, 60, 28, .95));
     /*box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .08), 0 .5rem 2rem rgba(0, 0, 0, .35);*/
     box-shadow: var(--shadow-black);
 }
 
-#room-registration-form {
+#session-registration-form {
     --active-color: #fde68a;
     color: grey;
     border-radius: var(--container-radius);
@@ -218,7 +204,7 @@ main {
 }
 
 @media (min-width: 700px) {
-    #room-registration-form {
+    #session-registration-form {
         grid-template-columns: auto auto auto;
         align-items: end;
     }
@@ -287,7 +273,7 @@ main {
     pointer-events: none;
 }
 
-#room-registration-submit-button {
+#session-registration-submit-button {
     width: 100%;
     border: 1px solid rgba(251, 191, 36, .5);
     color: #2d211a;
@@ -296,20 +282,20 @@ main {
     transition: background .2s ease, transform .15s ease;
 }
 
-#room-registration-submit-button:hover {
+#session-registration-submit-button:hover {
     background: var(--active-color);
 }
 
-#room-registration-submit-button:active {
+#session-registration-submit-button:active {
     transform: scale(.97);
 }
 
-#room-registration-submit-button:focus-visible {
+#session-registration-submit-button:focus-visible {
     outline: 2px solid white;
     outline-offset: 2px;
 }
 
-#room-list-panel {
+#session-list-panel {
     display: grid;
     grid-template-rows: auto minmax(0, 1fr);
     gap: var(--container-spacing);
@@ -323,31 +309,36 @@ main {
     overflow: hidden;
 }
 
-#room-list-panel > header {
+#session-list-panel > header {
     display: grid;
-    grid-template-columns: 1fr max-content;
     align-items: center;
-    justify-content: space-between;
     gap: var(--container-spacing);
 }
 
-#room-filter-control {
+@media (min-width: 700px) {
+    #session-list-panel > header {
+        grid-template-columns: 1fr max-content;
+        justify-content: space-between;
+    }
+}
+
+#session-filter-control {
     display: grid;
     grid-template-columns: max-content minmax(120px, auto);
     align-items: center;
     gap: var(--container-spacing);
 }
 
-#room-filter-control span {
+#session-filter-control span {
     font-weight: 600;
     color: rgba(255, 255, 255, .75);
 }
 
-#room-status-filter {
+#session-status-filter {
     min-width: 120px;
 }
 
-#room-status-filter option {
+#session-status-filter option {
     background: #2d211a;
     color: white;
 }
@@ -364,12 +355,12 @@ main {
     font-size: small;
 }
 
-#room-list-table {
+#session-list-table {
     width: 100%;
     border-collapse: collapse;
 }
 
-#room-list-table thead {
+#session-list-table thead {
     position: sticky;
     top: 0;
     z-index: 2;
@@ -377,52 +368,52 @@ main {
     backdrop-filter: blur(8px);
 }
 
-#room-list-table th,
-#room-list-table td {
+#session-list-table th,
+#session-list-table td {
     padding: var(--container-spacing);
     white-space: nowrap;
     text-align: left;
 }
 
-#room-list-table th {
+#session-list-table th {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: .05em;
     color: rgba(255, 255, 255, .7);
 }
 
-#room-list-table tbody tr {
+#session-list-table tbody tr {
     cursor: pointer;
     transition: background .15s ease;
 }
 
-#room-list-table tbody tr:hover {
+#session-list-table tbody tr:hover {
     background: rgba(255, 255, 255, .06);
 }
 
-#room-list-table tbody tr + tr {
+#session-list-table tbody tr + tr {
     border-top: 1px solid rgba(255, 255, 255, .05);
 }
 
 /* ========================================
-   ROOM VIEW
+   SESSION VIEW
    ======================================== */
 
-#room-view {
+#session-view {
     grid-template-rows: auto minmax(0, 1fr);
     align-items: start;/* Aligns all items to the top */
 }
 
-#room-header {
+#session-header {
     display: grid;
     gap: var(--container-spacing);
 }
 
-#room-view .table-container {
+#session-view .table-container {
     border-radius: 0;
 }
 
-#room-actions {
+#session-actions {
     display: grid;
     gap: var(--container-spacing);
     grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
@@ -430,24 +421,24 @@ main {
 }
 
 @media (min-width: 700px) {
-    #room-actions {
+    #session-actions {
         grid-template-columns: repeat(auto-fit, minmax(80px, 100px));
     }
 }
 
-#evict-occupant-button {
+#leave-session-button {
     background: #b91c1c;
 }
 
-#evict-occupant-button:hover {
+#leave-session-button:hover {
     background: #dc2626;
 }
 
-#promote-visitor-button {
+#join-session-button {
     background: #2563eb;
 }
 
-#promote-visitor-button:hover {
+#join-session-button:hover {
     background: #3b82f6;
 }
 
@@ -459,7 +450,7 @@ main {
     background: #16a34a;
 }
 
-#room-info-table {
+#session-info-table {
     width: 100%;
     min-width: max-content;
     border-collapse: collapse;
@@ -467,42 +458,42 @@ main {
     overflow: hidden;
 }
 
-#room-info-table caption {
+#session-info-table caption {
     position: absolute;
     width: 1px;
     height: 1px;
     overflow: hidden;
 }
 
-#room-info-table th,
-#room-info-table td {
+#session-info-table th,
+#session-info-table td {
     padding: var(--container-spacing);
     text-align: left;
     white-space: nowrap;
 }
 
-#room-info-table thead {
+#session-info-table thead {
     background: rgba(255, 255, 255, .08);
 }
 
-#room-info-table th {
+#session-info-table th {
     text-transform: uppercase;
     letter-spacing: .05em;
     color: rgba(255, 255, 255, .7);
 }
 
-#room-game-session {
+#session-play-area {
     display: grid;
     grid-template-rows: auto minmax(auto, var(--card-max-height)) auto;
     gap: calc(2 * var(--container-spacing));
     min-height: 0;
 }
 
-#room-game-session[data-room-status="finished"] {
+#session-play-area[data-session-status="finished"] {
     filter: grayscale(.2);
 }
 
-#room-game-session[data-room-status="finished"] #local-player-region[data-is-winner="false"] > header:empty::before {
+#session-play-area[data-session-status="finished"] #local-player-region[data-is-winner="false"] > header:empty::before {
     content: "You Lost 🤣";
 }
 
@@ -724,7 +715,7 @@ main {
     background: rgba(37, 99, 235, .2);
 }
 
-#start-game-button {
+#start-session-button {
     border-color: rgba(74, 222, 128, .55);
     background: rgba(22, 163, 74, .28);
 }
@@ -734,7 +725,7 @@ main {
     background: rgba(217, 119, 6, .3);
 }
 
-#local-player-region[data-status="playing"] #start-game-button {
+#local-player-region[data-status="playing"] #start-session-button {
     display: none;
 }
 

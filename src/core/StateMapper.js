@@ -40,29 +40,29 @@ export class StateMapper {
     }
 
     /**
-     * Builds a LobbyController-ready payload.
+     * Builds a GameController-ready payload.
      *
-     * @param {Iterable<import("./Room.js").Room>} rooms - Rooms.
-     * @returns {{rooms:Object[]}} Lobby payload.
+     * @param {Iterable<import("./Session.js").Session>} sessions - Sessions.
+     * @returns {{sessions:Object[]}} Game payload.
      */
-    static toLobbyPayload(rooms) {
+    static toGamePayload(sessions) {
         const result = [];
 
-        for (const room of rooms) {
-            const state = room.toJSON();
+        for (const session of sessions) {
+            const state = session.toJSON();
 
-            result.push(StateMapper.#toLobbyRoom(state));
+            result.push(StateMapper.#toGameSession(state));
         }
 
         return Object.freeze({
-            rooms: result
+            sessions: result
         });
     }
 
     /**
      * Builds discard pile DTOs.
      *
-     * @param {Object} state - Serialized room state.
+     * @param {Object} state - Serialized session state.
      * @returns {Object[]} Discard pile DTOs.
      */
     static #toDiscardPile(state) {
@@ -79,35 +79,34 @@ export class StateMapper {
     }
 
     /**
-     * Builds a RoomController-ready payload.
+     * Builds a SessionController-ready payload.
      *
-     * @param {import("./Room.js").Room} room - Room.
+     * @param {import("./Session.js").Session} session - Session.
      * @param {string|null} playerName - Session player name.
-     * @returns {Object} Room payload.
+     * @returns {Object} Session payload.
      */
-    static toRoomPayload(room, playerName = null) {
-        room.setSessionPlayer(playerName);
-
-        const state = room.toJSON();
+    static toSessionPayload(session, playerName = null) {
+        const state = session.toJSON();
 
         return Object.freeze({
-            ...StateMapper.#toRoomInfo(state),
-            ...StateMapper.#toRoomGameplay(state)
+            localPlayerName: playerName,
+            ...StateMapper.#toSessionInfo(state),
+            ...StateMapper.#toSessionGameplay(state)
         });
     }
 
     /**
-     * Builds one lobby room DTO.
+     * Builds one Session summary DTO.
      *
-     * @param {Object} state - Serialized room state.
-     * @returns {Object} Lobby room DTO.
+     * @param {Object} state - Serialized session state.
+     * @returns {Object} Session summary DTO.
      */
-    static #toLobbyRoom(state) {
+    static #toGameSession(state) {
         return Object.freeze({
             name: state.name,
             status: state.status,
             playerCount: state.circle?.playerCount ?? 0,
-            visitorCount: StateMapper.#getCollectionCount(state.visitors),
+            viewerCount: StateMapper.#getCollectionCount(state.viewers),
             capacity: state.capacity,
             lastActiveAt: StateMapper.#formatDate(state.lastActiveAt),
             createdAt: StateMapper.#formatDate(state.createdAt)
@@ -115,20 +114,18 @@ export class StateMapper {
     }
 
     /**
-     * Builds room identity/session/info DTO fields.
+     * Builds Session metadata fields.
      *
-     * @param {Object} state - Serialized room state.
-     * @returns {Object} Room info DTO.
+     * @param {Object} state - Serialized session state.
+     * @returns {Object} Session info DTO.
      */
-    static #toRoomInfo(state) {
+    static #toSessionInfo(state) {
         return Object.freeze({
-            session: state.session,
-
             name: state.name,
             status: state.status,
 
             playerCount: state.circle?.playerCount ?? 0,
-            visitorCount: StateMapper.#getCollectionCount(state.visitors),
+            viewerCount: StateMapper.#getCollectionCount(state.viewers),
             capacity: state.capacity,
 
             lastActiveAt: StateMapper.#formatDate(state.lastActiveAt),
@@ -137,12 +134,12 @@ export class StateMapper {
     }
 
     /**
-     * Builds room gameplay DTO fields.
+     * Builds session gameplay DTO fields.
      *
-     * @param {Object} state - Serialized room state.
-     * @returns {Object} Room gameplay DTO.
+     * @param {Object} state - Serialized session state.
+     * @returns {Object} Session gameplay DTO.
      */
-    static #toRoomGameplay(state) {
+    static #toSessionGameplay(state) {
         return Object.freeze({
             circle: StateMapper.#toCircle(state),
             discardPile: StateMapper.#toDiscardPile(state),
@@ -162,7 +159,7 @@ export class StateMapper {
      * Field names match the server-side circle; only collection and player values are
      * converted into JSON-safe representations.
      *
-     * @param {Object} state - Serialized room state.
+     * @param {Object} state - Serialized session state.
      * @returns {Object} Player circle DTO.
      */
     static #toCircle(state) {
@@ -177,7 +174,7 @@ export class StateMapper {
     /**
      * Builds player DTOs.
      *
-     * @param {Object} state - Serialized room state.
+     * @param {Object} state - Serialized session state.
      * @returns {Object[]} Player DTOs.
      */
     static #toPlayers(state) {

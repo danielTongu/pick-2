@@ -8,9 +8,9 @@ import { PlayingCard } from "./PlayingCard.js";
 import { ViewController } from "./ViewController.js";
 
 /**
- * Controls the singleton game-end overlay already present in the page HTML.
+ * Controls the singleton session-end overlay already present in the page HTML.
  */
-export class GameEndController extends ViewController {
+export class SessionEndController extends ViewController {
     /** @type {Object[]} */
     #players = [];
 
@@ -27,28 +27,28 @@ export class GameEndController extends ViewController {
     #selectedPlayerCards;
 
     /**
-     * Creates a game-end overlay controller.
+     * Creates a session-end overlay controller.
      *
-     * @param {string} selector - Game-end overlay selector.
+     * @param {string} selector - Session-end overlay selector.
      * @throws {Error}
      */
     constructor(selector) {
         super(selector);
-        this.#message = DomUtils.requireChild(this.root, "#game-end-message", HTMLElement);
-        this.#statsBody = DomUtils.requireChild(this.root, "#game-end-player-stats-body", HTMLTableSectionElement);
-        this.#playerCardsTitle = DomUtils.requireChild(this.root, "#game-end-player-cards-panel h2", HTMLElement);
-        this.#selectedPlayerCards = DomUtils.requireChild(this.root, "#game-end-selected-player-hand", HTMLElement);
-        this.bindDismissButton("#game-end-dismiss-button");
+        this.#message = DomUtils.requireChild(this.root, "#session-end-message", HTMLElement);
+        this.#statsBody = DomUtils.requireChild(this.root, "#session-end-player-stats-body", HTMLTableSectionElement);
+        this.#playerCardsTitle = DomUtils.requireChild(this.root, "#session-end-player-cards-panel h2", HTMLElement);
+        this.#selectedPlayerCards = DomUtils.requireChild(this.root, "#session-end-selected-player-hand", HTMLElement);
+        this.bindDismissButton("#session-end-dismiss-button");
     }
 
     /**
-     * Shows the game-end overlay.
+     * Shows the session-end overlay.
      *
-     * @param {*} room - Room payload.
+     * @param {*} session - Session payload.
      * @throws {Error}
      */
-    show(room) {
-        const data = GameEndController.#normalizeRoom(room);
+    show(session) {
+        const data = SessionEndController.#normalizeSession(session);
 
         this.#players = data.players;
         this.#render(data);
@@ -59,16 +59,16 @@ export class GameEndController extends ViewController {
     /**
      * Renders the overlay.
      *
-     * @param {Object} room - Normalized room.
+     * @param {Object} session - Normalized session.
      */
-    #render(room) {
-        const winners = GameEndController.#getWinnerNames(room.players);
+    #render(session) {
+        const winners = SessionEndController.#getWinnerNames(session.players);
 
-        this.#message.textContent = GameEndController.#getGameEndMessage(room.playerName, winners);
-        this.#renderStats(room.players);
+        this.#message.textContent = SessionEndController.#getSessionEndMessage(session.playerName, winners);
+        this.#renderStats(session.players);
 
-        if (room.players.length > 0) {
-            this.#selectPlayer(room.players[0].name);
+        if (session.players.length > 0) {
+            this.#selectPlayer(session.players[0].name);
         } else {
             this.#playerCardsTitle.textContent = "Player Cards";
             this.#selectedPlayerCards.replaceChildren();
@@ -188,17 +188,17 @@ export class GameEndController extends ViewController {
     }
 
     /**
-     * Normalizes room payload.
+     * Normalizes session payload.
      *
-     * @param {*} room - Room payload.
-     * @returns {{players:Object[],playerName:string}} Normalized room.
+     * @param {*} session - Session payload.
+     * @returns {{players:Object[],playerName:string}} Normalized session.
      */
-    static #normalizeRoom(room) {
-        const source = NormalizeUtils.object(room, "Room");
+    static #normalizeSession(session) {
+        const source = NormalizeUtils.object(session, "Session");
 
         return {
             players: Array.isArray(source.circle?.players) ? source.circle.players : [],
-            playerName: NormalizeUtils.optionalString(source.session?.playerName, "")
+            playerName: NormalizeUtils.optionalString(source.localPlayerName, "")
         };
     }
 
@@ -221,14 +221,14 @@ export class GameEndController extends ViewController {
     }
 
     /**
-     * Builds the game-end message.
+     * Builds the session-end message.
      *
      * @param {string} playerName - Local player.
      * @param {string[]} winners - Winner names.
-     * @returns {string} Game-end message.
+     * @returns {string} Session-end message.
      */
-    static #getGameEndMessage(playerName, winners) {
-        let message = "Game finished.";
+    static #getSessionEndMessage(playerName, winners) {
+        let message = "Session finished.";
 
         if (winners.length > 1) {
             message = "It is a tie.";

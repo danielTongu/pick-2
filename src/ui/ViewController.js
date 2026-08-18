@@ -11,7 +11,7 @@ export class ViewController {
     root;
 
     /** @type {Object|null} */
-    connectionService;
+    client;
 
     /**
      * Creates a controller for one view root.
@@ -22,7 +22,7 @@ export class ViewController {
      */
     constructor(target, client = null) {
         this.root = DomUtils.require(target, HTMLElement);
-        this.connectionService = client;
+        this.client = client;
     }
 
     /**

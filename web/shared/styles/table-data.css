@@ -18,7 +18,7 @@ td[data-status]::before {
     content: attr(data-status);
 }
 
-td[data-status] > .room-status-indicator {
+td[data-status] > .session-status-indicator {
     display: inline-block;
     width: .8rem;
     height: .8rem;
@@ -30,23 +30,23 @@ td[data-status] > .room-status-indicator {
     transition: background .2s ease-in-out;
 }
 
-td[data-status="waiting"] > .room-status-indicator {
+td[data-status="waiting"] > .session-status-indicator {
     background: orange;
 }
 
-td[data-status="playing"] > .room-status-indicator {
+td[data-status="playing"] > .session-status-indicator {
     background: limegreen;
 }
 
-td[data-status="finished"] > .room-status-indicator {
+td[data-status="finished"] > .session-status-indicator {
     background: gold;
 }
 
-td[data-status="closed"] > .room-status-indicator {
+td[data-status="closed"] > .session-status-indicator {
     background: gray;
 }
 
-td[data-status="error"] > .room-status-indicator {
+td[data-status="error"] > .session-status-indicator {
     background: crimson;
 }
 
@@ -54,8 +54,8 @@ td[data-player-count]::before {
     content: attr(data-player-count);
 }
 
-td[data-visitor-count]::before {
-    content: attr(data-visitor-count);
+td[data-viewer-count]::before {
+    content: attr(data-viewer-count);
 }
 
 td[data-capacity]::before {

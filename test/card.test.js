@@ -18,22 +18,36 @@ test("card-domain constants expose immutable canonical collections", () => {
     assert.equal(Object.isFrozen(Constants.CARD.STANDARD_VALUES), true);
 });
 
-test("default room configuration assigns two AI players to two rooms", () => {
-    assert.equal(Constants.DEFAULT_DUAL_AI_ROOM_COUNT, 2);
-    assert.equal(
-        Constants.DEFAULT_DUAL_AI_ROOM_COUNT <= Constants.DEFAULT_ROOM_NAMES.length,
-        true
-    );
+test("default session configuration assigns two AI players to two sessions", () => {
+    assert.equal(Constants.DEFAULT_SESSIONS.filter((session) => session.aiCount === 2).length, 2);
+    assert.equal(Constants.DEFAULT_SESSIONS.every((session) => Object.isFrozen(session)), true);
+    assert.equal(Object.isFrozen(Constants.DEFAULT_SESSIONS), true);
 });
 
-test("static opponent names are centralized and immutable", () => {
-    assert.equal(Object.isFrozen(Constants.STATIC_OPPONENT_NAMES), true);
-    assert.equal(Constants.STATIC_OPPONENT_NAMES.length, Constants.ROOM_MAX_CAPACITY - 1);
+test("the Session API uses one-word actions", () => {
+    assert.deepEqual(Constants.ACTIONS, {
+        LIST: "list",
+        CREATE: "create",
+        VIEW: "view",
+        JOIN: "join",
+        LEAVE: "leave",
+        START: "start",
+        PASS: "pass",
+        DRAW: "draw",
+        DISCARD: "discard",
+        DECLARE: "declare"
+    });
+    assert.equal(Object.values(Constants.ACTIONS).every((action) => !action.includes("_")), true);
+});
+
+test("local opponent names are centralized and immutable", () => {
+    assert.equal(Object.isFrozen(Constants.LOCAL_OPPONENT_NAMES), true);
+    assert.equal(Constants.LOCAL_OPPONENT_NAMES.length, Constants.SESSION_MAX_CAPACITY - 1);
     assert.equal(
-        Constants.STATIC_OPPONENT_NAMES.every((name) => typeof name === "string" && name.trim().length > 0),
+        Constants.LOCAL_OPPONENT_NAMES.every((name) => typeof name === "string" && name.trim().length > 0),
         true
     );
-    assert.equal(new Set(Constants.STATIC_OPPONENT_NAMES).size, Constants.STATIC_OPPONENT_NAMES.length);
+    assert.equal(new Set(Constants.LOCAL_OPPONENT_NAMES).size, Constants.LOCAL_OPPONENT_NAMES.length);
 });
 
 test("card-domain suit operations share canonical suit definitions", () => {
@@ -115,7 +129,7 @@ test("draw penalties only accept a sufficient draw card or ace of spades", () =>
 });
 
 test("special card effects vary by player count", () => {
-    assert.equal(new Card(VALUE.SEVEN.id, SUIT.HEARTS).isEndGameCard(), true);
+    assert.equal(new Card(VALUE.SEVEN.id, SUIT.HEARTS).isSessionEndCard(), true);
     assert.equal(new Card(VALUE.EIGHT.id, SUIT.CLUBS).isSkip(4), true);
     assert.equal(new Card(VALUE.JACK.id, SUIT.CLUBS).isSkip(2), true);
     assert.equal(new Card(VALUE.JACK.id, SUIT.CLUBS).isReverse(4), true);
