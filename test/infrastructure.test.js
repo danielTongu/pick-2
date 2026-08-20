@@ -283,6 +283,7 @@ test("the shared guide initializes canonical card-sort options", () => {
 
     assert.match(INDEX_HTML, /<select id="card-sort-key-select"><\/select>/);
     assert.match(controller, /Constants\.CARD\.SORT_OPTIONS/);
+    assert.match(controller, /PlayingCard\.create\(card, \{[\s\S]*?isDraggable: false/);
 });
 
 test("the countdown strobes its box shadow and respects reduced motion", () => {

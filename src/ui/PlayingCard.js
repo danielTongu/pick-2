@@ -81,16 +81,19 @@ export class PlayingCard extends HTMLElement {
      * Creates and populates a playing-card element.
      *
      * @param {Object} card - Card data.
+     * @param {Object} [options={}] - Interaction options.
+     * @param {boolean} [options.isDraggable=true] - Whether pointer dragging is enabled.
      * @returns {PlayingCard} Created card element.
      * @throws {Error}
      */
-    static create(card = {}) {
+    static create(card = {}, {isDraggable = true} = {}) {
         const element = document.createElement(PlayingCard.elementName);
 
         if (!(element instanceof PlayingCard)) {
             throw new Error("PlayingCard is not registered.");
         }
 
+        element.dataset.isDraggable = String(isDraggable === true);
         element.update(card);
 
         return element;
@@ -255,7 +258,9 @@ export class PlayingCard extends HTMLElement {
 
         this.addEventListener("click", this.#handleClick);
         this.addEventListener("keydown", this.#handleKeyDown);
-        this.#dragHandle.addEventListener("pointerdown", this.#handlePointerDown);
+        if (this.dataset.isDraggable !== "false") {
+            this.#dragHandle.addEventListener("pointerdown", this.#handlePointerDown);
+        }
 
         this.#areEventsBound = true;
     }

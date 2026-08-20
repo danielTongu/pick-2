@@ -48,7 +48,9 @@ export class GuideController {
 
         for (const [id, group] of Object.entries(groups)) {
             const element = DomUtils.require(`#${id}`, HTMLElement);
-            element.replaceChildren(...group.map((card) => PlayingCard.create(card)));
+            element.replaceChildren(...group.map((card) => PlayingCard.create(card, {
+                isDraggable: false
+            })));
             element.removeAttribute("id");
         }
     }

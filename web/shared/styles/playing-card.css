@@ -178,6 +178,11 @@ playing-card,
     cursor: grabbing;
 }
 
+playing-card[data-is-draggable="false"] > .playing-card-drag-handle {
+    cursor: pointer;
+    touch-action: manipulation;
+}
+
 /* ========================================
    PLAYING CARD
    ======================================== */
