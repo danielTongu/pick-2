@@ -9,7 +9,7 @@ import { PlayingCard } from "./PlayingCard.js";
 import { ViewController } from "./ViewController.js";
 
 /**
- * Controls the singleton local-player region already present in the page HTML.
+ * Controls the local-player elements within the shared session play area.
  */
 export class LocalPlayerController extends ViewController {
     /** @type {Function|null} */
@@ -19,7 +19,13 @@ export class LocalPlayerController extends ViewController {
     #sortHandler = null;
 
     /** @type {HTMLElement} */
-    #playerHeader;
+    #playerSummary;
+
+    /** @type {HTMLElement} */
+    #playerStatus;
+
+    /** @type {HTMLOutputElement} */
+    #playerCardCountOutput;
 
     /** @type {HTMLDivElement} */
     #handElement;
@@ -32,9 +38,6 @@ export class LocalPlayerController extends ViewController {
 
     /** @type {HTMLSelectElement} */
     #sortControl;
-
-    /** @type {HTMLButtonElement} */
-    #sortButton;
 
     /** @type {HTMLElement|null} */
     #idleSecondsOutput = null;
@@ -59,7 +62,13 @@ export class LocalPlayerController extends ViewController {
     constructor(selector, {canRestartFinishedSession = false} = {}) {
         super(selector);
         this.#canRestartFinishedSession = canRestartFinishedSession === true;
-        this.#playerHeader = DomUtils.requireChild(this.root, "header", HTMLElement);
+        this.#playerSummary = DomUtils.requireChild(this.root, "#local-player-summary", HTMLElement);
+        this.#playerStatus = DomUtils.requireChild(this.#playerSummary, "#local-player-status", HTMLElement);
+        this.#playerCardCountOutput = DomUtils.requireChild(
+            this.#playerSummary,
+            "#local-player-card-count",
+            HTMLOutputElement
+        );
         this.#handElement = DomUtils.requireChild(this.root, "#local-player-hand", HTMLDivElement);
         this.#drawButton = DomUtils.requireChild(this.root, "#draw-card-button", HTMLButtonElement);
         this.#drawAllowanceOutput = DomUtils.requireChild(this.root, "#draw-card-button > span", HTMLSpanElement);
@@ -68,8 +77,7 @@ export class LocalPlayerController extends ViewController {
         if (idleSecondsOutput instanceof HTMLElement) {
             this.#idleSecondsOutput = idleSecondsOutput;
         }
-        this.#sortButton = DomUtils.requireChild(this.root, "#card-sort-control-button", HTMLButtonElement);
-        this.#sortControl = DomUtils.requireChild(this.#sortButton, "#card-sort-key-select", HTMLSelectElement);
+        this.#sortControl = DomUtils.requireChild(this.root, "#card-sort-key-select", HTMLSelectElement);
         this.#startButton = DomUtils.requireChild(this.root, "#start-session-button", HTMLButtonElement);
         this.#passButton = DomUtils.requireChild(this.root, "#pass-turn-button", HTMLButtonElement);
 
@@ -127,21 +135,6 @@ export class LocalPlayerController extends ViewController {
         this.#sortControl.addEventListener("change", function () {
             this.#submitSortChange();
         }.bind(this));
-
-        this.#sortButton.addEventListener("click", function (event) {
-            if (event.target === this.#sortControl || this.#sortControl.disabled) {
-                return;
-            }
-
-            event.preventDefault();
-
-            if (typeof this.#sortControl.showPicker === "function") {
-                this.#sortControl.showPicker();
-            } else {
-                this.#sortControl.focus();
-                this.#sortControl.click();
-            }
-        }.bind(this));
     }
 
     /**
@@ -160,8 +153,7 @@ export class LocalPlayerController extends ViewController {
             isBusy: session.isBusy === true
         };
 
-        super.show();
-
+        DomUtils.setBooleanState(this.root, "isTurnBound", true);
         this.#renderRootState(data);
         this.#renderHeader(data);
         this.#renderControls(data, sortKey);
@@ -173,17 +165,18 @@ export class LocalPlayerController extends ViewController {
      */
     hide() {
         this.#clear();
-        super.hide();
+        DomUtils.setBooleanState(this.root, "isTurnBound", false);
     }
 
     /**
      * Clears local-player UI state.
      */
     #clear() {
-        this.root.dataset.status = Constants.STATUS.WAITING;
         this.root.dataset.isTurnOwner = "false";
         this.root.dataset.isWinner = "false";
-        this.#playerHeader.dataset.cardCount = "0";
+        this.#playerSummary.dataset.cardCount = "0";
+        this.#playerStatus.textContent = "Your area";
+        this.#playerCardCountOutput.textContent = "0 cards";
         this.#drawAllowanceOutput.dataset.drawAllowance = "0";
         this.#drawButton.disabled = true;
         this.#handElement.replaceChildren(this.#drawButton);
@@ -228,8 +221,6 @@ export class LocalPlayerController extends ViewController {
      * @param {Object} data - Normalized player state.
      */
     #renderRootState(data) {
-        this.root.dataset.status = data.status;
-
         DomUtils.setBooleanState(
             this.root,
             "isTurnOwner",
@@ -239,12 +230,26 @@ export class LocalPlayerController extends ViewController {
     }
 
     /**
-     * Renders local-player header state.
+     * Renders local-player summary state.
      *
      * @param {Object} data - Normalized player state.
      */
     #renderHeader(data) {
-        this.#playerHeader.dataset.cardCount = String(data.hand.cards.length);
+        const cardCount = data.hand.cards.length;
+        const isTurnOwner = TurnUtils.isTurnOwner(data.turnOwnerKey, data.key);
+        let status = "Your area";
+
+        if (data.isWinner === true) {
+            status = "🏆 You won!";
+        } else if (data.status === Constants.STATUS.FINISHED) {
+            status = "You lost.";
+        } else if (isTurnOwner) {
+            status = "Your turn. Drag a matching card.";
+        }
+
+        this.#playerSummary.dataset.cardCount = String(cardCount);
+        this.#playerStatus.textContent = status;
+        this.#playerCardCountOutput.textContent = `${cardCount} ${cardCount === 1 ? "card" : "cards"}`;
     }
 
     /**

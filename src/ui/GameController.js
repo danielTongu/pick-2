@@ -150,7 +150,17 @@ export class GameController extends ViewController {
         for (const session of Array.isArray(game?.sessions) ? game.sessions : []) {
             if (!filter || session.status === filter) {
                 const row = SessionRowUtils.create(session);
-                row.addEventListener("click", () => this.#openSession(session));
+                const openSession = () => this.#openSession(session);
+
+                row.tabIndex = 0;
+                row.setAttribute("aria-label", `View session ${session.name}`);
+                row.addEventListener("click", openSession);
+                row.addEventListener("keydown", (event) => {
+                    if (event.key === "Enter") {
+                        event.preventDefault();
+                        openSession();
+                    }
+                });
                 this.#sessionTableBody.appendChild(row);
             }
         }

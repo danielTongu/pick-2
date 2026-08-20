@@ -214,7 +214,7 @@ test("static and server deployments share one game page and one session page", (
     assert.match(gameHtml, /<body data-page="game">/);
     assert.match(gameHtml, /id="session-registration-form"/);
     assert.match(gameHtml, /id="session-list-table-body"/);
-    assert.match(gameHtml, /<fieldset id="connection-status"[^>]+data-status="connecting"/);
+    assert.match(gameHtml, /<fieldset[^>]+id="connection-status"[^>]+data-status="connecting"/);
     assert.match(gameHtml, /id="local-mode-input"[^>]+value="local"/);
     assert.match(gameHtml, /id="server-mode-input"[^>]+value="server"/);
     assert.doesNotMatch(gameHtml, /id="connection-status-indicator"/);
@@ -225,16 +225,24 @@ test("static and server deployments share one game page and one session page", (
     assert.match(gameHtml, /id="session-list-panel"/);
     assert.doesNotMatch(gameHtml, /id="request-mode-control" hidden/);
     assert.doesNotMatch(gameHtml, /id="session-list-panel" hidden/);
-    assert.match(gameHtml, /<tbody id="session-list-table-body"><tr class="empty-session-row"><td colspan="7">No sessions available\.<\/td>/);
+    assert.match(gameHtml, /<tbody id="session-list-table-body">[\s\S]*?class="empty-session-row"/);
     assert.doesNotMatch(gameHtml, /id="game-guide-section"/);
     assert.match(sessionHtml, /<body data-page="session">/);
-    assert.match(sessionHtml, /id="session-play-area"/);
+    assert.match(sessionHtml, /id="session-play-area"[^>]+data-is-turn-bound="false"/);
+    assert.match(sessionHtml, /class="[^"]*local-player-region[^"]*"[^>]+data-card-count="0"/);
+    assert.match(sessionHtml, /class="[^"]*local-player-region[^"]*"[^>]+id="local-player-hand"/);
+    assert.match(sessionHtml, /class="playing-card-area" id="discard-pile"/);
+    assert.doesNotMatch(sessionHtml, /id="local-player-region"/);
     assert.match(sessionHtml, /id="game-guide-section"/);
     assert.match(sessionHtml, /<tr class="placeholder-row"[^>]*>[\s\S]*?<td>--<\/td>/);
     assert.doesNotMatch(sessionHtml, /id="session-mode-label"/);
     assert.doesNotMatch(sessionHtml, /id="connection-status-indicator"/);
     assert.match(gameHtml, /\.\/src\/main\.js/);
     assert.match(sessionHtml, /\.\.\/src\/main\.js/);
+    assert.match(gameHtml, /\.\/web\/shared\/styles\/pick2-index\.css/);
+    assert.match(sessionHtml, /\.\.\/web\/shared\/styles\/session-index\.css/);
+    assert.match(gameHtml, /\.\/web\/shared\/styles\/base\.css/);
+    assert.match(sessionHtml, /\.\.\/web\/shared\/styles\/base\.css/);
     assert.match(main, /new LocalTransport\(new LocalServer\(\)\)/);
     assert.match(main, /new WebSocketTransport/);
     assert.match(server, /session\/index\.html/);
@@ -252,7 +260,9 @@ test("shared controllers depend on GameClient vocabulary rather than edition ser
         assert.match(source, /this\.client/);
     }
 
-    assert.match(gameController, /row\.addEventListener\("click", \(\) => this\.#openSession\(session\)\)/);
+    assert.match(gameController, /row\.addEventListener\("click", openSession\)/);
+    assert.match(gameController, /row\.addEventListener\("keydown"/);
+    assert.match(gameController, /row\.tabIndex = 0/);
     assert.match(gameController, /this\.#sessionHandler\?\.\(Constants\.ACTIONS\.VIEW, \{sessionName\}\)/);
     assert.doesNotMatch(gameController, /this\.#capabilities\.viewers === true/);
     assert.match(gameController, /cell\.textContent = "No sessions available\."/);
@@ -268,7 +278,7 @@ test("the landing page keeps canonical search metadata", () => {
     const sitemap = readFileSync(new URL("../sitemap.xml", import.meta.url), "utf8");
     const canonicalUrl = "https://danieltongu.github.io/pick-2/";
 
-    assert.match(html, /<title>Play Pick 2 \| Local &amp; Server Card Game<\/title>/);
+    assert.match(html, /<title>Play Pick 2 \| Your Modern Card Table<\/title>/);
     assert.match(html, /<meta name="description" content="[^"]+">/);
     assert.match(html, new RegExp(`<link rel="canonical" href="${canonicalUrl}">`));
     assert.match(sitemap, new RegExp(`<loc>${canonicalUrl}<\\/loc>`));
@@ -277,14 +287,17 @@ test("the landing page keeps canonical search metadata", () => {
 test("the shared session preserves touch-friendly card presentation", () => {
     const html = readFileSync(new URL("../session/index.html", import.meta.url), "utf8");
     const cardCss = readFileSync(new URL("../web/shared/styles/playing-card.css", import.meta.url), "utf8");
-    const appCss = readFileSync(new URL("../web/shared/styles/app.css", import.meta.url), "utf8");
-    const pagesCss = readFileSync(new URL("../web/shared/styles/pages.css", import.meta.url), "utf8");
+    const sessionCss = readFileSync(new URL("../web/shared/styles/session-index.css", import.meta.url), "utf8");
+    const gameCss = readFileSync(new URL("../web/shared/styles/pick2-index.css", import.meta.url), "utf8");
+    const controller = readFileSync(new URL("../src/ui/LocalPlayerController.js", import.meta.url), "utf8");
 
     assert.doesNotMatch(html, /id="card-size-range"/);
-    assert.match(cardCss, /--card-max-height:\s*200px/);
+    assert.match(cardCss, /--card-size:\s*100cqh/);
     assert.match(cardCss, /\.playing-card-drag-handle\s*\{[\s\S]*?width:\s*100%/);
-    assert.match(appCss, /#local-player-hand[\s\S]*overflow-x:\s*auto/);
-    assert.match(appCss, /@keyframes turn-owner-border-strobe/);
-    assert.match(appCss, /border:\s*1px solid var\(--connection-status-color\)/);
-    assert.match(pagesCss, /label:has\(input:checked\) > span[\s\S]*background:\s*var\(--connection-status-color\)/);
+    assert.match(cardCss, /\.playing-card-area:not\(#discard-pile\)[\s\S]*overflow-x:\s*auto/);
+    assert.match(sessionCss, /@keyframes turn-owner-border-strobe/);
+    assert.match(sessionCss, /\[data-is-turn-bound="false"\] > \.local-player-region/);
+    assert.match(gameCss, /\.toggle-switch label:has\(input:checked\)/);
+    assert.match(controller, /setBooleanState\(this\.root, "isTurnBound", true\)/);
+    assert.match(controller, /setBooleanState\(this\.root, "isTurnBound", false\)/);
 });

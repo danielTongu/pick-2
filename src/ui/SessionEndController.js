@@ -99,6 +99,9 @@ export class SessionEndController extends ViewController {
 
         row.dataset.playerName = player.name;
         row.dataset.isSelected = "false";
+        row.tabIndex = 0;
+        row.setAttribute("aria-label", `View ${player.name}'s cards`);
+        row.setAttribute("aria-selected", "false");
         DomUtils.setBooleanState(row, "isWinner", player.isWinner);
 
         row.appendChild(this.#createStatsCell(player.name));
@@ -106,9 +109,15 @@ export class SessionEndController extends ViewController {
         row.appendChild(this.#createStatsCell(String(player.hand.cards.length)));
         row.appendChild(this.#createStatsCell(player.isWinner ? "Winner" : "Lost"));
 
-        row.addEventListener("click", function () {
-            this.#selectPlayer(player.name);
-        }.bind(this));
+        const selectPlayer = () => this.#selectPlayer(player.name);
+
+        row.addEventListener("click", selectPlayer);
+        row.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                selectPlayer();
+            }
+        });
 
         return row;
     }
@@ -157,7 +166,10 @@ export class SessionEndController extends ViewController {
 
         for (const row of rows) {
             if (row instanceof HTMLTableRowElement) {
-                DomUtils.setBooleanState(row, "isSelected", row.dataset.playerName === playerName);
+                const isSelected = row.dataset.playerName === playerName;
+
+                DomUtils.setBooleanState(row, "isSelected", isSelected);
+                row.setAttribute("aria-selected", String(isSelected));
             }
         }
     }

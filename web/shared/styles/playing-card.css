@@ -1,30 +1,101 @@
 /* public/styles/playing-card.css */
 
-@import url("./tokens.css");
+/* ========================================
+   ROOT VARIABLES
+   ======================================== */
 
 :root {
-    --card-aspect-ratio: 170 / 240;
-    --card-min-height: 90px;
-    --card-max-height: 200px;
+    --card-aspect-ratio: 171 / 241;
+    --card-min-height: 91px;
+    --card-size: 100cqh;
+    --card-gap: calc(var(--container-spacing, 8px) / 2);
 }
 
-@media (min-width: 641px) {
-    :root {
-        --card-min-height: 110px;
-    }
-}
-
-/* CONTAINERS */
+/* ========================================
+   CONTAINERS - Horizontal flow, no wrap
+   ======================================== */
 
 .playing-card-area {
     container-type: size;
+
+    font-size: 0;
+    white-space: nowrap;
+    text-wrap: nowrap;
+    text-align: center;
+
+    overscroll-behavior-inline: contain;
+    scroll-padding-inline: var(--container-spacing);
+    scrollbar-width: none;
+
+    height: 100%;
     min-height: var(--card-min-height);
+
+    padding: 0 calc(var(--card-gap) / 2);
 }
 
+.playing-card-area:not(#discard-pile) {
+    overflow: hidden;
+    overflow-x: auto;
+    height: 100%;
+}
+
+.playing-card-area > playing-card,
+.playing-card-area > #draw-card-button {
+    margin: 0 calc(var(--card-gap) / 2);
+}
+
+.playing-card-area > playing-card:first-child,
+.playing-card-area > #draw-card-button:first-child {
+    margin-left: 0;
+}
+
+.playing-card-area > playing-card:last-child,
+.playing-card-area > #draw-card-button:last-child {
+    margin-right: 0;
+}
+
+/* ========================================
+   DISCARD PILE - Special layout override
+   ======================================== */
+
 #discard-pile {
-    container-type: size;
     position: relative;
-    background: rgba(255, 255, 255, .04);
+    height: 100%;
+    min-height: var(--card-min-height);
+
+    font-size: inherit;
+    white-space: normal;
+
+    display: grid;
+    place-items: center;
+
+}
+
+#discard-pile[data-is-drag-over="true"]::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 100%;
+    width: calc(var(--card-min-height) * 2);
+    border: 1px dashed rgba(255, 255, 255, .12);
+    border-radius: 1rem;
+}
+
+#discard-pile:empty[data-is-drag-over="true"]::after {
+    content: "\1F44D";
+}
+
+#discard-pile:empty::after {
+    content: "Discard here";
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: .04em;
+
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
 }
 
 #discard-pile > playing-card {
@@ -35,36 +106,47 @@
     transform-origin: center center;
 
     transition:
-            transform .25s cubic-bezier(.34,1.56,.64,1),
+            transform .25s cubic-bezier(.34, 1.56, .64, 1),
             box-shadow .3s ease,
             opacity .3s ease,
             background .3s ease;
 }
 
+/* ========================================
+   DRAG IMAGE (Body-level card)
+   ======================================== */
+
 body > playing-card {
-    /* The additional style for the drag-image */
     position: fixed;
     pointer-events: none;
-    z-Index: 9999;
+    z-index: 9999;
 }
 
-/* CONTAINER ELEMENTS */
+/* ========================================
+   CARDS & DRAW BUTTON - Shared sizing
+   ======================================== */
 
 playing-card,
 #draw-card-button {
     display: inline-block;
     text-align: center;
 
-    height: clamp(var(--card-min-height), 100cqh, var(--card-max-height));
+    height: var(--card-size);
     aspect-ratio: var(--card-aspect-ratio);
     width: auto;
 
-    --card-height: clamp(var(--card-min-height), 100cqh, var(--card-max-height));
+    --card-height: var(--card-size);
     --card-width: calc(var(--card-height) * (170 / 240));
+
     border-radius: calc(var(--card-width) / 10);
     box-sizing: border-box;
     flex: 0 0 auto;
+    min-height: var(--card-min-height);
 }
+
+/* ========================================
+   DRAG HANDLE
+   ======================================== */
 
 .playing-card-drag-handle {
     cursor: grab;
@@ -92,12 +174,13 @@ playing-card,
     opacity: .3;
 }
 
-/* Keep local cards and their drag affordance comfortable for adult thumbs. */
-#local-player-hand > playing-card,
-#local-player-hand > #draw-card-button {
-    height: var(--card-max-height);
-    --card-height: var(--card-max-height);
+.playing-card-drag-handle:active {
+    cursor: grabbing;
 }
+
+/* ========================================
+   PLAYING CARD
+   ======================================== */
 
 playing-card {
     --symbol: "";
@@ -118,7 +201,7 @@ playing-card {
     position: relative;
     display: inline-block;
     vertical-align: top;
-    background: #FFFFFF; /* same color as the joker image background */
+    background: #FFFFFF; /* Same color as the joker image background */
     border: 1px solid #1a1a1a;
     box-shadow: none;
     color: var(--color);
@@ -131,10 +214,6 @@ playing-card {
             background .3s ease;
 }
 
-.playing-card-drag-handle:active {
-    cursor: grabbing;
-}
-
 playing-card[data-is-face-down="true"] {
     background: var(--card-back-pattern);
     background-size: calc(var(--card-width) / 8) calc(var(--card-width) / 8);
@@ -144,12 +223,16 @@ playing-card[data-is-face-down="true"] {
     box-shadow: var(--shadow-black);
 }
 
+/* ========================================
+   CARD CENTER - Rank/Suit display
+   ======================================== */
+
 playing-card:hover > .playing-card-center::before {
     transform: scale(1.05);
 }
 
 playing-card > .playing-card-center {
-    position:absolute;
+    position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
@@ -162,6 +245,10 @@ playing-card > .playing-card-center::before {
     line-height: 1;
     transition: transform .4s ease;
 }
+
+/* ========================================
+   JOKER SPECIAL STYLES
+   ======================================== */
 
 playing-card[data-value="joker"] > .playing-card-center::before {
     content: "";
@@ -180,6 +267,18 @@ playing-card[data-value="joker"] > .playing-card-center {
     width: var(--card-width);
     height: var(--card-height);
 }
+
+playing-card[data-value="joker"]::before,
+playing-card[data-value="joker"]::after {
+    content: "J\A O\A K\A E\A R";
+    --corner-font-size: var(--joker-font-size);
+    letter-spacing: .05em;
+    line-height: 1.1;
+}
+
+/* ========================================
+   SUIT COLORS
+   ======================================== */
 
 playing-card[data-suit="hearts"],
 playing-card[data-suit="diamonds"],
@@ -209,6 +308,10 @@ playing-card[data-suit="spades"] {
     --symbol: "♠";
 }
 
+/* ========================================
+   CARD CORNERS - Rank/Suit indicators
+   ======================================== */
+
 playing-card::before,
 playing-card::after {
     pointer-events: none;
@@ -220,7 +323,7 @@ playing-card::after {
     font-size: var(--corner-font-size);
     font-weight: 800;
     text-transform: uppercase;
-    text-shadow: 0 1px 1px rgba(255,255,255,.3);
+    text-shadow: 0 1px 1px rgba(255, 255, 255, .3);
     letter-spacing: -.02em;
 }
 
@@ -241,13 +344,9 @@ playing-card[data-is-face-down="true"] > .playing-card-center {
     display: none;
 }
 
-playing-card[data-value="joker"]::before,
-playing-card[data-value="joker"]::after {
-    content: "J\A O\A K\A E\A R";
-    --corner-font-size: var(--joker-font-size);
-    letter-spacing: .05em;
-    line-height: 1.1;
-}
+/* ========================================
+   DRAGGING STATE
+   ======================================== */
 
 playing-card[data-is-dragging="true"] {
     opacity: 0;
@@ -255,14 +354,17 @@ playing-card[data-is-dragging="true"] {
     pointer-events: none;
 }
 
+/* ========================================
+   DRAW CARD BUTTON - Placeholder card
+   ======================================== */
+
 #draw-card-button {
     --plus-length: calc(var(--card-width) * .50);
     --plus-length-hover: calc(var(--card-width) * .70);
     --plus-thickness: calc(var(--card-width) * .035);
 
     position: relative;
-    display: grid;
-    place-items: center;
+    display: inline-block;
     border: 1px dashed;
     background: rgba(255, 255, 255, .08);
     color: #fff;
@@ -271,6 +373,10 @@ playing-card[data-is-dragging="true"] {
             background .3s ease,
             border-color .3s ease,
             color .3s ease;
+}
+
+#draw-card-button:active {
+    transform: scale(.97);
 }
 
 #draw-card-button::before,
@@ -297,17 +403,21 @@ playing-card[data-is-dragging="true"] {
     height: var(--plus-length);
 }
 
-#draw-card-button > span {
+#draw-card-button > span[data-draw-allowance] {
     position: absolute;
-    right: calc(var(--card-width) / 14);
     bottom: calc(var(--card-height) / 17);
     font-size: calc(var(--card-height) / 8);
-    font-weight: 700;
     line-height: 1;
     pointer-events: none;
+    left: 50%;
+    transform: translateX(-50%);
 }
 
-#draw-card-button > span::before {
+#draw-card-button > span[data-draw-allowance]::before {
+    content: "draw ";
+}
+
+#draw-card-button > span[data-draw-allowance]::after {
     content: attr(data-draw-allowance);
 }
 
@@ -342,6 +452,10 @@ playing-card[data-is-dragging="true"] {
     height: var(--plus-length);
 }
 
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+
 @media print {
     playing-card,
     #draw-card-button {
@@ -357,11 +471,15 @@ playing-card[data-is-dragging="true"] {
     }
 
     #draw-card-button {
-        border: 1px solid rgba(0,0,0,.2);
+        border: 1px solid rgba(0, 0, 0, .2);
         background: #f5f5f5;
         color: #333;
     }
 }
+
+/* ========================================
+   REDUCED MOTION
+   ======================================== */
 
 @media (prefers-reduced-motion: reduce) {
     playing-card,

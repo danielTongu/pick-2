@@ -45,7 +45,7 @@ export class SessionController extends ViewController {
     #alertController = new AlertController("#alert-dialog");
 
     /** @type {LocalPlayerController} */
-    #playerController = new LocalPlayerController("#local-player-region");
+    #playerController = new LocalPlayerController("#session-play-area");
 
     /** @type {SuitSelectionController} */
     #suitController = new SuitSelectionController("#suit-selection-dialog");

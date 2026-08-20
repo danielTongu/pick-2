@@ -6,9 +6,10 @@ import { NormalizeUtils } from "../core/NormalizeUtils.js";
 /**
  * Interactive playing-card custom element.
  *
- * Every card is draggable. A release over the configured discard target emits
- * a card-drop event; any other release restores the card at its origin. Game
- * legality, turn ownership, and server communication remain controller
+ * Game cards are draggable. Decorative cards opt out of interaction with the
+ * `data-decorative` attribute. A release over the configured discard target
+ * emits a card-drop event; any other release restores the card at its origin.
+ * Game legality, turn ownership, and server communication remain controller
  * responsibilities.
  */
 export class PlayingCard extends HTMLElement {
@@ -103,7 +104,9 @@ export class PlayingCard extends HTMLElement {
             this.#initialize();
         }
 
-        if (!this.hasAttribute("data-drag-clone") && !this.#areEventsBound) {
+        if (!this.hasAttribute("data-decorative") &&
+            !this.hasAttribute("data-drag-clone") &&
+            !this.#areEventsBound) {
             this.#bindEvents();
         }
 
@@ -227,8 +230,13 @@ export class PlayingCard extends HTMLElement {
         this.#dragHandle = dragHandle;
         this.#isInitialized = true;
 
-        this.tabIndex = 0;
-        this.setAttribute("role", "button");
+        if (this.hasAttribute("data-decorative")) {
+            this.tabIndex = -1;
+            this.setAttribute("aria-hidden", "true");
+        } else {
+            this.tabIndex = 0;
+            this.setAttribute("role", "button");
+        }
 
         if (this.dataset.isFaceDown !== "true") {
             this.dataset.isFaceDown = "false";
@@ -536,6 +544,11 @@ export class PlayingCard extends HTMLElement {
      * Updates the accessible card description.
      */
     #updateAccessibility() {
+        if (this.hasAttribute("data-decorative")) {
+            this.removeAttribute("aria-label");
+            return;
+        }
+
         const value = this.dataset.value ?? "";
         const suit = this.dataset.suit ?? "";
         const identity = value ? `${value} of ${suit}` : suit;

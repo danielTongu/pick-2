@@ -2,24 +2,31 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Play Pick 2 | Local &amp; Server Card Game</title>
-    <meta name="description" content="Create a Local Pick 2 session against AI opponents or join a shared Server session when available.">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Play Pick 2 | Your Modern Card Table</title>
+    <meta name="description" content="Create a private Pick 2 session, invite your players, and start the next deal.">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <link rel="canonical" href="https://danieltongu.github.io/pick-2/">
     <link rel="sitemap" type="application/xml" href="https://danieltongu.github.io/pick-2/sitemap.xml">
     <meta name="google-site-verification" content="1y4PstMN0Q7yR-3xCeDPlAHfFBGO3HrWMhTDX8tGJnk">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Pick 2">
-    <meta property="og:title" content="Play Pick 2 | Local &amp; Server Card Game">
-    <meta property="og:description" content="Create a Local session or join a shared Server session in Pick 2.">
+    <meta property="og:title" content="Play Pick 2 | Your Modern Card Table">
+    <meta property="og:description" content="Create a private session, invite your players, and start the next deal.">
     <meta property="og:url" content="https://danieltongu.github.io/pick-2/">
     <meta property="og:locale" content="en_US">
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Play Pick 2 | Local &amp; Server Card Game">
-    <meta name="twitter:description" content="Create a Local session or join a shared Server session in Pick 2.">
+    <meta name="twitter:title" content="Play Pick 2 | Your Modern Card Table">
+    <meta name="twitter:description" content="Create a private session, invite your players, and start the next deal.">
     <meta name="pick-2-shared-root" content="./web/shared/">
     <meta name="pick-2-server-origin" content="">
+    <link rel="stylesheet" href="./web/shared/styles/tokens.css">
+    <link rel="stylesheet" href="./web/shared/styles/base.css">
+    <link rel="stylesheet" href="./web/shared/styles/pick2-index.css">
+    <link rel="stylesheet" href="./web/shared/styles/table-data.css">
+    <link rel="stylesheet" href="./web/shared/styles/playing-card.css">
+    <link rel="stylesheet" href="./web/shared/styles/overlays.css">
+    <link rel="stylesheet" href="./web/shared/styles/app-footer.css">
     <script type="application/ld+json">
         {
             "@context": "https://schema.org",
@@ -30,119 +37,170 @@
             "applicationCategory": "GameApplication",
             "operatingSystem": "Any",
             "browserRequirements": "Requires JavaScript and a modern web browser.",
-            "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"}
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD"
+            }
         }
     </script>
-    <link rel="stylesheet" href="./web/shared/styles/table-data.css">
-    <link rel="stylesheet" href="./web/shared/styles/overlays.css">
-    <link rel="stylesheet" href="./web/shared/styles/app.css">
-    <link rel="stylesheet" href="./web/shared/styles/pages.css">
 </head>
 <body data-page="game">
-<header id="app-header">
-    <nav id="app-navigation-actions" aria-label="Application controls">
-        <h1 id="app-title"><a id="app-home-link" href="./" aria-label="Open the Pick 2 game">Pick 2</a></h1>
-        <fieldset id="connection-status" data-status="connecting"
-                  aria-label="Connection mode. Local connecting. Server unavailable.">
-            <label for="local-mode-input">
-                <input id="local-mode-input" name="connection-mode" type="radio" value="local" checked>
-                <span>Local</span>
-            </label>
-            <label for="server-mode-input">
-                <input id="server-mode-input" name="connection-mode" type="radio" value="server" disabled>
-                <span>Server</span>
-            </label>
-        </fieldset>
-    </nav>
-</header>
-
-<main id="game-view">
-    <header id="game-header">
-        <div>
-            <h2>Sessions</h2>
-            <p>Create a session or select an available session to join.</p>
-        </div>
+<div class="site-shell">
+    <header id="app-header">
+        <nav id="app-navigation-actions" aria-label="Application controls">
+            <h1 id="app-title">
+                <a id="app-home-link" href="./" aria-label="Open the Pick 2 game">
+                    <span class="brand-mark" aria-hidden="true">P2</span>
+                    <span class="brand-copy"><strong>Pick 2</strong><small>The modern card table</small></span>
+                </a>
+            </h1>
+            <fieldset class="toggle-switch" id="connection-status" data-status="connecting" aria-label="Connection mode. Local connecting. Server unavailable.">
+                <label for="local-mode-input">
+                    <input id="local-mode-input" name="connection-mode" type="radio" value="local" checked>
+                    <span>Local</span>
+                </label>
+                <label for="server-mode-input">
+                    <input id="server-mode-input" name="connection-mode" type="radio" value="server" disabled>
+                    <span>Server</span>
+                </label>
+            </fieldset>
+        </nav>
     </header>
 
-    <form id="session-registration-form">
-        <div id="field-group">
-            <label for="player-name-input">
-                <span>Player</span>
-                <input id="player-name-input" type="text" autocomplete="nickname" maxlength="24" required autofocus>
-            </label>
-            <label for="session-name-input">
-                <span>Session</span>
-                <input id="session-name-input" type="text" autocomplete="off" maxlength="48" required>
-            </label>
-            <label for="session-capacity-input">
-                <span>Capacity</span>
-                <input id="session-capacity-input" type="number" min="2" max="4" value="4" required>
-            </label>
-        </div>
-        <div id="request-mode-control">
-            <label for="mode-group">Request</label>
-            <div id="mode-group">
-                <label for="create-mode-input">
-                    <input id="create-mode-input" name="registration-mode" type="radio" value="create" checked>
-                    <span>Create</span>
-                </label>
-                <label for="join-mode-input">
-                    <input id="join-mode-input" name="registration-mode" type="radio" value="join">
-                    <span>Join</span>
-                </label>
+    <main>
+        <section class="hero" aria-labelledby="hero-title">
+            <div class="eyebrow">Private tables · Instant play</div>
+            <h2 id="hero-title">Your table.<br><em>Your rules.</em></h2>
+            <p>Start a private session, invite your circle, and play Pick 2 at a table designed to keep the game moving.</p>
+            <div class="card-fan" aria-hidden="true" inert>
+                <playing-card data-decorative data-value="2" data-suit="hearts" data-is-face-down="false">
+                    <div class="playing-card-drag-handle"></div>
+                    <div class="playing-card-center"></div>
+                </playing-card>
+                <playing-card data-decorative data-value="joker" data-suit="red" data-is-face-down="true">
+                    <div class="playing-card-drag-handle"></div>
+                    <div class="playing-card-center"></div>
+                </playing-card>
+                <playing-card data-decorative data-value="a" data-suit="spades" data-is-face-down="false">
+                    <div class="playing-card-drag-handle"></div>
+                    <div class="playing-card-center"></div>
+                </playing-card>
             </div>
-        </div>
-        <button id="session-registration-submit-button" type="submit">Continue</button>
-    </form>
+        </section>
 
-    <section id="session-list-panel">
-        <header>
-            <p>Select a session to open it.</p>
-            <label id="session-filter-control">
-                <span>Status</span>
-                <select id="session-status-filter">
-                    <option value="">All</option>
-                    <option value="waiting">Waiting</option>
-                    <option value="playing">Playing</option>
-                    <option value="finished">Finished</option>
-                </select>
-            </label>
-        </header>
-        <div class="table-container">
-            <table id="session-list-table">
-                <thead>
-                <tr>
-                    <th scope="col">Session</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Players</th>
-                    <th scope="col">Viewers</th>
-                    <th scope="col">Capacity</th>
-                    <th scope="col">Last Active</th>
-                    <th scope="col">Created</th>
-                </tr>
-                </thead>
-                <tbody id="session-list-table-body"><tr class="empty-session-row"><td colspan="7">No sessions available.</td></tr></tbody>
-            </table>
-        </div>
-    </section>
-</main>
+    <div id="game-view">
+        <section id="session-registration">
+            <header class="panel-header">
+                <div>
+                    <span class="section-kicker">New session</span>
+                    <h2>Find or start a game</h2>
+                </div>
+                <span class="step" aria-hidden="true">01</span>
+            </header>
+            <form id="session-registration-form">
+                <div id="field-group">
+                    <label for="player-name-input">
+                        <span>Player name</span>
+                        <input id="player-name-input" type="text" autocomplete="nickname" maxlength="24" required placeholder="What should we call you?">
+                    </label>
+                    <label for="session-name-input">
+                        <span>Session name</span>
+                        <input id="session-name-input" type="text" autocomplete="off" maxlength="48" required placeholder="e.g. Friday night">
+                    </label>
+                    <label for="session-capacity-input">
+                        <span>Seats</span>
+                        <input id="session-capacity-input" type="number" min="2" max="4" value="4" required>
+                    </label>
+                </div>
+                <div class="form-footer">
+                    <div id="request-mode-control">
+                        <span class="control-label">I want to</span>
+                        <fieldset class="toggle-switch" id="mode-group">
+                            <label for="create-mode-input">
+                                <input id="create-mode-input" name="registration-mode" type="radio" value="create" checked>
+                                <span>Create</span>
+                            </label>
+                            <label for="join-mode-input">
+                                <input id="join-mode-input" name="registration-mode" type="radio" value="join">
+                                <span>Join</span>
+                            </label>
+                        </fieldset>
+                    </div>
+                    <button id="session-registration-submit-button" type="submit">Enter session</button>
+                </div>
+            </form>
+        </section>
 
-<section id="alert-dialog" class="dialog-overlay" data-status="info" hidden>
+        <section id="session-list-panel">
+            <header class="panel-header">
+                <div>
+                    <span class="section-kicker">Now playing</span>
+                    <h2>Live sessions</h2>
+                </div>
+                <label id="session-filter-control">
+                    <span class="visually-hidden">Status</span>
+                    <select id="session-status-filter">
+                        <option value="">All sessions</option>
+                        <option value="waiting">Waiting</option>
+                        <option value="playing">Playing</option>
+                        <option value="finished">Finished</option>
+                    </select>
+                </label>
+            </header>
+            <div class="table-container">
+                <table id="session-list-table">
+                    <thead>
+                    <tr>
+                        <th scope="col">Session</th>
+                        <th scope="col">Status</th>
+                        <th scope="col">Players</th>
+                        <th scope="col">Viewers</th>
+                        <th scope="col">Capacity</th>
+                        <th scope="col">Last active</th>
+                        <th scope="col">Created</th>
+                    </tr>
+                    </thead>
+                    <tbody id="session-list-table-body">
+                    <tr class="empty-session-row">
+                        <td colspan="7">
+                            <span class="empty-state-mark" aria-hidden="true">♣ ♥</span>No sessions available.
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+    </main>
+
+    <footer id="app-footer">
+        <div id="app-footer-brand" aria-label="Pick 2">
+            <strong>Pick 2</strong>
+            <p>Match cards. Make moves.</p>
+        </div>
+        <nav id="app-footer-navigation" aria-label="Footer navigation">
+            <a href="#app-header">Back to top ↑</a>
+        </nav>
+        <small id="app-footer-note">
+            <span>© <time id="copyright-year" datetime="2026">2026</time> Pick 2. All rights reserved.</span>
+            <span>Local and server play</span>
+        </small>
+    </footer>
+</div>
+
+<!-- dialogs -->
+
+<section id="alert-dialog" class="dialog-overlay" data-status="info" role="alertdialog" aria-modal="true" aria-labelledby="alert-title" aria-describedby="alert-message" hidden>
     <div class="dialog-panel">
-        <header><div id="alert-icon" data-icon="info"></div><h1 id="alert-title"></h1></header>
+        <header>
+            <div id="alert-icon" data-icon="info" aria-hidden="true"></div>
+            <h1 id="alert-title"></h1>
+        </header>
         <output id="alert-message"></output>
         <button id="alert-dismiss-button" type="button">OK</button>
     </div>
 </section>
-
-<footer id="app-footer">
-    <section id="app-footer-brand" aria-label="Pick 2"><strong>Pick 2</strong><p>Match cards. Make moves.</p></section>
-    <nav id="app-footer-navigation" aria-label="Footer navigation"><a href="#app-header">Top</a></nav>
-    <small id="app-footer-note">
-        <span>© <time id="copyright-year" datetime="2026">2026</time> Pick 2. All rights reserved.</span>
-        <span>Local and server play</span>
-    </small>
-</footer>
 
 <script type="module" src="./src/main.js"></script>
 </body>

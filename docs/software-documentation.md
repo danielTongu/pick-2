@@ -232,14 +232,16 @@ Do not replace development errors with `UserNotification`; players cannot take u
 
 ## 10. Styling and responsive design
 
-The interface is mobile-first and has two responsive stages: small screens, then a shared tablet/desktop layout beginning at 641 px. Common spacing, radius, and control dimensions are inherited through stylesheet tokens and container rules. Session actions and Session information remain stacked, while create/join controls remain side by side.
+The interface is mobile-first and uses content-driven breakpoints: card sizing expands at 641 px, the compact shell and guide apply through 720 px, and Game panels remain stacked through 900 px. Common spacing, radius, and control dimensions are inherited through stylesheet tokens and container rules. Session actions and Session information remain stacked, while create/join controls remain side by side.
 
 Stylesheets are organized in page order and by responsibility:
 
 - `tokens.css`: common design values;
-- `app.css`: page, game, session, guide, and footer;
+- `base.css`: shared document structure, typography, focus, and motion defaults;
+- `pick2-index.css`: Game page layout and controls;
+- `session-index.css`: Session layout, players, opponents, and guide;
+- `app-footer.css`: the footer shared by both pages;
 - `playing-card.css`: card containers and card faces;
-- `opponent.css`: opponent presentation;
 - `table-data.css`: tabular information;
 - `overlays.css`: alerts, countdown, suit selection, and Session results.
 

@@ -1,5 +1,9 @@
 /* public/styles/table-data.css */
 
+td {
+    white-space: nowrap;
+}
+
 td:empty::before {
     content: "--";
     display: inline-block;

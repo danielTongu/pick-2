@@ -49,7 +49,18 @@ export class OpponentUtils extends TemplateUtils {
         element.dataset.playerName = player.name;
         element.dataset.cardCount = String(player.hand.cards.length);
 
-        DomUtils.setBooleanState(element, "isTurnOwner", TurnUtils.isTurnOwner(player.turnOwnerKey, player.key));
+        const isTurnOwner = TurnUtils.isTurnOwner(player.turnOwnerKey, player.key);
+        const cardLabel = player.hand.cards.length === 1 ? "card" : "cards";
+        const states = [
+            isTurnOwner ? "current turn" : "",
+            player.isWinner === true ? "winner" : ""
+        ].filter(Boolean);
+
+        element.setAttribute(
+            "aria-label",
+            `${player.name}, ${player.hand.cards.length} ${cardLabel}${states.length > 0 ? `, ${states.join(", ")}` : ""}`
+        );
+        DomUtils.setBooleanState(element, "isTurnOwner", isTurnOwner);
         DomUtils.setBooleanState(element, "isWinner", player.isWinner);
     }
 }

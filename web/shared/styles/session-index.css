@@ -1,0 +1,539 @@
+/* styles for the session index page */
+
+/* ----- header (grid only) ----- */
+#app-title {
+    font-size: 17px;
+    font-weight: 600;
+    letter-spacing: -.02em;
+}
+
+#app-home-link::before {
+    content: "P2";
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--forest);
+    color: var(--acid);
+    font: 700 12px/1 Georgia, serif;
+    letter-spacing: .08em;
+    box-shadow: 0 8px 22px rgba(23, 23, 19, .18);
+}
+
+#connection-status {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .08);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+}
+
+#connection-status::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #68ad5c;
+    box-shadow: 0 0 0 4px rgba(104, 173, 92, .15);
+}
+
+#connection-status[data-status="connecting"]::before {
+    background: #f59e0b;
+    box-shadow: 0 0 0 4px rgba(245, 158, 11, .15);
+}
+
+#connection-status[data-status="error"]::before {
+    background: var(--red);
+    box-shadow: 0 0 0 4px rgba(161, 61, 54, .15);
+}
+
+/* ----- main session view ----- */
+#session-view {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 24px 0 32px;
+}
+
+/* ----- session header with table and actions ----- */
+#session-header {
+    display: grid;
+    gap: 1rem;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+#session-info-table {
+    width: 100%;
+    min-width: 660px;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+#session-info-table th {
+    padding: 12px 14px;
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-align: left;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--line);
+}
+
+#session-info-table td {
+    padding: 14px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+    font-weight: 500;
+}
+
+#session-info-table .placeholder-row td {
+    color: var(--muted);
+    font-weight: 400;
+}
+
+#session-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 8px;
+    align-self: center;
+}
+
+#session-actions button {
+    min-height: 44px;
+    padding: 0 24px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--red);
+    color: white;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .2s, transform .1s;
+    white-space: nowrap;
+}
+
+#session-actions button:active {
+    transform: scale(.97);
+}
+
+button#join-session-button {
+    background: var(--forest-soft);
+}
+
+button#copy-invite-button {
+    background: var(--acid);
+    color: var(--control-ink);
+    border-color: var(--forest);
+}
+
+/* ----- play area ----- */
+
+#session-play-area {
+    --opponent-min-height: 72px;
+    --opponent-max-height: 105px;
+
+    display: grid;
+    grid-template-rows: minmax(var(--opponent-min-height), var(--opponent-max-height)) 1fr auto 1fr auto auto;
+    gap: 1rem;
+    padding: 5px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--forest);
+    min-height: 90vh;
+    color: rgba(255, 255, 255, .68);
+    text-wrap: nowrap;
+    overflow: hidden;
+    position: relative;
+}
+
+/* ----- play area - opponents ----- */
+
+#opponent-player-list {
+    container-type: size;
+
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    justify-content: center;
+    align-items: stretch;
+    gap: var(--container-spacing);
+
+    min-height: var(--opponent-min-height);
+    height: var(--opponent-max-height);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-radius: var(--container-radius);
+}
+
+@media (min-width: 641px) {
+    #session-play-area {
+        --opponent-min-height: 86px;
+        --opponent-max-height: 130px;
+    }
+}
+
+#opponent-player-list:empty {
+    place-items: center;
+}
+
+#opponent-player-list:empty::before {
+    content: "waiting for opponents...";
+    color: rgba(255,255,255,.55);
+    font-style: italic;
+}
+
+.opponent {
+    --opponent-height: 100cqh;
+    --opponent-width: calc(var(--opponent-height) * .72);
+    --opponent-skin: #edbb99;
+
+    height: var(--opponent-height);
+    width: var(--opponent-width);
+
+    align-self: stretch;
+    position: relative;
+
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+
+    overflow: hidden;
+
+    border: 2px solid rgba(255,255,255,.12);
+    border-bottom-color: transparent;
+    border-radius: var(--container-radius);
+    background: rgba(255,255,255,.04);
+
+    user-select: none;
+}
+
+.opponent::before {
+    content: attr(data-player-name);
+
+    display: block;
+    padding: .5rem;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    text-align: center;
+    color: rgba(255,255,255,.85);
+    font-size: calc(var(--opponent-height) / 11);
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+.opponent[data-card-count="0"]::after {
+    display: none;
+}
+
+.opponent::after {
+    content: attr(data-card-count);
+
+    position: absolute;
+    left: 50%;
+    bottom: 0;
+    z-index: 4;
+
+    transform: translateX(-50%);
+
+    min-width: calc(var(--opponent-width) * .38);
+    height: calc(var(--opponent-height) * .20);
+    border: 2px solid black;
+    background: crimson;
+    color: white;
+
+    display: grid;
+    place-items: center;
+
+    font-size: calc(var(--opponent-height) / 6);
+    font-weight: 800;
+    line-height: 1;
+    border-radius: 5px;
+}
+
+.opponent > div {
+    position: relative;
+    min-height: 0;
+    display: grid;
+    grid-template-rows: 40% 50%;
+    place-items: center;
+}
+
+.opponent > div::before,
+.opponent > div::after {
+    content: "";
+    display: block;
+    background: var(--opponent-skin);
+}
+
+.opponent > div::before {
+    width: 50%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    margin: 0 auto;
+}
+
+.opponent > div::after {
+    border-radius: 50% 50% 0 0;
+    width: 100%;
+    height: 100%;
+}
+
+.opponent[data-is-winner="true"]::before {
+    content: "🏆 " attr(data-player-name);
+}
+
+/* ----- play area - local user ----- */
+
+#session-play-area[data-is-turn-bound="true"]::after {
+    content: "";
+    position: absolute;
+    top: 55%;
+    left: 0;
+    bottom:0;
+    right: 0;
+    border:3px solid;
+    border-radius: 1rem;
+    pointer-events: none;
+}
+
+#session-play-area[data-is-winner="true"]::after,
+.opponent[data-is-winner="true"] {
+    border-color: gold;
+}
+
+#session-play-area[data-is-turn-owner="true"]::after,
+.opponent[data-is-turn-owner="true"] {
+    border-color: limegreen;
+    animation: turn-owner-border-strobe 1.2s ease-in-out infinite;
+}
+
+
+@keyframes turn-owner-border-strobe {
+    0%, 100% {
+        border-color: limegreen;
+    }
+
+    50% {
+        border-color: rgba(50, 205, 50, .12);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #session-play-area[data-is-turn-owner="true"]::after,
+    .opponent[data-is-turn-owner="true"] {
+        animation: none;
+    }
+}
+
+#local-player-summary {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    font-weight: 600;
+    font-size: 14px;
+    padding: 0 1rem;
+}
+
+#session-play-area[data-is-turn-owner="true"] #local-player-summary {
+    color: limegreen;
+}
+
+#session-play-area[data-is-turn-bound="false"] > .local-player-region {
+    display: none;
+}
+
+#session-play-area[data-is-turn-bound="false"] {
+    grid-template-rows: 30% 50%;
+    min-height: min(60vh, 680px);
+}
+
+#local-player-idle-warning {
+    font-size: 11px;
+    text-align: center;
+    margin: 0;
+}
+
+[data-idle-seconds] {
+    font-style: normal;
+    font-weight: 700;
+}
+
+[data-idle-seconds]::before {
+    content: attr(data-idle-seconds) " ";
+}
+
+#local-player-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px;
+    padding: 2px;
+}
+
+#local-player-actions > button,
+#card-sort-control {
+    padding: 1rem;
+    border: 1px solid var(--forest-soft);
+    border-radius: 999px;
+    background: var(--forest);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .2s, transform .1s;
+}
+
+#local-player-actions > button:active {
+    transform: scale(.97);
+}
+
+#card-sort-control {
+    text-align: center;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+#card-sort-control > span {
+    letter-spacing: .04em;
+}
+
+#card-sort-key-select {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    color: inherit;
+}
+
+#card-sort-control:has(select:focus-visible) {
+    outline: 3px solid var(--acid);
+    outline-offset: 3px;
+}
+
+#card-sort-control select:focus-visible {
+    outline: 0;
+}
+
+button#pass-turn-button {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+button#pass-turn-button:enabled {
+    opacity: 1;
+    cursor: pointer;
+}
+
+/* ----- game guide (matching home page style) ----- */
+
+details[open]:not(#game-guide-section) {
+    background: rgba(255, 255, 255, .055);
+}
+
+details[open]:not(#game-guide-section) > summary,
+summary:hover {
+    background: rgba(255, 255, 255, .09);
+}
+
+details[open] > summary::after {
+    content: "\2212";
+}
+
+summary::after {
+    content: "+";
+    font-size: 2rem;
+}
+
+summary::-webkit-details-marker {
+    display: none;
+}
+
+summary {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 1rem;
+    align-items: center;
+    cursor: pointer;
+    padding: 1rem;
+    border-top: 1px solid var(--line);
+}
+
+summary  > span:first-child {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -.02em;
+}
+
+summary > span:last-child {
+    color: var(--muted);
+}
+
+summary:not(#game-guide-header) + div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 5px;
+    padding: 5px;
+}
+
+summary + div > article {
+    display: grid;
+    border: 3px solid black;
+    padding: 5px;
+}
+
+#scores-tables {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+}
+
+#scores-tables table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    border: 3px solid black;
+}
+
+#scores-tables th {
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1px solid var(--line);
+}
+
+#scores-tables td {
+    padding: 8px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+}
+
+@media (max-width: 720px) {
+    #session-play-area[data-is-turn-bound="true"] {
+        min-height: 80svh;
+    }
+
+    summary:not(#game-guide-header) + div,
+    #scores-tables {
+        grid-template-columns: 1fr;
+    }
+
+    #game-guide-header > span:last-child {
+        display: none;
+    }
+}
