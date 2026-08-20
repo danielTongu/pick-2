@@ -1,6 +1,7 @@
 
 "use strict";
 
+import { Constants } from "../core/Constants.js";
 import { NormalizeUtils } from "../core/NormalizeUtils.js";
 
 /**
@@ -399,10 +400,17 @@ export class PlayingCard extends HTMLElement {
             throw new Error("Playing-card drag clone is invalid.");
         }
 
+        const bounds = this.getBoundingClientRect();
+        const scale = Constants.CARD.DRAG_CLONE_SCALE;
+
         clone.dataset.dragClone = "true";
         clone.dataset.isDragging = "false";
+        clone.style.setProperty("--card-size", `${bounds.height * scale}px`);
+        clone.style.minHeight = "0";
 
         this.#dragState.clone = clone;
+        this.#dragState.offsetX *= scale;
+        this.#dragState.offsetY *= scale;
         this.dataset.isDragging = "true";
 
         this.#moveDrag(this.#dragState.startX, this.#dragState.startY);

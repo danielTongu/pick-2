@@ -286,6 +286,15 @@ test("the shared guide initializes canonical card-sort options", () => {
     assert.match(controller, /PlayingCard\.create\(card, \{[\s\S]*?isDraggable: false/);
 });
 
+test("drag clones scale from the rendered card instead of the body container", () => {
+    const playingCard = readFileSync(new URL("../src/ui/PlayingCard.js", import.meta.url), "utf8");
+
+    assert.match(playingCard, /Constants\.CARD\.DRAG_CLONE_SCALE/);
+    assert.match(playingCard, /bounds\.height \* scale/);
+    assert.match(playingCard, /this\.#dragState\.offsetX \*= scale/);
+    assert.match(playingCard, /this\.#dragState\.offsetY \*= scale/);
+});
+
 test("the countdown strobes its box shadow and respects reduced motion", () => {
     assert.match(
         OVERLAYS_CSS,

@@ -69,6 +69,13 @@ export class Constants {
      */
     static CARD = Object.freeze({
         /**
+         * Drag-clone size relative to the rendered source card.
+         *
+         * For example, .70 renders the drag clone at one quarter size.
+         */
+        DRAG_CLONE_SCALE: 1.5,
+
+        /**
          * Available card sorting options.
          */
         SORT_OPTIONS: Object.freeze(["none", "rank", "value", "suit", "score"]),

@@ -213,10 +213,11 @@ These decisions remain subordinate to the same `Session` and `Card` legality rul
 
 ## 8. Client interaction rules
 
-- All displayed cards may be flipped with a single click.
-- All displayed cards can begin a drag interaction.
+- Non-decorative cards may be flipped with a click or the keyboard.
+- Gameplay cards can begin a drag interaction; guide cards explicitly set `isDraggable: false` so they remain readable and flippable without becoming drag sources.
 - Only cards in the local player's hand receive the discardable state and can be dropped onto the discard pile.
 - The entire discard-pile rectangle is the drop target.
+- A drag clone is appended to `body`, so its size is calculated from the rendered source card instead of inheriting body-level container-query dimensions. `Constants.CARD.DRAG_CLONE_SCALE` controls the clone-to-source ratio; `.25` means one-quarter size. The pointer offsets use the same scale to keep the clone anchored at the same relative point.
 - Viewers do not receive player-only start or session-end overlays.
 - The session-end statistics table selects a player and displays that player's remaining cards.
 
