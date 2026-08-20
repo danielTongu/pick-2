@@ -455,6 +455,7 @@ details[open] > summary::after {
 summary::after {
     content: "+";
     font-size: 2rem;
+    text-align: right;
 }
 
 summary::-webkit-details-marker {
@@ -531,6 +532,10 @@ summary + div > article {
     summary:not(#game-guide-header) + div,
     #scores-tables {
         grid-template-columns: 1fr;
+    }
+
+    #game-guide-header {
+        grid-template-columns: auto 1fr;
     }
 
     #game-guide-header > span:last-child {
