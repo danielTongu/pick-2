@@ -1,32 +1,13 @@
 /* styles for the index page */
 
-.brand-mark {
-    width: 44px;
-    height: 44px;
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
-    background: var(--forest);
-    color: var(--acid);
-    font: 700 12px/1 Georgia, serif;
-    letter-spacing: .08em;
-    box-shadow: 0 8px 22px rgba(23, 23, 19, .18);
-}
-
 .brand-copy strong,
 .brand-copy small {
     display: block;
 }
 
-.brand-copy strong {
-    font-size: 17px;
-    letter-spacing: -.02em;
-}
-
 .brand-copy small {
     margin-top: 3px;
     color: var(--muted);
-    font-size: 11px;
     font-weight: 500;
     letter-spacing: .04em;
 }
@@ -59,7 +40,6 @@
     padding: 0 16px;
     border-radius: 999px;
     color: var(--muted);
-    font-size: 12px;
     font-weight: 750;
     transition: background-color .2s ease, color .2s ease, box-shadow .2s ease;
 }
@@ -90,10 +70,7 @@
 
 .eyebrow,
 .section-kicker {
-    font-size: 10px;
-    font-weight: 800;
     letter-spacing: .17em;
-    text-transform: uppercase;
 }
 
 .eyebrow {
@@ -115,7 +92,9 @@
 .hero h2 {
     max-width: 760px;
     margin: 23px 0 25px;
-    font: 500 clamp(60px, 8vw, 108px)/.82 Georgia, "Times New Roman", serif;
+    font-size: clamp(60px, 8vw, 108px);
+    font-weight: 500;
+    line-height: .82;
     letter-spacing: -.066em;
 }
 
@@ -196,7 +175,9 @@
 
 .panel-header h2 {
     margin: 7px 0 0;
-    font: 500 29px/1.1 Georgia, serif;
+    font-size: 29px;
+    font-weight: 500;
+    line-height: 1.1;
     letter-spacing: -.035em;
 }
 
@@ -210,7 +191,8 @@
 
 .step {
     color: var(--muted);
-    font: italic 18px Georgia, serif;
+    font-size: 18px;
+    font-style: italic;
 }
 
 /* ----- SESSION REGISTRATION FORM (GRID ONLY) ----- */
@@ -236,10 +218,7 @@
 .control-label {
     display: block;
     color: var(--muted);
-    font-size: 10px;
-    font-weight: 800;
     letter-spacing: .11em;
-    text-transform: uppercase;
 }
 
 #field-group input,
@@ -250,7 +229,6 @@
     border: 1px solid var(--line);
     border-radius: 10px;
     background: var(--paper);
-    color: var(--ink);
     outline: none;
     transition: border-color .2s, box-shadow .2s, background .2s;
 }
@@ -277,35 +255,53 @@
 }
 
 #request-mode-control {
-    display: grid;
+    grid-template-columns: 1fr 1fr;
     grid-template-rows: auto auto;
-    gap: 8px;
+    gap: 8px 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
 }
 
-#mode-group {
+#request-mode-control > .control-label {
+    grid-column: 1 / -1;
+}
+
+#request-mode-control > label {
+    padding: 4px;
+    border-block: 1px solid var(--line);
     background: var(--surface);
 }
 
-#mode-group label:has(input:checked) span {
+#request-mode-control > label:nth-of-type(1) {
+    border-left: 1px solid var(--line);
+    border-radius: 999px 0 0 999px;
+}
+
+#request-mode-control > label:nth-of-type(2) {
+    border-right: 1px solid var(--line);
+    border-radius: 0 999px 999px 0;
+}
+
+#request-mode-control > label:has(input:checked) span {
     background: var(--forest-soft);
     color: white;
     box-shadow: none;
 }
 
 #session-registration-submit-button {
+    --button-min-height: 58px;
+    --button-padding: 0 9px 0 21px;
+    --button-border: 0;
+    --button-background: var(--acid);
+    --button-color: var(--control-ink);
+    --button-weight: 750;
+
     min-width: 220px;
-    min-height: 58px;
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
     gap: 16px;
-    padding: 0 9px 0 21px;
-    border: 0;
-    border-radius: 999px;
-    background: var(--acid);
-    color: var(--control-ink);
-    font-weight: 750;
-    cursor: pointer;
     box-shadow: 0 10px 25px rgba(23, 23, 19, .14);
     transition: transform .2s, box-shadow .2s;
 }
@@ -345,7 +341,6 @@
     color: white;
     background: rgba(255, 255, 255, .07);
     border-color: rgba(255, 255, 255, .16);
-    font-size: 12px;
 }
 
 #session-status-filter option {
@@ -353,39 +348,23 @@
 }
 
 .table-container {
-    overflow-x: auto;
     border-top: 1px solid rgba(255, 255, 255, .12);
 }
 
 #session-list-table {
-    width: 100%;
+    --table-heading-padding: 15px 12px;
+    --table-cell-padding: 16px 12px;
+
     min-width: 660px;
-    border-collapse: collapse;
-    font-size: 12px;
 }
 
 #session-list-table th {
-    padding: 15px 12px;
     color: #98b1a7;
-    font-size: 9px;
-    letter-spacing: .1em;
-    text-align: left;
-    text-transform: uppercase;
+    font-weight: 700;
 }
 
 #session-list-table td {
-    padding: 16px 12px;
     border-top: 1px solid rgba(255, 255, 255, .09);
-}
-
-#session-list-table tbody tr:not(.empty-session-row) {
-    cursor: pointer;
-    transition: background-color .2s ease;
-}
-
-#session-list-table tbody tr:not(.empty-session-row):hover,
-#session-list-table tbody tr:not(.empty-session-row):focus-visible {
-    background: rgba(255, 255, 255, .08);
 }
 
 #session-list-table tbody tr:focus-visible {
@@ -403,7 +382,7 @@
     display: block;
     margin-bottom: 12px;
     color: var(--acid);
-    font: 26px Georgia, serif;
+    font-size: 26px;
 }
 
 @media (max-width: 900px) {

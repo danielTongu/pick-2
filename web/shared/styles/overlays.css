@@ -1,13 +1,8 @@
 /* public/styles/overlays.css */
 
-/* ========================================
-   OVERLAY BASE
-   ======================================== */
-.dialog-overlay[hidden] {
-    display: none;
-}
-
 .dialog-overlay {
+    --accent: slategrey;
+
     position: fixed;
     inset: 0;
     z-index: 1000;
@@ -29,14 +24,9 @@
    DIALOG BASE
    ======================================== */
 
-.dialog-overlay {
-    --accent: slategrey;
-}
-
 .dialog-panel {
     max-width: 94vw;
     max-height: 94vh;
-    font-size: medium;
     text-align: center;
     display: grid;
     grid-template-rows: auto 1fr auto;
@@ -60,7 +50,8 @@
 }
 
 .dialog-panel > header > h1 {
-    font: 500 xx-large Georgia, serif;
+    font-size: xx-large;
+    font-weight: 500;
     text-transform: capitalize;
     margin:0;
 }
@@ -88,30 +79,18 @@ output#alert-message {
     gap: 1rem;
 }
 
-#session-end-dialog h2 {
-    font: 600 large Georgia, serif;
-}
-
-
 .dialog-panel button {
-    cursor: pointer;
-    padding: 1rem;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    background: var(--accent);
+    --button-padding: 1rem;
+    --button-background: var(--accent);
+    --button-weight: bold;
+    --button-transform-duration: .15s;
+
     text-transform: uppercase;
     letter-spacing: .05em;
-    color: white;
-    font-weight: bold;
-    transition: background .2s ease, transform .15s ease;
 }
 
 .dialog-panel button:hover {
     filter: brightness(130%);
-}
-
-.dialog-panel button:active {
-    transform: scale(.97);
 }
 
 @keyframes slideUp {
@@ -161,7 +140,8 @@ output#alert-message {
     border-radius: 50%;
     background: color-mix(in srgb, var(--accent) 18%, transparent);
     color: var(--accent);
-    font: 700 xx-large Georgia, serif;
+    font-size: xx-large;
+    font-weight: 700;
 }
 
 #alert-icon[data-icon="info"]::before {
@@ -291,7 +271,7 @@ output#alert-message {
 }
 
 #suit-selection-panel label:has(input:checked) {
-    border-color: var(--submit-btn-background);
+    border-color: var(--accent);
     color: var(--accent);
     background: transparent;
     transform: scale(1.05);
@@ -310,26 +290,20 @@ output#alert-message {
     gap:1rem;
 }
 
-#session-end-message-output > h2{
+#session-end-player-stats-table {
+    --interactive-row-background: rgba(255, 255, 255, .10);
+}
+
+#session-end-dialog h2 {
     margin:0;
-    font: 600 medium Arial, sans-serif;
+    font-family: Arial, sans-serif;
+    font-size: medium;
+    font-weight: 600;
 }
 
 #session-end-stats-panel {
     overflow: auto;
     background: rgba(255, 255, 255, .08);
-}
-
-#session-end-player-stats-table {
-    width: 100%;
-    border-collapse: collapse;
-}
-
-#session-end-player-stats-table th,
-#session-end-player-stats-table td {
-    padding: var(--container-spacing);
-    text-align: left;
-    white-space: nowrap;
 }
 
 #session-end-player-stats-table thead {
@@ -339,21 +313,12 @@ output#alert-message {
 #session-end-player-stats-table thead th {
     font-weight: 700;
     font-size: small;
-    text-transform: uppercase;
     letter-spacing: .05em;
     color: rgba(255, 255, 255, .7);
 }
 
 #session-end-player-stats-table tbody tr {
-    cursor: pointer;
     border-top: 1px solid rgba(255, 255, 255, .07);
-    transition: background .2s ease;
-}
-
-#session-end-player-stats-table tbody tr:hover,
-#session-end-player-stats-table tbody tr:focus-visible,
-#session-end-player-stats-table tbody tr[data-is-selected="true"] {
-    background: rgba(255, 255, 255, .10);
 }
 
 #session-end-player-stats-table tbody tr[data-is-winner="true"] {
@@ -368,10 +333,13 @@ output#alert-message {
 }
 #session-end-player-stats-table tbody:empty::before,
 #session-end-selected-player-hand:empty::before {
-    content: "no players";
     color: rgba(255, 255, 255, .45);
     font-size: small;
     font-style: italic;
+}
+
+#session-end-player-stats-table tbody:empty::before {
+    content: "no players";
 }
 
 #session-end-selected-player-hand:empty::before {

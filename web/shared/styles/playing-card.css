@@ -36,7 +36,6 @@
 .playing-card-area:not(#discard-pile) {
     overflow: hidden;
     overflow-x: auto;
-    height: 100%;
 }
 
 .playing-card-area > playing-card,
@@ -60,9 +59,6 @@
 
 #discard-pile {
     position: relative;
-    height: 100%;
-    min-height: var(--card-min-height);
-
     font-size: inherit;
     white-space: normal;
 
@@ -139,7 +135,6 @@ playing-card,
     --card-width: calc(var(--card-height) * (170 / 240));
 
     border-radius: calc(var(--card-width) / 10);
-    box-sizing: border-box;
     flex: 0 0 auto;
     min-height: var(--card-min-height);
 }
@@ -204,7 +199,6 @@ playing-card {
 
     font-family: "Segoe UI", Roboto, system-ui, sans-serif;
     position: relative;
-    display: inline-block;
     vertical-align: top;
     background: #FFFFFF; /* Same color as the joker image background */
     border: 1px solid #1a1a1a;
@@ -373,15 +367,10 @@ playing-card[data-is-dragging="true"] {
     border: 1px dashed;
     background: rgba(255, 255, 255, .08);
     color: #fff;
-    cursor: pointer;
     transition:
             background .3s ease,
             border-color .3s ease,
             color .3s ease;
-}
-
-#draw-card-button:active {
-    transform: scale(.97);
 }
 
 #draw-card-button::before,
@@ -426,10 +415,6 @@ playing-card[data-is-dragging="true"] {
     content: attr(data-draw-allowance);
 }
 
-#draw-card-button:hover {
-    color: #fff;
-}
-
 #draw-card-button:hover::before {
     width: var(--plus-length-hover);
 }
@@ -439,14 +424,7 @@ playing-card[data-is-dragging="true"] {
 }
 
 #draw-card-button:disabled {
-    background: rgba(255, 255, 255, .08);
-    color: #fff;
     opacity: 1;
-    cursor: not-allowed;
-}
-
-#draw-card-button:disabled:hover {
-    box-shadow: none;
 }
 
 #draw-card-button:disabled:hover::before {

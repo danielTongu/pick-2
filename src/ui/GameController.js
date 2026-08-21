@@ -38,7 +38,7 @@ export class GameController extends ViewController {
     /** @type {HTMLInputElement} */
     #capacityInput;
 
-    /** @type {HTMLFieldSetElement} */
+    /** @type {HTMLElement} */
     #connectionStatus;
 
     /** @type {HTMLInputElement} */
@@ -57,7 +57,7 @@ export class GameController extends ViewController {
         this.#playerNameInput = DomUtils.require("#player-name-input", HTMLInputElement);
         this.#sessionNameInput = DomUtils.require("#session-name-input", HTMLInputElement);
         this.#capacityInput = DomUtils.require("#session-capacity-input", HTMLInputElement);
-        this.#connectionStatus = DomUtils.require("#connection-status", HTMLFieldSetElement);
+        this.#connectionStatus = DomUtils.require("#connection-status", HTMLElement);
         this.#localModeInput = DomUtils.require("#local-mode-input", HTMLInputElement);
         this.#serverModeInput = DomUtils.require("#server-mode-input", HTMLInputElement);
     }

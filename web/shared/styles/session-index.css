@@ -2,23 +2,11 @@
 
 /* ----- header (grid only) ----- */
 #app-title {
-    font-size: 17px;
     font-weight: 600;
-    letter-spacing: -.02em;
 }
 
 #app-home-link::before {
     content: "P2";
-    width: 44px;
-    height: 44px;
-    display: grid;
-    place-items: center;
-    border-radius: 50%;
-    background: var(--forest);
-    color: var(--acid);
-    font: 700 12px/1 Georgia, serif;
-    letter-spacing: .08em;
-    box-shadow: 0 8px 22px rgba(23, 23, 19, .18);
 }
 
 #connection-status {
@@ -29,7 +17,6 @@
     padding: 8px 18px;
     border-radius: 999px;
     background: rgba(255, 255, 255, .08);
-    font-size: 12px;
     font-weight: 600;
     color: var(--muted);
 }
@@ -67,30 +54,19 @@
     gap: 1rem;
 }
 
-.table-container {
-    overflow-x: auto;
-}
-
 #session-info-table {
-    width: 100%;
+    --table-heading-padding: 12px 14px;
+    --table-cell-padding: 14px;
+
     min-width: 660px;
-    border-collapse: collapse;
-    font-size: 12px;
 }
 
 #session-info-table th {
-    padding: 12px 14px;
     color: var(--muted);
-    font-size: 9px;
-    font-weight: 800;
-    letter-spacing: .1em;
-    text-align: left;
-    text-transform: uppercase;
     border-bottom: 1px solid var(--line);
 }
 
 #session-info-table td {
-    padding: 14px 14px;
     border-bottom: 1px solid rgba(255, 255, 255, .08);
     font-weight: 500;
 }
@@ -101,6 +77,9 @@
 }
 
 #session-actions {
+    --button-padding: 0 24px;
+    --button-background: var(--red);
+
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
     gap: 8px;
@@ -108,31 +87,18 @@
 }
 
 #session-actions button {
-    min-height: 44px;
-    padding: 0 24px;
-    border: 1px solid var(--line);
-    border-radius: 999px;
-    background: var(--red);
-    color: white;
-    font-weight: 600;
     font-size: 13px;
-    cursor: pointer;
-    transition: background .2s, transform .1s;
     white-space: nowrap;
 }
 
-#session-actions button:active {
-    transform: scale(.97);
+#join-session-button {
+    --button-background: var(--forest-soft);
 }
 
-button#join-session-button {
-    background: var(--forest-soft);
-}
-
-button#copy-invite-button {
-    background: var(--acid);
-    color: var(--control-ink);
-    border-color: var(--forest);
+#copy-invite-button {
+    --button-background: var(--acid);
+    --button-color: var(--control-ink);
+    --button-border: 1px solid var(--forest);
 }
 
 /* ----- play area ----- */
@@ -361,7 +327,6 @@ button#copy-invite-button {
 }
 
 #local-player-idle-warning {
-    font-size: 11px;
     text-align: center;
     margin: 0;
 }
@@ -376,29 +341,25 @@ button#copy-invite-button {
 }
 
 #local-player-actions {
+    --button-padding: 1rem;
+    --button-border: 1px solid var(--forest-soft);
+    --button-background: var(--forest);
+
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
     gap: 8px;
     padding: 2px;
 }
 
-#local-player-actions > button,
 #card-sort-control {
-    padding: 1rem;
-    border: 1px solid var(--forest-soft);
-    border-radius: 999px;
-    background: var(--forest);
+    padding: var(--button-padding);
+    border: var(--button-border);
+    border-radius: var(--button-radius, 999px);
+    background: var(--button-background);
     color: white;
     font-weight: 600;
     cursor: pointer;
     transition: background .2s, transform .1s;
-}
-
-#local-player-actions > button:active {
-    transform: scale(.97);
-}
-
-#card-sort-control {
     text-align: center;
     display: grid;
     grid-template-columns: auto 1fr;
@@ -415,7 +376,6 @@ button#copy-invite-button {
     border: 0;
     background: transparent;
     cursor: pointer;
-    color: inherit;
 }
 
 #card-sort-control:has(select:focus-visible) {
@@ -427,12 +387,12 @@ button#copy-invite-button {
     outline: 0;
 }
 
-button#pass-turn-button {
+#pass-turn-button {
     opacity: .5;
     cursor: not-allowed;
 }
 
-button#pass-turn-button:enabled {
+#pass-turn-button:enabled {
     opacity: 1;
     cursor: pointer;
 }
@@ -473,9 +433,7 @@ summary {
 }
 
 summary  > span:first-child {
-    font-size: 17px;
     font-weight: 700;
-    letter-spacing: -.02em;
 }
 
 summary > span:last-child {
@@ -502,25 +460,21 @@ summary + div > article {
 }
 
 #scores-tables table {
-    width: 100%;
-    border-collapse: collapse;
+    --table-heading-padding: 8px 12px;
+    --table-cell-padding: 8px 12px;
+
     font-size: 13px;
     border: 3px solid black;
 }
 
 #scores-tables th {
-    padding: 8px 12px;
-    text-align: left;
     font-size: 10px;
-    font-weight: 800;
     letter-spacing: .06em;
-    text-transform: uppercase;
     color: var(--muted);
     border-bottom: 1px solid var(--line);
 }
 
 #scores-tables td {
-    padding: 8px 12px;
     border-bottom: 1px solid rgba(255, 255, 255, .08);
 }
 

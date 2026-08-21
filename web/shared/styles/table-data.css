@@ -1,9 +1,5 @@
 /* public/styles/table-data.css */
 
-td {
-    white-space: nowrap;
-}
-
 td:empty::before {
     content: "--";
     display: inline-block;
@@ -44,10 +40,6 @@ td[data-status="playing"] > .session-status-indicator {
 
 td[data-status="finished"] > .session-status-indicator {
     background: gold;
-}
-
-td[data-status="closed"] > .session-status-indicator {
-    background: gray;
 }
 
 td[data-status="error"] > .session-status-indicator {

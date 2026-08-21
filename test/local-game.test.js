@@ -214,14 +214,21 @@ test("static and server deployments share one game page and one session page", (
     assert.match(gameHtml, /<body data-page="game">/);
     assert.match(gameHtml, /id="session-registration-form"/);
     assert.match(gameHtml, /id="session-list-table-body"/);
-    assert.match(gameHtml, /<fieldset[^>]+id="connection-status"[^>]+data-status="connecting"/);
+    const sharedHeaderPattern = /<header id="app-header">\s*<h1[\s\S]*?<\/h1>\s*<aside id="connection-status"/;
+
+    assert.match(gameHtml, sharedHeaderPattern);
+    assert.match(sessionHtml, sharedHeaderPattern);
+    assert.match(gameHtml, /<aside[^>]+id="connection-status"[^>]+class="toggle-switch"[^>]+role="radiogroup"[^>]+data-status="connecting"/);
+    assert.match(gameHtml, /<aside[^>]+id="connection-status"[^>]*>\s*<label>\s*<input id="local-mode-input"/);
     assert.match(gameHtml, /id="local-mode-input"[^>]+value="local"/);
     assert.match(gameHtml, /id="server-mode-input"[^>]+value="server"/);
     assert.doesNotMatch(gameHtml, /id="connection-status-indicator"/);
     assert.doesNotMatch(gameHtml, /id="play-mode-group"/);
     assert.doesNotMatch(gameHtml, /id="local-session-note"/);
     assert.doesNotMatch(gameHtml, /id="connection-status-label"/);
-    assert.match(gameHtml, /id="request-mode-control"/);
+    assert.match(gameHtml, /id="request-mode-control"[^>]+class="toggle-switch"[^>]+role="radiogroup"/);
+    assert.doesNotMatch(gameHtml, /<fieldset/);
+    assert.doesNotMatch(gameHtml, /id="mode-group"/);
     assert.match(gameHtml, /id="session-list-panel"/);
     assert.doesNotMatch(gameHtml, /id="request-mode-control" hidden/);
     assert.doesNotMatch(gameHtml, /id="session-list-panel" hidden/);

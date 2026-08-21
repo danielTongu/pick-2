@@ -10,6 +10,9 @@ html {
 }
 
 body {
+    --body-font: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --display-font: Georgia, "Times New Roman", serif;
+
     min-height: 100vh;
     min-height: 100dvh;
     margin: 0;
@@ -17,7 +20,17 @@ body {
         radial-gradient(circle at 75% 11%, rgba(47, 108, 89, .28), transparent 30rem),
         var(--cream);
     color: var(--ink);
-    font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-family: var(--body-font);
+    font-size: 1rem;
+    font-style: normal;
+    font-weight: 400;
+    line-height: normal;
+    letter-spacing: normal;
+    text-align: start;
+    text-decoration: none;
+    text-transform: none;
+    text-wrap: wrap;
+    white-space: normal;
     -webkit-font-smoothing: antialiased;
 }
 
@@ -25,6 +38,7 @@ button,
 input,
 select {
     font: inherit;
+    color: inherit;
 }
 
 button,
@@ -38,8 +52,60 @@ select:disabled {
     cursor: not-allowed;
 }
 
+button {
+    min-height: var(--button-min-height, 44px);
+    padding: var(--button-padding, var(--control-padding));
+    border: var(--button-border, 1px solid var(--line));
+    border-radius: var(--button-radius, 999px);
+    background: var(--button-background, var(--forest));
+    color: var(--button-color, white);
+    font-weight: var(--button-weight, 600);
+    cursor: pointer;
+    transition:
+        background .2s ease,
+        transform var(--button-transform-duration, .1s) ease;
+}
+
+button:active {
+    transform: scale(.97);
+}
+
+table {
+    --table-heading-padding: var(--container-spacing);
+    --table-cell-padding: var(--container-spacing);
+
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    padding: var(--table-heading-padding);
+    font-size: 9px;
+    letter-spacing: .1em;
+    text-align: left;
+}
+
+td {
+    padding: var(--table-cell-padding);
+    white-space: nowrap;
+}
+
+tbody tr[tabindex] {
+    cursor: pointer;
+    transition: background-color .2s ease;
+}
+
+tbody tr[tabindex]:is(:hover, :focus-visible, [data-is-selected="true"]) {
+    background: var(--interactive-row-background, rgba(255, 255, 255, .08));
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
 a {
     color: inherit;
+    text-decoration: none;
 }
 
 [hidden] {
@@ -61,15 +127,14 @@ a {
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
+    gap: 24px;
     border-bottom: 1px solid var(--line);
 }
 
-#app-navigation-actions {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: 24px;
+#app-title,
+summary > span:first-child {
+    font-size: 17px;
+    letter-spacing: -.02em;
 }
 
 #app-title {
@@ -81,8 +146,64 @@ a {
     grid-template-columns: auto 1fr;
     align-items: center;
     gap: 12px;
-    color: var(--ink);
-    text-decoration: none;
+}
+
+.brand-mark,
+#app-home-link::before,
+.hero h2,
+.panel-header h2,
+.step,
+.empty-state-mark,
+.dialog-panel > header > h1,
+#alert-icon {
+    font-family: var(--display-font);
+}
+
+.brand-mark,
+#app-home-link::before {
+    width: 44px;
+    height: 44px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--forest);
+    color: var(--acid);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: .08em;
+    box-shadow: 0 8px 22px rgba(23, 23, 19, .18);
+}
+
+th,
+.eyebrow,
+.section-kicker,
+#field-group label > span,
+.control-label {
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.eyebrow,
+.section-kicker,
+#field-group label > span,
+.control-label {
+    font-size: 10px;
+}
+
+.toggle-switch label span,
+#connection-status,
+#session-info-table,
+#session-status-filter,
+#session-list-table,
+#app-footer-navigation a {
+    font-size: 12px;
+}
+
+.brand-copy small,
+#local-player-idle-warning,
+#app-footer {
+    font-size: 11px;
 }
 
 .visually-hidden {

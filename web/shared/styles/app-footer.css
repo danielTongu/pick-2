@@ -7,7 +7,6 @@
     align-items: center;
     gap: 24px;
     color: var(--muted);
-    font-size: 11px;
     border-top: 1px solid var(--line);
     padding: 5rem 0;
 }
@@ -33,8 +32,6 @@
 
 #app-footer-navigation a {
     font-weight: 700;
-    text-decoration: none;
-    font-size: 12px;
 }
 
 #app-footer-navigation a:hover {

@@ -20,19 +20,17 @@
     <link rel="stylesheet" href="../web/shared/styles/app-footer.css">
 </head>
 <body data-page="session">
-<div class="site-shell">
+<main class="site-shell">
     <header id="app-header">
-        <nav id="app-navigation-actions" aria-label="Application controls">
-            <h1 id="app-title">
-                <a id="app-home-link" href="../" aria-label="Return to the Pick 2 game">Pick 2</a>
-            </h1>
-            <span id="connection-status" data-status="connecting" aria-live="polite">
-                <span id="connection-status-label">Starting...</span>
-            </span>
-        </nav>
+        <h1 id="app-title">
+            <a id="app-home-link" href="../" aria-label="Return to the Pick 2 game">Pick 2</a>
+        </h1>
+        <aside id="connection-status" data-status="connecting" aria-live="polite">
+            <span id="connection-status-label">Starting...</span>
+        </aside>
     </header>
 
-    <main id="session-view">
+    <article id="session-view" aria-label="Game session">
         <header id="session-header">
             <div class="table-container">
                 <table id="session-info-table">
@@ -56,9 +54,9 @@
                 </table>
             </div>
             <nav id="session-actions" aria-label="Session controls">
-                <button id="leave-session-button" type="button">Leave</button>
-                <button id="join-session-button" type="button" hidden>Join</button>
-                <button id="copy-invite-button" type="button" hidden>Invite</button>
+                <button id="leave-session-button">Leave</button>
+                <button id="join-session-button" hidden>Join</button>
+                <button id="copy-invite-button" hidden>Invite</button>
             </nav>
         </header>
         <section id="session-play-area" aria-label="Session table" data-session-status="waiting" data-is-turn-bound="false" data-is-turn-owner="false" data-is-winner="false">
@@ -69,21 +67,21 @@
                 <output id="local-player-card-count">0 cards</output>
             </div>
             <div class="local-player-region playing-card-area" id="local-player-hand" title="Your cards">
-                <button id="draw-card-button" title="Draw card" type="button">
+                <button id="draw-card-button" title="Draw card">
                     <span data-draw-allowance="1"></span>
                 </button>
             </div>
             <p class="local-player-region" id="local-player-idle-warning">You may be removed after <em data-idle-seconds="30">seconds</em> of inactivity.</p>
             <div class="local-player-region" id="local-player-actions">
-                <label id="card-sort-control" for="card-sort-key-select">
+                <label id="card-sort-control">
                     <span>Sort</span>
                     <select id="card-sort-key-select"></select>
                 </label>
-                <button id="start-session-button" title="Start session" type="button">Play</button>
-                <button id="pass-turn-button" title="Pass turn" type="button">Pass</button>
+                <button id="start-session-button" title="Start session">Play</button>
+                <button id="pass-turn-button" title="Pass turn">Pass</button>
             </div>
         </section>
-    </main>
+    </article>
 
     <details id="game-guide-section" open>
         <summary id="game-guide-header">
@@ -151,7 +149,7 @@
     </details>
 
     <footer id="app-footer">
-        <div id="app-footer-brand" aria-label="Pick 2">
+        <div id="app-footer-brand">
             <strong>Pick 2</strong>
             <p>Match cards. Make moves.</p>
         </div>
@@ -163,7 +161,7 @@
             <span>Local and server play</span>
         </small>
     </footer>
-</div>
+</main>
 
 <!-- dialogs -->
 
@@ -174,7 +172,7 @@
             <h1 id="alert-title"></h1>
         </header>
         <output id="alert-message"></output>
-        <button id="alert-dismiss-button" type="button">OK</button>
+        <button id="alert-dismiss-button">OK</button>
     </div>
 </aside>
 
@@ -182,7 +180,7 @@
     <div class="dialog-panel">
         <header><h1 id="countdown-title">Session Starting</h1><p id="countdown-description">Get ready.</p></header>
         <output id="countdown-value" aria-live="polite">5</output>
-        <button id="countdown-dismiss-button" type="button">OK</button>
+        <button id="countdown-dismiss-button">OK</button>
     </div>
 </aside>
 
@@ -200,8 +198,8 @@
             <label data-suit="spades"><input name="suit" type="radio" value="spades" aria-label="Spades"><span aria-hidden="true">♠</span></label>
         </output>
         <footer>
-            <button id="suit-selection-dismiss-button" type="button">timeout</button>
-            <button id="suit-selection-submit-button" type="button">Submit</button>
+            <button id="suit-selection-dismiss-button">timeout</button>
+            <button id="suit-selection-submit-button">Submit</button>
         </footer>
     </div>
 </aside>
@@ -221,7 +219,7 @@
             <h2>select stat row to show player cards</h2>
             <section id="session-end-selected-player-hand" class="playing-card-area"></section>
         </output>
-        <button id="session-end-dismiss-button" type="button">dismiss</button>
+        <button id="session-end-dismiss-button">dismiss</button>
     </div>
 </aside>
 
