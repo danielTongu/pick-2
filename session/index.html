@@ -3,11 +3,14 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+
     <title>Pick 2 Session</title>
+
     <meta name="description" content="Play Pick 2 in a Local or shared Server session.">
     <meta name="robots" content="noindex, follow">
     <meta name="pick-2-shared-root" content="../web/shared/">
     <meta name="pick-2-server-origin" content="">
+
     <link rel="stylesheet" href="../web/shared/styles/tokens.css">
     <link rel="stylesheet" href="../web/shared/styles/base.css">
     <link rel="stylesheet" href="../web/shared/styles/session-index.css">
@@ -164,7 +167,7 @@
 
 <!-- dialogs -->
 
-<section id="alert-dialog" class="dialog-overlay" data-status="info" role="alertdialog" aria-modal="true" aria-labelledby="alert-title" aria-describedby="alert-message" hidden>
+<aside id="alert-dialog" class="dialog-overlay" data-status="info" role="alertdialog" aria-modal="true" aria-labelledby="alert-title" aria-describedby="alert-message" hidden>
     <div class="dialog-panel">
         <header>
             <div id="alert-icon" data-icon="info" aria-hidden="true"></div>
@@ -173,17 +176,17 @@
         <output id="alert-message"></output>
         <button id="alert-dismiss-button" type="button">OK</button>
     </div>
-</section>
+</aside>
 
-<section id="countdown-dialog" class="dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="countdown-title" aria-describedby="countdown-description" hidden>
+<aside id="countdown-dialog" class="dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="countdown-title" aria-describedby="countdown-description" hidden>
     <div class="dialog-panel">
         <header><h1 id="countdown-title">Session Starting</h1><p id="countdown-description">Get ready.</p></header>
         <output id="countdown-value" aria-live="polite">5</output>
         <button id="countdown-dismiss-button" type="button">OK</button>
     </div>
-</section>
+</aside>
 
-<section id="suit-selection-dialog" class="dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="suit-selection-title" aria-describedby="suit-selection-description" hidden>
+<aside id="suit-selection-dialog" class="dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="suit-selection-title" aria-describedby="suit-selection-description" hidden>
     <div class="dialog-panel">
         <header>
             <h1 id="suit-selection-title">Choose Suit</h1>
@@ -201,9 +204,9 @@
             <button id="suit-selection-submit-button" type="button">Submit</button>
         </footer>
     </div>
-</section>
+</aside>
 
-<section id="session-end-dialog" class="dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="session-end-message" hidden>
+<aside id="session-end-dialog" class="dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="session-end-message" hidden>
     <div class="dialog-panel dialog-panel-large">
         <header><h1 id="session-end-message">Message</h1></header>
         <output id="session-end-message-output">
@@ -220,7 +223,7 @@
         </output>
         <button id="session-end-dismiss-button" type="button">dismiss</button>
     </div>
-</section>
+</aside>
 
 <script type="module" src="../src/main.js"></script>
 </body>
