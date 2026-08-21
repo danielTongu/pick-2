@@ -15,6 +15,11 @@ export class Constants {
     static MAX_IDLE_MS = 30 * 1000;
 
     /**
+     * Duration used by short UI countdowns and temporary dismissals.
+     */
+    static COUNTDOWN_SECONDS = 5;
+
+    /**
      * Number of cards dealt to each player when a game starts.
      */
     static PLAYER_INITIAL_CARD_COUNT = 7;

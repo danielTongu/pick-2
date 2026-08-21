@@ -174,7 +174,6 @@ export class SessionController extends ViewController {
 
         this.#session = session;
         this.#previousStatus = nextStatus;
-        this.#suitController.hide();
         this.#renderSessionInformation(session);
         this.#renderPlayers(session);
         this.#renderDiscardPile(session.discardPile);
@@ -186,15 +185,18 @@ export class SessionController extends ViewController {
             previousStatus === Constants.STATUS.WAITING &&
             nextStatus === Constants.STATUS.PLAYING
         ) {
-            this.#countdownController.show(5);
+            this.#countdownController.show(Constants.COUNTDOWN_SECONDS);
         }
 
-        if (
+        const requiresSuitSelection =
             session.status === Constants.STATUS.PENDING &&
             localPlayer !== null &&
-            TurnUtils.isTurnOwner(session.circle?.turnOwnerKey, localPlayer.key)
-        ) {
+            TurnUtils.isTurnOwner(session.circle?.turnOwnerKey, localPlayer.key);
+
+        if (requiresSuitSelection) {
             this.#suitController.show();
+        } else {
+            this.#suitController.hide();
         }
 
         if (localPlayer !== null && session.status === Constants.STATUS.FINISHED) {

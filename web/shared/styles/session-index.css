@@ -311,7 +311,7 @@ button#copy-invite-button {
 
 #session-play-area[data-is-winner="true"]::after,
 .opponent[data-is-winner="true"] {
-    border-color: gold;
+    border-color: gold !important;
 }
 
 #session-play-area[data-is-turn-owner="true"]::after,

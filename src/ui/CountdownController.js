@@ -1,6 +1,7 @@
 
 "use strict";
 
+import { Constants } from "../core/Constants.js";
 import { NormalizeUtils } from "../core/NormalizeUtils.js";
 import { DomUtils } from "./DomUtils.js";
 import { ViewController } from "./ViewController.js";
@@ -32,7 +33,7 @@ export class CountdownController extends ViewController {
      *
      * @param {number} seconds - Countdown duration.
      */
-    show(seconds = 5) {
+    show(seconds = Constants.COUNTDOWN_SECONDS) {
         let remaining = CountdownController.#normalizeSeconds(seconds);
 
         this.#stopCountdown();
@@ -87,7 +88,7 @@ export class CountdownController extends ViewController {
         let value = Number(seconds);
 
         if (!Number.isFinite(value) || value < 1) {
-            value = 5;
+            value = Constants.COUNTDOWN_SECONDS;
         }
 
         return NormalizeUtils.nonNegativeNumber(value, "Countdown seconds");

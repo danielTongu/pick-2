@@ -21,9 +21,6 @@ export class SessionEndController extends ViewController {
     #statsBody;
 
     /** @type {HTMLElement} */
-    #playerCardsTitle;
-
-    /** @type {HTMLElement} */
     #selectedPlayerCards;
 
     /**
@@ -36,7 +33,6 @@ export class SessionEndController extends ViewController {
         super(selector);
         this.#message = DomUtils.requireChild(this.root, "#session-end-message", HTMLElement);
         this.#statsBody = DomUtils.requireChild(this.root, "#session-end-player-stats-body", HTMLTableSectionElement);
-        this.#playerCardsTitle = DomUtils.requireChild(this.root, "#session-end-player-cards-panel h2", HTMLElement);
         this.#selectedPlayerCards = DomUtils.requireChild(this.root, "#session-end-selected-player-hand", HTMLElement);
         this.bindDismissButton("#session-end-dismiss-button");
     }
@@ -66,13 +62,7 @@ export class SessionEndController extends ViewController {
 
         this.#message.textContent = SessionEndController.#getSessionEndMessage(session.playerName, winners);
         this.#renderStats(session.players);
-
-        if (session.players.length > 0) {
-            this.#selectPlayer(session.players[0].name);
-        } else {
-            this.#playerCardsTitle.textContent = "Player Cards";
-            this.#selectedPlayerCards.replaceChildren();
-        }
+        this.#selectedPlayerCards.replaceChildren();
     }
 
     /**
@@ -132,7 +122,6 @@ export class SessionEndController extends ViewController {
 
         if (player !== null) {
             this.#selectStatsRow(playerName);
-            this.#playerCardsTitle.textContent = `${player.name}'s Cards`;
             this.#renderPlayerCards(player.hand.cards);
         }
     }

@@ -185,15 +185,19 @@
 
 <section id="suit-selection-dialog" class="dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="suit-selection-title" aria-describedby="suit-selection-description" hidden>
     <div class="dialog-panel">
-        <header><h1 id="suit-selection-title">Choose Suit</h1><p id="suit-selection-description">Select the next active suit.</p></header>
-        <div id="suit-selection-panel" role="radiogroup" aria-label="Suit">
+        <header>
+            <h1 id="suit-selection-title">Choose Suit</h1>
+            <p id="suit-selection-description">Select the next active suit to <strong>submit</strong>.</p>
+            <p>Press <strong>timeout</strong> to temporarily dismiss this alert.</p>
+        </header>
+        <output id="suit-selection-panel" role="radiogroup" aria-label="Suit">
             <label data-suit="hearts"><input name="suit" type="radio" value="hearts" aria-label="Hearts" required><span aria-hidden="true">♥</span></label>
             <label data-suit="diamonds"><input name="suit" type="radio" value="diamonds" aria-label="Diamonds"><span aria-hidden="true">♦</span></label>
             <label data-suit="clubs"><input name="suit" type="radio" value="clubs" aria-label="Clubs"><span aria-hidden="true">♣</span></label>
             <label data-suit="spades"><input name="suit" type="radio" value="spades" aria-label="Spades"><span aria-hidden="true">♠</span></label>
-        </div>
+        </output>
         <footer>
-            <button id="suit-selection-dismiss-button" type="button">Back</button>
+            <button id="suit-selection-dismiss-button" type="button">timeout</button>
             <button id="suit-selection-submit-button" type="button">Submit</button>
         </footer>
     </div>
@@ -202,19 +206,19 @@
 <section id="session-end-dialog" class="dialog-overlay" role="dialog" aria-modal="true" aria-labelledby="session-end-message" hidden>
     <div class="dialog-panel dialog-panel-large">
         <header><h1 id="session-end-message">Message</h1></header>
-        <section id="session-end-stats-panel">
+        <output id="session-end-message-output">
             <h2>Player Stats</h2>
-            <table id="session-end-player-stats-table">
-                <caption class="visually-hidden">Player statistics for this session</caption>
-                <thead><tr><th scope="col">Player</th><th scope="col">Score</th><th scope="col">Cards</th><th scope="col">Status</th></tr></thead>
-                <tbody id="session-end-player-stats-body"></tbody>
-            </table>
-        </section>
-        <section id="session-end-player-cards-panel">
-            <header><h2>Select a player</h2><p>Select a player row to view their cards.</p></header>
-            <footer id="session-end-selected-player-hand" class="playing-card-area"></footer>
-        </section>
-        <button id="session-end-dismiss-button" type="button">OK</button>
+            <section id="session-end-stats-panel">
+                <table id="session-end-player-stats-table">
+                    <caption class="visually-hidden">Player statistics for this session</caption>
+                    <thead><tr><th scope="col">Player</th><th scope="col">Score</th><th scope="col">Cards</th><th scope="col">Status</th></tr></thead>
+                    <tbody id="session-end-player-stats-body"></tbody>
+                </table>
+            </section>
+            <h2>select stat row to show player cards</h2>
+            <section id="session-end-selected-player-hand" class="playing-card-area"></section>
+        </output>
+        <button id="session-end-dismiss-button" type="button">dismiss</button>
     </div>
 </section>
 

@@ -1,6 +1,7 @@
 
 "use strict";
 
+import { Constants } from "../core/Constants.js";
 import { DomUtils } from "./DomUtils.js";
 import { ViewController } from "./ViewController.js";
 
@@ -13,6 +14,9 @@ export class SuitSelectionController extends ViewController {
 
     /** @type {HTMLButtonElement} */
     #submitButton;
+
+    /** @type {number|null} */
+    #timeoutId = null;
 
     /**
      * Creates a suit-selection overlay controller.
@@ -28,8 +32,24 @@ export class SuitSelectionController extends ViewController {
             HTMLButtonElement
         );
 
-        this.bindDismissButton("#suit-selection-dismiss-button");
         this.#bindEvents();
+    }
+
+    /**
+     * Shows the overlay unless it is temporarily dismissed.
+     */
+    show() {
+        if (this.#timeoutId === null) {
+            super.show();
+        }
+    }
+
+    /**
+     * Hides the overlay and cancels a temporary dismissal.
+     */
+    hide() {
+        this.#clearTimeout();
+        super.hide();
     }
 
     /**
@@ -50,10 +70,44 @@ export class SuitSelectionController extends ViewController {
      * Binds overlay events.
      */
     #bindEvents() {
+        const timeoutButton = DomUtils.requireChild(
+            this.root,
+            "#suit-selection-dismiss-button",
+            HTMLButtonElement
+        );
+
+        timeoutButton.addEventListener("click", function (event) {
+            event.preventDefault();
+            this.#temporarilyDismiss();
+        }.bind(this));
+
         this.#submitButton.addEventListener("click", function (event) {
             event.preventDefault();
             this.#submitSelectedSuit();
         }.bind(this));
+    }
+
+    /**
+     * Hides the overlay for the shared countdown duration.
+     */
+    #temporarilyDismiss() {
+        this.#clearTimeout();
+        super.hide();
+
+        this.#timeoutId = window.setTimeout(() => {
+            this.#timeoutId = null;
+            super.show();
+        }, Constants.COUNTDOWN_SECONDS * 1000);
+    }
+
+    /**
+     * Cancels the active temporary-dismiss timer.
+     */
+    #clearTimeout() {
+        if (this.#timeoutId !== null) {
+            window.clearTimeout(this.#timeoutId);
+            this.#timeoutId = null;
+        }
     }
 
     /**
