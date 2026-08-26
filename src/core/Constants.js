@@ -38,18 +38,17 @@ export class Constants {
      * Default sessions available in Local and Server registries.
      */
     static DEFAULT_SESSIONS = Object.freeze([
-        Object.freeze({name: "Default-S0", capacity: 4, aiCount: 2}),
+        Object.freeze({name: "Default-S0", capacity: 4, aiCount: 3}),
         Object.freeze({name: "Default-S1", capacity: 4, aiCount: 2}),
         Object.freeze({name: "Default-S2", capacity: 4, aiCount: 1}),
-        Object.freeze({name: "Default-S3", capacity: 4, aiCount: 1})
     ]);
 
     /**
      * Emoji groups used by game messages.
      */
     static EMOJIS = Object.freeze({
-        silly: this.#createEmojiGroup(["😂", "🤣", "😈", "👿", "😝", "🙃", "🤪", "😜"]),
-        winner: this.#createEmojiGroup(["🏆", "🎉", "🎊"])
+        silly: this.#createEmojiGroup(["😈","😂","😝","🙃","🤪"]),
+        winner: this.#createEmojiGroup(["🎉","🏆","🎊"])
     });
 
     /**
