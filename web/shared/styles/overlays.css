@@ -290,15 +290,16 @@ output#alert-message {
     gap:1rem;
 }
 
-#session-end-player-stats-table {
-    --interactive-row-background: rgba(255, 255, 255, .10);
-}
-
 #session-end-dialog h2 {
     margin:0;
     font-family: Arial, sans-serif;
     font-size: medium;
     font-weight: 600;
+}
+
+#session-end-dialog p {
+    color: cyan;
+    margin-top: 0;
 }
 
 #session-end-stats-panel {
@@ -329,8 +330,9 @@ output#alert-message {
     overflow-x: auto;
     overflow-y: hidden;
     white-space: nowrap;
-    background: rgba(255, 255, 255, .08);
+    background: rgb(0 255 255 / .12);
 }
+
 #session-end-player-stats-table tbody:empty::before,
 #session-end-selected-player-hand:empty::before {
     color: rgba(255, 255, 255, .45);
@@ -339,11 +341,11 @@ output#alert-message {
 }
 
 #session-end-player-stats-table tbody:empty::before {
-    content: "no players";
+    content: "no players to show";
 }
 
 #session-end-selected-player-hand:empty::before {
-    content: "row not selected";
+    content: "no cards to show";
 }
 
 #session-end-selected-player-hand > playing-card {
