@@ -28,9 +28,8 @@
     scrollbar-width: none;
 
     height: 100%;
-    min-height: var(--card-min-height);
-
-    padding: 0 calc(var(--card-gap) / 2);
+    min-height: calc(var(--card-min-height) + var(--card-gap) * 2);
+    padding: var(--card-gap) 0;
 }
 
 .playing-card-area:not(#discard-pile) {
@@ -58,13 +57,14 @@
    ======================================== */
 
 #discard-pile {
+    --card-gap: 21px;
+
     position: relative;
     font-size: inherit;
     white-space: normal;
 
     display: grid;
     place-items: center;
-
 }
 
 #discard-pile[data-is-drag-over="true"]::before {
