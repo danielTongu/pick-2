@@ -299,7 +299,7 @@ output#alert-message {
 
 #session-end-dialog p {
     color: cyan;
-    margin-top: 0;
+    margin-bottom: 0;
 }
 
 #session-end-stats-panel {
