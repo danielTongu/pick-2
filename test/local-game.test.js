@@ -250,12 +250,26 @@ test("static and server deployments share one game page and one session page", (
     assert.match(sessionHtml, /\.\.\/web\/shared\/styles\/session-index\.css/);
     assert.match(gameHtml, /\.\/web\/shared\/styles\/base\.css/);
     assert.match(sessionHtml, /\.\.\/web\/shared\/styles\/base\.css/);
+    assert.match(gameHtml, /\.\/web\/shared\/styles\/table\.css/);
+    assert.match(sessionHtml, /\.\.\/web\/shared\/styles\/table\.css/);
+    assert.doesNotMatch(gameHtml, /table-data\.css/);
+    assert.doesNotMatch(sessionHtml, /table-data\.css/);
     assert.match(main, /new LocalTransport\(new LocalServer\(\)\)/);
     assert.match(main, /new WebSocketTransport/);
     assert.match(server, /session\/index\.html/);
     assert.match(server, /\["\/session", "\/session\/", "\/session\/index\.html"\]/);
     assert.doesNotMatch(server, /response\.redirect\([^)]*\/session/);
     assert.doesNotMatch(server, /web\/server/);
+});
+
+test("the shared table stylesheet owns foundational row states", () => {
+    const baseCss = readFileSync(new URL("../web/shared/styles/base.css", import.meta.url), "utf8");
+    const tableCss = readFileSync(new URL("../web/shared/styles/table.css", import.meta.url), "utf8");
+
+    assert.doesNotMatch(baseCss, /^(?:table|th|td|tbody tr|\.table-container)\b/m);
+    assert.match(tableCss, /tbody tr:is\(:hover, :focus-visible\)\s*\{[\s\S]*?background:\s*var\(--table-row-hover-background\)/);
+    assert.match(tableCss, /--table-row-hover-background:\s*rgb\(0 255 255 \/ \.12\)/);
+    assert.match(tableCss, /tbody tr\[data-is-selected="true"\]\s*\{\s*color:\s*var\(--table-row-selected-color\);\s*\}/);
 });
 
 test("shared controllers depend on GameClient vocabulary rather than edition services", () => {

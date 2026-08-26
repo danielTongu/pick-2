@@ -1,4 +1,55 @@
-/* public/styles/table-data.css */
+/* Shared table foundations and data presentation. */
+
+.table-container {
+    overflow-x: auto;
+}
+
+table {
+    --table-heading-padding: var(--container-spacing);
+    --table-cell-padding: var(--container-spacing);
+    --table-row-hover-background: rgb(0 255 255 / .12);
+    --table-row-selected-color: cyan;
+
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    padding: var(--table-heading-padding);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+td {
+    padding: var(--table-cell-padding);
+    white-space: nowrap;
+}
+
+tbody tr {
+    transition:
+        background-color .2s ease,
+        color .2s ease;
+}
+
+tbody tr[tabindex] {
+    cursor: pointer;
+}
+
+tbody tr:is(:hover, :focus-visible) {
+    background: var(--table-row-hover-background);
+}
+
+tbody tr[data-is-selected="true"] {
+    color: var(--table-row-selected-color);
+}
+
+#session-info-table,
+#session-list-table {
+    font-size: 12px;
+}
 
 td:empty::before {
     content: "--";
@@ -26,7 +77,6 @@ td[data-status] > .session-status-indicator {
     border-radius: var(--container-radius);
     vertical-align: middle;
     background: gray;
-
     transition: background .2s ease-in-out;
 }
 
