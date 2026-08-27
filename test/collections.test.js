@@ -46,12 +46,12 @@ test("hands draw, discard, and total card scores", () => {
     ]);
 
     assert.equal(hand.cards.length, 2);
-    assert.equal(hand.score, 60);
+    assert.equal(hand.score, 70);
     assert.equal(hand.isCardPresent(new Card(VALUE.TWO.id, SUIT.CLUBS)), true);
 
     const discarded = hand.discard(new Card(VALUE.TWO.id, SUIT.CLUBS));
     assert.equal(discarded.getId(), "2-clubs");
-    assert.equal(hand.score, 40);
+    assert.equal(hand.score, 50);
     assert.throws(() => hand.discard(discarded), /Card not found/);
 });
 
@@ -62,7 +62,7 @@ test("hands serialize through Serializable with plain card snapshots", () => {
     ]);
     const snapshot = hand.toJSON();
 
-    assert.equal(snapshot.score, 60);
+    assert.equal(snapshot.score, 70);
     assert.equal(snapshot.cards.length, 2);
     assert.equal(snapshot.cards[0].value, VALUE.TWO.id);
     assert.equal(snapshot.cards[0] instanceof Card, false);

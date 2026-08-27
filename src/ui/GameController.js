@@ -45,10 +45,7 @@ export class GameController extends ViewController {
     #localModeInput;
 
     /** @type {HTMLInputElement} */
-    #serverModeInput;
-
-    /** @type {boolean} */
-    #isServerAvailable = false;
+    #networkModeInput;
 
     /** Creates the shared game controller. */
     constructor() {
@@ -59,7 +56,7 @@ export class GameController extends ViewController {
         this.#capacityInput = DomUtils.require("#session-capacity-input", HTMLInputElement);
         this.#connectionStatus = DomUtils.require("#connection-status", HTMLElement);
         this.#localModeInput = DomUtils.require("#local-mode-input", HTMLInputElement);
-        this.#serverModeInput = DomUtils.require("#server-mode-input", HTMLInputElement);
+        this.#networkModeInput = DomUtils.require("#network-mode-input", HTMLInputElement);
     }
 
     /** @param {Object} client - Active game client. */
@@ -89,7 +86,7 @@ export class GameController extends ViewController {
             this.render(this.#game);
         });
 
-        for (const input of [this.#localModeInput, this.#serverModeInput]) {
+        for (const input of [this.#localModeInput, this.#networkModeInput]) {
             input.addEventListener("change", () => {
                 if (input.checked) {
                     this.#modeHandler?.(input.value);
@@ -98,19 +95,11 @@ export class GameController extends ViewController {
         }
     }
 
-    /** @param {boolean} isAvailable - Whether Server play is reachable. */
-    setServerAvailable(isAvailable) {
-        this.#isServerAvailable = isAvailable;
-        this.#serverModeInput.disabled = !isAvailable && !this.#serverModeInput.checked;
-        this.#renderConnectionStatus();
-    }
-
     /** @param {string} mode - Active play mode. */
     selectMode(mode) {
-        const isServer = mode === "server";
-        this.#localModeInput.checked = !isServer;
-        this.#serverModeInput.checked = isServer;
-        this.#serverModeInput.disabled = !this.#isServerAvailable && !isServer;
+        const isNetwork = mode === "network";
+        this.#localModeInput.checked = !isNetwork;
+        this.#networkModeInput.checked = isNetwork;
         this.#connectionStatus.dataset.status = "connecting";
         this.#sessionTableBody.replaceChildren();
         this.#renderEmptySessionMessage();
@@ -188,8 +177,8 @@ export class GameController extends ViewController {
 
     /** Renders connection state and mode switching on one control. */
     #renderConnectionStatus() {
-        const isServer = this.#serverModeInput.checked;
-        const modeLabel = isServer ? "Server" : "Local";
+        const isNetwork = this.#networkModeInput.checked;
+        const modeLabel = isNetwork ? "Network" : "Local";
         const connectionState = this.#connectionStatus.dataset.status ?? "connecting";
         const statusLabel = {
             connecting: "connecting",
@@ -197,12 +186,10 @@ export class GameController extends ViewController {
             disconnected: "disconnected",
             error: "connection error"
         }[connectionState] ?? "status unknown";
-        const description = `Connection mode. ${modeLabel} ${statusLabel}.`;
-        const accessibleDescription = this.#isServerAvailable || isServer
-            ? description
-            : `${description} Server unavailable.`;
-
-        this.#connectionStatus.setAttribute("aria-label", accessibleDescription);
+        this.#connectionStatus.setAttribute(
+            "aria-label",
+            `Connection mode. ${modeLabel} ${statusLabel}.`
+        );
     }
 
     /** Submits create or join session intent. */
@@ -266,7 +253,7 @@ export class GameController extends ViewController {
         );
     }
 
-    /** Opens a selected Local or Server session. */
+    /** Opens a selected Local or Network session. */
     #openSession(session) {
         const sessionName = NormalizeUtils.requiredString(session.name, "Session name");
         this.#sessionHandler?.(Constants.ACTIONS.VIEW, {sessionName});

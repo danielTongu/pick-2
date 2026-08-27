@@ -4,7 +4,7 @@ import { NormalizeUtils } from "../core/NormalizeUtils.js";
 import { Transport } from "./Transport.js";
 
 /**
- * Connects GameClient to the Server-mode WebSocket endpoint.
+ * Connects GameClient to a Network-mode WebSocket endpoint.
  */
 export class WebSocketTransport extends Transport {
     /** @type {string} */
@@ -63,7 +63,11 @@ export class WebSocketTransport extends Transport {
 
     /** Opens and binds a new WebSocket. */
     #open() {
-        this.onStatus?.("connecting", "Connecting...");
+        const isReconnecting = this.#reconnectAttempts > 0;
+        this.onStatus?.(
+            isReconnecting ? "reconnecting" : "connecting",
+            isReconnecting ? "Reconnecting…" : "Connecting…"
+        );
         const socket = new WebSocket(this.#url);
 
         this.#socket = socket;
@@ -74,7 +78,7 @@ export class WebSocketTransport extends Transport {
 
             this.#cancelReconnect();
             this.#reconnectAttempts = 0;
-            this.onStatus?.("connected", "Server");
+            this.onStatus?.("connected", "Network");
             this.onOpen?.();
         });
         socket.addEventListener("message", (event) => {
@@ -108,6 +112,7 @@ export class WebSocketTransport extends Transport {
 
         const delay = Math.min(1000 * (2 ** this.#reconnectAttempts), 30_000);
         this.#reconnectAttempts += 1;
+        this.onStatus?.("reconnecting", "Reconnecting…");
         this.#reconnectTimer = globalThis.setTimeout(() => {
             this.#reconnectTimer = null;
             this.#open();

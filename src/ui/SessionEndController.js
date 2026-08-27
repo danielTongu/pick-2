@@ -5,6 +5,7 @@ import { Constants } from "../core/Constants.js";
 import { NormalizeUtils } from "../core/NormalizeUtils.js";
 import { DomUtils } from "./DomUtils.js";
 import { PlayingCard } from "./PlayingCard.js";
+import { PlayerDisplayUtils } from "./PlayerDisplayUtils.js";
 import { ViewController } from "./ViewController.js";
 
 /**
@@ -50,6 +51,15 @@ export class SessionEndController extends ViewController {
         this.#render(data);
 
         super.show();
+    }
+
+    /** Clears stale results whenever the overlay is closed. */
+    hide() {
+        this.#players = [];
+        this.#message.textContent = "";
+        this.#statsBody.replaceChildren();
+        this.#selectedPlayerCards.replaceChildren();
+        super.hide();
     }
 
     /**
@@ -196,10 +206,11 @@ export class SessionEndController extends ViewController {
      */
     static #normalizeSession(session) {
         const source = NormalizeUtils.object(session, "Session");
+        const playerName = NormalizeUtils.optionalString(source.localPlayerName, "");
 
         return {
-            players: Array.isArray(source.circle?.players) ? source.circle.players : [],
-            playerName: NormalizeUtils.optionalString(source.localPlayerName, "")
+            players: PlayerDisplayUtils.localFirst(source.circle?.players, playerName),
+            playerName
         };
     }
 

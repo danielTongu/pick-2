@@ -72,7 +72,7 @@ export class SuitSelectionController extends ViewController {
     #bindEvents() {
         const timeoutButton = DomUtils.requireChild(
             this.root,
-            "#suit-selection-dismiss-button",
+            "#suit-selection-timeout-button",
             HTMLButtonElement
         );
 

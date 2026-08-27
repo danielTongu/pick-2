@@ -367,10 +367,10 @@ export default class Server {
         });
     }
 
-    /** @returns {Object} Shared Server-mode metadata. */
+    /** @returns {Object} Shared Network-mode metadata. */
     static #getModeData() {
         return Object.freeze({
-            mode: "server",
+            mode: "network",
             capabilities: Object.freeze({
                 create: true,
                 join: true,

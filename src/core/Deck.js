@@ -10,6 +10,7 @@ import { Serializable } from "./Serializable.js";
  * Owns the draw pile.
  */
 export class Deck extends Serializable {
+
     /**
      * Creates a deck.
      *
@@ -21,7 +22,6 @@ export class Deck extends Serializable {
 
         /** @type {Card[]} */
         this.cards = [];
-
         this.reset(isShuffled);
     }
 

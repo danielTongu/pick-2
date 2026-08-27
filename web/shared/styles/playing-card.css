@@ -38,17 +38,17 @@
 }
 
 .playing-card-area > playing-card,
-.playing-card-area > #draw-card-button {
+.playing-card-area > #card-draw-button {
     margin: 0 calc(var(--card-gap) / 2);
 }
 
 .playing-card-area > playing-card:first-child,
-.playing-card-area > #draw-card-button:first-child {
+.playing-card-area > #card-draw-button:first-child {
     margin-left: 0;
 }
 
 .playing-card-area > playing-card:last-child,
-.playing-card-area > #draw-card-button:last-child {
+.playing-card-area > #card-draw-button:last-child {
     margin-right: 0;
 }
 
@@ -123,7 +123,7 @@ body > playing-card {
    ======================================== */
 
 playing-card,
-#draw-card-button {
+#card-draw-button {
     display: inline-block;
     text-align: center;
 
@@ -357,7 +357,7 @@ playing-card[data-is-dragging="true"] {
    DRAW CARD BUTTON - Placeholder card
    ======================================== */
 
-#draw-card-button {
+#card-draw-button {
     --plus-length: calc(var(--card-width) * .50);
     --plus-length-hover: calc(var(--card-width) * .70);
     --plus-thickness: calc(var(--card-width) * .035);
@@ -373,8 +373,8 @@ playing-card[data-is-dragging="true"] {
             color .3s ease;
 }
 
-#draw-card-button::before,
-#draw-card-button::after {
+#card-draw-button::before,
+#card-draw-button::after {
     pointer-events: none;
     content: "";
     position: absolute;
@@ -387,17 +387,17 @@ playing-card[data-is-dragging="true"] {
             height .3s ease;
 }
 
-#draw-card-button::before {
+#card-draw-button::before {
     width: var(--plus-length);
     height: var(--plus-thickness);
 }
 
-#draw-card-button::after {
+#card-draw-button::after {
     width: var(--plus-thickness);
     height: var(--plus-length);
 }
 
-#draw-card-button > span[data-draw-allowance] {
+#card-draw-button > span[data-draw-allowance] {
     position: absolute;
     bottom: calc(var(--card-height) / 17);
     font-size: calc(var(--card-height) / 8);
@@ -407,31 +407,31 @@ playing-card[data-is-dragging="true"] {
     transform: translateX(-50%);
 }
 
-#draw-card-button > span[data-draw-allowance]::before {
+#card-draw-button > span[data-draw-allowance]::before {
     content: "draw ";
 }
 
-#draw-card-button > span[data-draw-allowance]::after {
+#card-draw-button > span[data-draw-allowance]::after {
     content: attr(data-draw-allowance);
 }
 
-#draw-card-button:hover::before {
+#card-draw-button:hover::before {
     width: var(--plus-length-hover);
 }
 
-#draw-card-button:hover::after {
+#card-draw-button:hover::after {
     height: var(--plus-length-hover);
 }
 
-#draw-card-button:disabled {
+#card-draw-button:disabled {
     opacity: 1;
 }
 
-#draw-card-button:disabled:hover::before {
+#card-draw-button:disabled:hover::before {
     width: var(--plus-length);
 }
 
-#draw-card-button:disabled:hover::after {
+#card-draw-button:disabled:hover::after {
     height: var(--plus-length);
 }
 
@@ -441,7 +441,7 @@ playing-card[data-is-dragging="true"] {
 
 @media print {
     playing-card,
-    #draw-card-button {
+    #card-draw-button {
         height: 240px;
         width: 170px;
 
@@ -453,7 +453,7 @@ playing-card[data-is-dragging="true"] {
         break-inside: avoid;
     }
 
-    #draw-card-button {
+    #card-draw-button {
         border: 1px solid rgba(0, 0, 0, .2);
         background: #f5f5f5;
         color: #333;
@@ -468,9 +468,9 @@ playing-card[data-is-dragging="true"] {
     playing-card,
     #discard-pile > playing-card,
     playing-card > .playing-card-center::before,
-    #draw-card-button,
-    #draw-card-button::before,
-    #draw-card-button::after {
+    #card-draw-button,
+    #card-draw-button::before,
+    #card-draw-button::after {
         transition: none;
     }
 }

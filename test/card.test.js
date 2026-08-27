@@ -16,12 +16,12 @@ test("card-domain constants expose immutable canonical collections", () => {
     assert.equal(Object.isFrozen(Constants.CARD.STANDARD_SUITS), true);
     assert.equal(Object.isFrozen(Constants.CARD.JOKER_SUITS), true);
     assert.equal(Object.isFrozen(Constants.CARD.STANDARD_VALUES), true);
-    assert.equal(Constants.CARD.DRAG_CLONE_SCALE, .25);
+    assert.equal(Constants.CARD.DRAG_CLONE_SCALE, 1.5);
     assert.equal(Constants.CARD.DRAG_CLONE_SCALE > 0, true);
 });
 
-test("default session configuration assigns two AI players to two sessions", () => {
-    assert.equal(Constants.DEFAULT_SESSIONS.filter((session) => session.aiCount === 2).length, 2);
+test("default session configuration exposes three AI-capacity levels", () => {
+    assert.deepEqual(Constants.DEFAULT_SESSIONS.map((session) => session.aiCount), [3, 2, 1]);
     assert.equal(Constants.DEFAULT_SESSIONS.every((session) => Object.isFrozen(session)), true);
     assert.equal(Object.isFrozen(Constants.DEFAULT_SESSIONS), true);
 });
@@ -73,9 +73,21 @@ test("cards validate standard cards and joker suits", () => {
 test("special cards use the expected scores", () => {
     assert.equal(new Card(VALUE.TWO.id, SUIT.CLUBS).score, 20);
     assert.equal(new Card(VALUE.SEVEN.id, SUIT.HEARTS).score, 30);
-    assert.equal(new Card(VALUE.ACE.id, SUIT.SPADES).score, 40);
-    assert.equal(new Card(VALUE.JOKER.id, SUIT.BLACK).score, 50);
+    assert.equal(new Card(VALUE.ACE.id, SUIT.SPADES).score, 50);
+    assert.equal(new Card(VALUE.JOKER.id, SUIT.BLACK).score, 40);
     assert.equal(new Card(VALUE.KING.id, SUIT.DIAMONDS).score, 13);
+});
+
+test("the canonical deck contains nineteen special-rule cards", () => {
+    const standardCards = Constants.CARD.STANDARD_VALUES.flatMap((value) =>
+        Constants.CARD.STANDARD_SUITS.map((suit) => new Card(value, suit, 0)));
+    const jokers = Constants.CARD.JOKER_SUITS.map((suit) =>
+        new Card(VALUE.JOKER.id, suit, 0));
+    const specialCards = standardCards.concat(jokers).filter((card) => card.isSpecial());
+
+    assert.equal(specialCards.length, 19);
+    assert.equal(specialCards.some((card) => card.isAceOfSpades()), true);
+    assert.equal(specialCards.filter((card) => card.value === VALUE.JOKER.id).length, 2);
 });
 
 test("card scores come from the shared constants source", () => {
@@ -88,7 +100,7 @@ test("card scores come from the shared constants source", () => {
 
 test("emoji constants provide reusable silly and winner groups", () => {
     assert.equal(Constants.EMOJIS.silly.values.length > 0, true);
-    assert.deepEqual(Constants.EMOJIS.winner.values, ["🏆", "🎉", "🎊"]);
+    assert.deepEqual(Constants.EMOJIS.winner.values, ["🎉", "🏆", "🎊"]);
     assert.equal(Constants.EMOJIS.silly.values.includes(Constants.EMOJIS.silly.random), true);
     assert.equal(Constants.EMOJIS.winner.values.includes(Constants.EMOJIS.winner.random), true);
     assert.equal(Object.isFrozen(Constants.EMOJIS.silly.values), true);

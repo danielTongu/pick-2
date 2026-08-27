@@ -61,7 +61,7 @@ test("the local server uses the same game, session, and action response vocabula
     assert.deepEqual(Object.keys(session).includes("circle"), true);
 });
 
-test("local default sessions support the same view and join actions as Server sessions", async () => {
+test("local default sessions support the same view and join actions as Network sessions", async () => {
     const server = new LocalServer();
     const sessionConfig = Constants.DEFAULT_SESSIONS[0];
     const visitResponses = await send(server, Constants.ACTIONS.VIEW, {
@@ -205,23 +205,50 @@ test("GameClient adds the same session fields to every transport request", () =>
     assert.equal(typeof transport.request.payload.tabId, "string");
 });
 
-test("static and server deployments share one game page and one session page", () => {
+test("GameClient exposes transport status and fresh synchronization events", () => {
+    class TestTransport extends Transport {
+        connect() {}
+        send() { return true; }
+    }
+
+    const transport = new TestTransport();
+    const client = new GameClient(transport);
+    const statuses = [];
+    const syncs = [];
+    client.setController({handleSync() {}});
+    client.setStatusHandler((status) => statuses.push(status));
+    client.setSyncHandler((view, sync) => syncs.push({view, sync}));
+
+    transport.onStatus("reconnecting", "Reconnecting…");
+    transport.onMessage(JSON.stringify({view: Constants.VIEWS.GAME, message: null, sync: {version: 2}}));
+
+    assert.deepEqual(statuses, ["reconnecting"]);
+    assert.deepEqual(syncs, [{view: Constants.VIEWS.GAME, sync: {version: 2}}]);
+});
+
+test("Local and Network modes share one game page and one session page", () => {
     const gameHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
     const sessionHtml = readFileSync(new URL("../session/index.html", import.meta.url), "utf8");
     const main = readFileSync(new URL("../src/main.js", import.meta.url), "utf8");
     const server = readFileSync(new URL("../src/server/Server.js", import.meta.url), "utf8");
+    const landingCss = readFileSync(
+        new URL("../web/shared/styles/pick2-index.css", import.meta.url),
+        "utf8"
+    );
 
     assert.match(gameHtml, /<body data-page="game">/);
     assert.match(gameHtml, /id="session-registration-form"/);
     assert.match(gameHtml, /id="session-list-table-body"/);
-    const sharedHeaderPattern = /<header id="app-header">\s*<h1[\s\S]*?<\/h1>\s*<aside id="connection-status"/;
+    const sharedHeaderPattern = /<header id="app-header">\s*<a id="app-home-link"[\s\S]*?<h1 class="brand-mark"[\s\S]*?<aside class="brand-copy">[\s\S]*?<\/a>\s*<aside id="connection-status"/;
 
     assert.match(gameHtml, sharedHeaderPattern);
     assert.match(sessionHtml, sharedHeaderPattern);
+    assert.equal(gameHtml.match(/id="app-header"/g)?.length, 1);
+    assert.equal(gameHtml.match(/id="app-footer"/g)?.length, 1);
     assert.match(gameHtml, /<aside[^>]+id="connection-status"[^>]+class="toggle-switch"[^>]+role="radiogroup"[^>]+data-status="connecting"/);
     assert.match(gameHtml, /<aside[^>]+id="connection-status"[^>]*>\s*<label>\s*<input id="local-mode-input"/);
     assert.match(gameHtml, /id="local-mode-input"[^>]+value="local"/);
-    assert.match(gameHtml, /id="server-mode-input"[^>]+value="server"/);
+    assert.match(gameHtml, /id="network-mode-input"[^>]+value="network"/);
     assert.doesNotMatch(gameHtml, /id="connection-status-indicator"/);
     assert.doesNotMatch(gameHtml, /id="play-mode-group"/);
     assert.doesNotMatch(gameHtml, /id="local-session-note"/);
@@ -235,6 +262,7 @@ test("static and server deployments share one game page and one session page", (
     assert.match(gameHtml, /<tbody id="session-list-table-body">[\s\S]*?class="empty-session-row"/);
     assert.doesNotMatch(gameHtml, /id="game-guide-section"/);
     assert.match(sessionHtml, /<body data-page="session">/);
+    assert.match(gameHtml, /<article id="network-connection-view"[^>]+hidden>/);
     assert.match(sessionHtml, /id="session-play-area"[^>]+data-is-turn-bound="false"/);
     assert.match(sessionHtml, /class="[^"]*local-player-region[^"]*"[^>]+data-card-count="0"/);
     assert.match(sessionHtml, /class="[^"]*local-player-region[^"]*"[^>]+id="local-player-hand"/);
@@ -245,6 +273,30 @@ test("static and server deployments share one game page and one session page", (
     assert.doesNotMatch(sessionHtml, /id="session-mode-label"/);
     assert.doesNotMatch(sessionHtml, /id="connection-status-indicator"/);
     assert.match(gameHtml, /\.\/src\/main\.js/);
+    assert.doesNotMatch(gameHtml, /network-connection\.js/);
+    assert.match(gameHtml, /<aside class="card-fan" aria-hidden="true" inert><\/aside>/);
+    assert.match(
+        gameHtml,
+        /<header class="hero">\s*<section class="eyebrow">[\s\S]*?<section>\s*<aside>[\s\S]*?<aside class="card-fan"/
+    );
+    assert.match(
+        landingCss,
+        /\.hero > section:last-child\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:/
+    );
+    assert.match(
+        landingCss,
+        /\.card-fan\s*\{[\s\S]*?position:\s*relative;/
+    );
+    assert.match(landingCss, /\.card-fan > playing-card\s*\{[\s\S]*?position:\s*absolute;/);
+    assert.match(landingCss, /--card-rotation:\s*-24deg;/);
+    assert.doesNotMatch(landingCss, /--fan-angle/);
+    assert.match(main, /new Card\(VALUE\.TWO\.id, SUIT\.CLUBS, 0\)/);
+    assert.match(main, /new Card\(VALUE\.EIGHT\.id, SUIT\.DIAMONDS, 0\)/);
+    assert.match(main, /new Card\(VALUE\.JACK\.id, SUIT\.SPADES, 0\)/);
+    assert.match(main, /new Card\(VALUE\.ACE\.id, SUIT\.HEARTS, 0\)/);
+    assert.match(main, /\.sort\(\(left, right\) => left\.score - right\.score\)/);
+    assert.match(main, /PlayingCard\.create\(card, \{isDraggable: false\}\)/);
+    assert.match(main, /element\.style\.removeProperty\("--card-rotation"\)/);
     assert.match(sessionHtml, /\.\.\/src\/main\.js/);
     assert.match(gameHtml, /\.\/web\/shared\/styles\/pick2-index\.css/);
     assert.match(sessionHtml, /\.\.\/web\/shared\/styles\/session-index\.css/);
@@ -252,24 +304,91 @@ test("static and server deployments share one game page and one session page", (
     assert.match(sessionHtml, /\.\.\/web\/shared\/styles\/base\.css/);
     assert.match(gameHtml, /\.\/web\/shared\/styles\/table\.css/);
     assert.match(sessionHtml, /\.\.\/web\/shared\/styles\/table\.css/);
+    assert.ok(gameHtml.indexOf("styles/table.css") < gameHtml.indexOf("styles/pick2-index.css"));
+    assert.ok(sessionHtml.indexOf("styles/table.css") < sessionHtml.indexOf("styles/session-index.css"));
     assert.doesNotMatch(gameHtml, /table-data\.css/);
     assert.doesNotMatch(sessionHtml, /table-data\.css/);
+    assert.doesNotMatch(gameHtml + sessionHtml, /<caption\b/);
+    assert.match(gameHtml, /<button id="session-enter-button">Enter session<\/button>/);
+    assert.match(gameHtml, /<button id="alert-ok-button">OK<\/button>/);
+    assert.match(sessionHtml, /<button id="session-play-button">Play<\/button>/);
+    assert.match(sessionHtml, /<button id="session-invite-button" hidden>Invite<\/button>/);
+    assert.match(sessionHtml, /<button id="countdown-ok-button">OK<\/button>/);
+    assert.match(sessionHtml, /<button id="suit-selection-timeout-button">timeout<\/button>/);
+    assert.match(sessionHtml, /<button id="suit-selection-submit-button">Submit<\/button>/);
+    assert.match(sessionHtml, /<button id="session-end-dismiss-button">dismiss<\/button>/);
+    assert.doesNotMatch(gameHtml + sessionHtml, /id="(?:quick-start|core-rules|special-cards)"/);
     assert.match(main, /new LocalTransport\(new LocalServer\(\)\)/);
     assert.match(main, /new WebSocketTransport/);
     assert.match(server, /session\/index\.html/);
     assert.match(server, /\["\/session", "\/session\/", "\/session\/index\.html"\]/);
+    assert.doesNotMatch(server, /network\/index\.html/);
+    assert.doesNotMatch(server, /\["\/network", "\/network\/", "\/network\/index\.html"\]/);
     assert.doesNotMatch(server, /response\.redirect\([^)]*\/session/);
-    assert.doesNotMatch(server, /web\/server/);
+    assert.doesNotMatch(server, /web\/network/);
+});
+
+test("the session-end dialog opens once per finish and clears for a new game", () => {
+    const controller = readFileSync(new URL("../src/ui/SessionController.js", import.meta.url), "utf8");
+    const sessionEndController = readFileSync(new URL("../src/ui/SessionEndController.js", import.meta.url), "utf8");
+
+    assert.match(
+        controller,
+        /previousStatus !== Constants\.STATUS\.FINISHED[\s\S]*?nextStatus === Constants\.STATUS\.FINISHED[\s\S]*?#sessionEndController\.show\(session\)/
+    );
+    assert.match(
+        controller,
+        /localPlayer === null \|\| nextStatus !== Constants\.STATUS\.FINISHED[\s\S]*?#sessionEndController\.hide\(\)/
+    );
+    assert.match(
+        sessionEndController,
+        /hide\(\)\s*\{[\s\S]*?#players = \[\];[\s\S]*?#statsBody\.replaceChildren\(\);[\s\S]*?#selectedPlayerCards\.replaceChildren\(\);[\s\S]*?super\.hide\(\)/
+    );
 });
 
 test("the shared table stylesheet owns foundational row states", () => {
     const baseCss = readFileSync(new URL("../web/shared/styles/base.css", import.meta.url), "utf8");
+    const landingCss = readFileSync(new URL("../web/shared/styles/pick2-index.css", import.meta.url), "utf8");
+    const sessionCss = readFileSync(new URL("../web/shared/styles/session-index.css", import.meta.url), "utf8");
+    const overlaysCss = readFileSync(new URL("../web/shared/styles/overlays.css", import.meta.url), "utf8");
     const tableCss = readFileSync(new URL("../web/shared/styles/table.css", import.meta.url), "utf8");
 
     assert.doesNotMatch(baseCss, /^(?:table|th|td|tbody tr|\.table-container)\b/m);
-    assert.match(tableCss, /tbody tr:is\(:hover, :focus-visible\)\s*\{[\s\S]*?background:\s*var\(--table-row-hover-background\)/);
-    assert.match(tableCss, /--table-row-hover-background:\s*rgb\(0 255 255 \/ \.12\)/);
-    assert.match(tableCss, /tbody tr\[data-is-selected="true"\]\s*\{\s*color:\s*var\(--table-row-selected-color\);\s*\}/);
+    for (const componentCss of [landingCss, sessionCss, overlaysCss]) {
+        assert.doesNotMatch(componentCss, /\b(?:th|td)\s*\{[^}]*\bborder(?:-\w+)?:/);
+        assert.doesNotMatch(componentCss, /tbody tr(?::is\([^)]*\)|:(?:hover|focus-visible)|\[data-is-selected="true"\])\s*\{/);
+    }
+    assert.match(tableCss, /table:has\(> tbody:empty\)::after\s*\{/);
+    assert.match(tableCss, /tr\s*\{[\s\S]*?border-bottom:\s*1px solid rgba\(255, 255, 255, \.08\)/);
+    assert.match(tableCss, /tbody tr:is\(:hover, :focus-visible\)\s*\{[\s\S]*?background:\s*rgb\(0 255 255 \/ \.12\)/);
+    assert.match(tableCss, /tbody tr:focus-visible\s*\{[\s\S]*?outline-offset:\s*-3px/);
+    assert.match(tableCss, /tbody tr\[data-is-selected="true"\]\s*\{\s*color:\s*cyan;\s*\}/);
+    assert.match(tableCss, /th\s*\{[\s\S]*?font-size:\s*9px;[\s\S]*?font-weight:\s*800;[\s\S]*?letter-spacing:\s*\.1em;/);
+    assert.doesNotMatch(landingCss + sessionCss + overlaysCss, /--table-heading-(?:color|font-size|font-weight|letter-spacing)/);
+});
+
+test("responsive styles are mobile-first with one tablet and desktop stage", () => {
+    const styleNames = [
+        "base.css",
+        "pick2-index.css",
+        "session-index.css"
+    ];
+
+    for (const styleName of styleNames) {
+        const css = readFileSync(new URL(`../web/shared/styles/${styleName}`, import.meta.url), "utf8");
+        assert.doesNotMatch(css, /@media\s*\(max-width:/);
+        assert.equal(css.match(/@media\s*\(min-width:\s*721px\)/g)?.length, 1);
+    }
+
+    const html = ["../index.html", "../session/index.html"]
+        .map((path) => readFileSync(new URL(path, import.meta.url), "utf8"))
+        .join("\n");
+    const baseCss = readFileSync(new URL("../web/shared/styles/base.css", import.meta.url), "utf8");
+
+    assert.doesNotMatch(html, /styles\/(?:tokens|app-footer|app-header)\.css/);
+    assert.match(baseCss, /:root\s*\{[\s\S]*?--container-spacing:/);
+    assert.match(baseCss, /#app-header\s*\{/);
+    assert.match(baseCss, /#app-footer\s*\{/);
 });
 
 test("shared controllers depend on GameClient vocabulary rather than edition services", () => {
@@ -287,7 +406,7 @@ test("shared controllers depend on GameClient vocabulary rather than edition ser
     assert.match(gameController, /this\.#sessionHandler\?\.\(Constants\.ACTIONS\.VIEW, \{sessionName\}\)/);
     assert.doesNotMatch(gameController, /this\.#capabilities\.viewers === true/);
     assert.match(gameController, /cell\.textContent = "No sessions available\."/);
-    assert.match(gameController, /for \(const input of \[this\.#localModeInput, this\.#serverModeInput\]\)/);
+    assert.match(gameController, /for \(const input of \[this\.#localModeInput, this\.#networkModeInput\]\)/);
     assert.match(gameController, /this\.#modeHandler\?\.\(input\.value\)/);
     assert.match(gameController, /registrationMode === "join" && !isSessionListed/);
     assert.match(gameController, /title: "Session not found"/);
@@ -299,7 +418,7 @@ test("the landing page keeps canonical search metadata", () => {
     const sitemap = readFileSync(new URL("../sitemap.xml", import.meta.url), "utf8");
     const canonicalUrl = "https://danieltongu.github.io/pick-2/";
 
-    assert.match(html, /<title>Play Pick 2 \| Your Modern Card Table<\/title>/);
+    assert.match(html, /<title>Play Pick 2 \| Match cards\. Make moves<\/title>/);
     assert.match(html, /<meta name="description" content="[^"]+">/);
     assert.match(html, new RegExp(`<link rel="canonical" href="${canonicalUrl}">`));
     assert.match(sitemap, new RegExp(`<loc>${canonicalUrl}<\\/loc>`));

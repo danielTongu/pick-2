@@ -2,20 +2,28 @@
 
 .table-container {
     overflow-x: auto;
+    border-top: 1px solid rgba(255, 255, 255, .12);
 }
 
 table {
     --table-heading-padding: var(--container-spacing);
     --table-cell-padding: var(--container-spacing);
-    --table-row-hover-background: rgb(0 255 255 / .12);
-    --table-row-selected-color: cyan;
+    --table-border: none;
+    --table-font-size: 12px;
 
     width: 100%;
+    border: var(--table-border);
     border-collapse: collapse;
+    font-size: var(--table-font-size);
+}
+
+thead {
+    background: rgba(255, 255, 255, .08);
 }
 
 th {
     padding: var(--table-heading-padding);
+    color: var(--muted);
     font-size: 9px;
     font-weight: 800;
     letter-spacing: .1em;
@@ -23,15 +31,27 @@ th {
     text-transform: uppercase;
 }
 
+tr {
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+    transition:
+            background-color .2s ease,
+            color .2s ease;
+}
+
 td {
     padding: var(--table-cell-padding);
+    font-weight: 500;
     white-space: nowrap;
 }
 
-tbody tr {
-    transition:
-        background-color .2s ease,
-        color .2s ease;
+table:has(> tbody:empty)::after {
+    content: "no entries";
+    display: table-caption;
+    caption-side: bottom;
+    padding: var(--table-cell-padding);
+    color: var(--muted);
+    font-size: small;
+    font-style: italic;
 }
 
 tbody tr[tabindex] {
@@ -39,16 +59,15 @@ tbody tr[tabindex] {
 }
 
 tbody tr:is(:hover, :focus-visible) {
-    background: var(--table-row-hover-background);
+    background: rgb(0 255 255 / .12);
+}
+
+tbody tr:focus-visible {
+    outline-offset: -3px;
 }
 
 tbody tr[data-is-selected="true"] {
-    color: var(--table-row-selected-color);
-}
-
-#session-info-table,
-#session-list-table {
-    font-size: 12px;
+    color: cyan;
 }
 
 td:empty::before {

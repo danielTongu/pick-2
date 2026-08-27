@@ -4,7 +4,7 @@ import { Constants } from "../core/Constants.js";
 import { NormalizeUtils } from "../core/NormalizeUtils.js";
 
 /**
- * Browser-facing game API shared by Local and Server play.
+ * Browser-facing game API shared by Local and Network play.
  */
 export class GameClient {
     /** @type {import("./Transport.js").Transport} */
@@ -12,6 +12,12 @@ export class GameClient {
 
     /** @type {Object|null} */
     #controller = null;
+
+    /** @type {Function|null} */
+    #statusHandler = null;
+
+    /** @type {Function|null} */
+    #syncHandler = null;
 
     /** @type {string} */
     #tabId = GameClient.#getTabId();
@@ -27,7 +33,10 @@ export class GameClient {
         this.#transport.onOpen = () => this.#controller?.handleClientOpen?.();
         this.#transport.onMessage = (raw) => this.#handleMessage(raw);
         this.#transport.onClose = () => this.#controller?.handleClientClose?.();
-        this.#transport.onStatus = (status, label) => this.#controller?.handleConnectionStatus?.(status, label);
+        this.#transport.onStatus = (status, label) => {
+            this.#controller?.handleConnectionStatus?.(status, label);
+            this.#statusHandler?.(status, label);
+        };
     }
 
     /** @returns {string} Current hand sort key. */
@@ -43,6 +52,16 @@ export class GameClient {
     /** @param {Object} controller - Page controller. */
     setController(controller) {
         this.#controller = NormalizeUtils.object(controller, "Controller");
+    }
+
+    /** @param {Function} handler - Transport-status callback. */
+    setStatusHandler(handler) {
+        this.#statusHandler = handler;
+    }
+
+    /** @param {Function} handler - Successful synchronization callback. */
+    setSyncHandler(handler) {
+        this.#syncHandler = handler;
     }
 
     /** Opens the selected transport. */
@@ -96,6 +115,7 @@ export class GameClient {
 
         if (response.sync !== null) {
             this.#controller?.handleSync?.(response.view, response.sync);
+            this.#syncHandler?.(response.view, response.sync);
         }
 
         if (response.message !== null) {

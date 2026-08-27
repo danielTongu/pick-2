@@ -44,7 +44,7 @@ test("suit selection timeout dismisses temporarily for the shared countdown dura
     let nextTimerId = 1;
     let timeoutDelay = null;
 
-    root.children.set("#suit-selection-dismiss-button", timeoutButton);
+    root.children.set("#suit-selection-timeout-button", timeoutButton);
     root.children.set("#suit-selection-submit-button", submitButton);
 
     globalThis.HTMLElement = FakeHTMLElement;

@@ -24,13 +24,11 @@
     <meta name="pick-2-shared-root" content="./web/shared/">
     <meta name="pick-2-server-origin" content="">
 
-    <link rel="stylesheet" href="./web/shared/styles/tokens.css">
     <link rel="stylesheet" href="./web/shared/styles/base.css">
-    <link rel="stylesheet" href="./web/shared/styles/pick2-index.css">
     <link rel="stylesheet" href="./web/shared/styles/table.css">
+    <link rel="stylesheet" href="./web/shared/styles/pick2-index.css">
     <link rel="stylesheet" href="./web/shared/styles/playing-card.css">
     <link rel="stylesheet" href="./web/shared/styles/overlays.css">
-    <link rel="stylesheet" href="./web/shared/styles/app-footer.css">
 
     <script type="application/ld+json">
         {
@@ -38,7 +36,7 @@
             "@type": "WebApplication",
             "name": "Pick 2",
             "url": "https://danieltongu.github.io/pick-2/",
-            "description": "A browser card game with Local and Server sessions.",
+            "description": "A browser card game with Local and Network sessions.",
             "applicationCategory": "GameApplication",
             "operatingSystem": "Any",
             "browserRequirements": "Requires JavaScript and a modern web browser.",
@@ -53,43 +51,35 @@
 <body data-page="game">
 <main class="site-shell">
     <header id="app-header">
-        <h1 id="app-title">
-            <a id="app-home-link" href="./" aria-label="Open the Pick 2 game">
-                <span class="brand-mark" aria-hidden="true">P2</span>
-                <span class="brand-copy"><strong>Pick 2</strong><small>Match cards. Make moves</small></span>
-            </a>
-        </h1>
-        <aside id="connection-status" class="toggle-switch" role="radiogroup" data-status="connecting" aria-label="Connection mode. Local connecting. Server unavailable.">
+        <a id="app-home-link" href="./" aria-label="Open the Pick 2 game">
+            <h1 class="brand-mark" aria-hidden="true">P2</h1>
+            <aside class="brand-copy">
+                <strong>Pick 2</strong>
+                <small>Match cards. Make moves</small>
+            </aside>
+        </a>
+        <aside id="connection-status" class="toggle-switch" role="radiogroup" data-status="connecting" aria-label="Connection mode. Local connecting.">
             <label>
                 <input id="local-mode-input" name="connection-mode" type="radio" value="local" checked>
                 <span>Local</span>
             </label>
             <label>
-                <input id="server-mode-input" name="connection-mode" type="radio" value="server" disabled>
-                <span>Server</span>
+                <input id="network-mode-input" name="connection-mode" type="radio" value="network">
+                <span>Network</span>
             </label>
         </aside>
     </header>
 
-    <article aria-labelledby="hero-title">
+    <article id="game-page-view" aria-labelledby="hero-title">
         <header class="hero">
-            <div class="eyebrow">Private tables · Instant play</div>
-            <h2 id="hero-title">Your table.<br><em>Your rules.</em></h2>
-            <p>Start a private session, invite your circle, and play Pick 2 at a table designed to keep the game moving.</p>
-            <div class="card-fan" aria-hidden="true" inert>
-                <playing-card data-decorative data-value="2" data-suit="hearts" data-is-face-down="false">
-                    <div class="playing-card-drag-handle"></div>
-                    <div class="playing-card-center"></div>
-                </playing-card>
-                <playing-card data-decorative data-value="joker" data-suit="red" data-is-face-down="true">
-                    <div class="playing-card-drag-handle"></div>
-                    <div class="playing-card-center"></div>
-                </playing-card>
-                <playing-card data-decorative data-value="a" data-suit="spades" data-is-face-down="false">
-                    <div class="playing-card-drag-handle"></div>
-                    <div class="playing-card-center"></div>
-                </playing-card>
-            </div>
+            <section class="eyebrow">Private tables · Instant play</section>
+            <section>
+                <aside>
+                    <h2 id="hero-title"><span>Your table.</span><em>Your rules.</em></h2>
+                    <p>Start a private session, invite your circle, and play Pick 2 at a table designed to keep the game moving.</p>
+                </aside>
+                <aside class="card-fan" aria-hidden="true" inert></aside>
+            </section>
         </header>
 
         <section id="game-view">
@@ -116,20 +106,22 @@
                             <input id="session-capacity-input" type="number" min="2" max="4" value="4" required>
                         </label>
                     </div>
-                    <div class="form-footer">
-                        <div id="request-mode-control" class="toggle-switch" role="radiogroup" aria-labelledby="request-mode-label">
-                            <span id="request-mode-label" class="control-label">I want to</span>
-                            <label>
-                                <input id="create-mode-input" name="registration-mode" type="radio" value="create" checked>
-                                <span>Create</span>
-                            </label>
-                            <label>
-                                <input id="join-mode-input" name="registration-mode" type="radio" value="join">
-                                <span>Join</span>
-                            </label>
+                    <footer>
+                        <p class="control-label">I want to</p>
+                        <div id="request-actions">
+                            <div id="request-mode-control" class="toggle-switch" role="radiogroup" aria-labelledby="request-mode-label">
+                                <label>
+                                    <input id="create-mode-input" name="registration-mode" type="radio" value="create" checked>
+                                    <span>Create</span>
+                                </label>
+                                <label>
+                                    <input id="join-mode-input" name="registration-mode" type="radio" value="join">
+                                    <span>Join</span>
+                                </label>
+                            </div>
+                            <button id="session-enter-button">Enter session</button>
                         </div>
-                        <button id="session-registration-submit-button">Enter session</button>
-                    </div>
+                    </footer>
                 </form>
             </aside>
 
@@ -175,6 +167,22 @@
         </section>
     </article>
 
+    <article id="network-connection-view" data-status="connecting" aria-labelledby="network-connection-title" hidden>
+        <header>
+            <span class="section-kicker">Network mode</span>
+            <h2 id="network-connection-title">Reaching the table…</h2>
+        </header>
+        <section>
+            <i id="network-connection-indicator" aria-hidden="true"></i>
+            <output id="network-connection-message" aria-live="polite">Checking the configured and local Pick 2 Network hosts.</output>
+            <output id="network-connection-origin" aria-label="Network host address" hidden></output>
+        </section>
+        <footer id="network-connection-actions">
+            <button id="network-connection-retry-button" hidden>Retry</button>
+            <button id="network-connection-use-host-button" hidden>Use this host</button>
+        </footer>
+    </article>
+
     <footer id="app-footer">
         <div id="app-footer-brand">
             <strong>Pick 2</strong>
@@ -185,7 +193,7 @@
         </nav>
         <small id="app-footer-note">
             <span>© <time id="copyright-year" datetime="2026">2026</time> Pick 2. All rights reserved.</span>
-            <span>Local and server play</span>
+            <span>Local and network play</span>
         </small>
     </footer>
 </main>
@@ -195,11 +203,11 @@
 <aside id="alert-dialog" class="dialog-overlay" data-status="info" role="alertdialog" aria-modal="true" aria-labelledby="alert-title" aria-describedby="alert-message" hidden>
     <div class="dialog-panel">
         <header>
-            <div id="alert-icon" data-icon="info" aria-hidden="true"></div>
+            <i id="alert-icon" data-icon="info" aria-hidden="true"></i>
             <h1 id="alert-title"></h1>
         </header>
         <output id="alert-message"></output>
-        <button id="alert-dismiss-button">OK</button>
+        <button id="alert-ok-button">OK</button>
     </div>
 </aside>
 

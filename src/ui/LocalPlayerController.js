@@ -43,7 +43,7 @@ export class LocalPlayerController extends ViewController {
     #idleSecondsOutput = null;
 
     /** @type {HTMLButtonElement} */
-    #startButton;
+    #playButton;
 
     /** @type {HTMLButtonElement} */
     #passButton;
@@ -70,16 +70,16 @@ export class LocalPlayerController extends ViewController {
             HTMLOutputElement
         );
         this.#handElement = DomUtils.requireChild(this.root, "#local-player-hand", HTMLDivElement);
-        this.#drawButton = DomUtils.requireChild(this.root, "#draw-card-button", HTMLButtonElement);
-        this.#drawAllowanceOutput = DomUtils.requireChild(this.root, "#draw-card-button > span", HTMLSpanElement);
+        this.#drawButton = DomUtils.requireChild(this.root, "#card-draw-button", HTMLButtonElement);
+        this.#drawAllowanceOutput = DomUtils.requireChild(this.root, "#card-draw-button > span", HTMLSpanElement);
         const idleSecondsOutput = this.root.querySelector("#local-player-idle-warning > em");
 
         if (idleSecondsOutput instanceof HTMLElement) {
             this.#idleSecondsOutput = idleSecondsOutput;
         }
         this.#sortControl = DomUtils.requireChild(this.root, "#card-sort-key-select", HTMLSelectElement);
-        this.#startButton = DomUtils.requireChild(this.root, "#start-session-button", HTMLButtonElement);
-        this.#passButton = DomUtils.requireChild(this.root, "#pass-turn-button", HTMLButtonElement);
+        this.#playButton = DomUtils.requireChild(this.root, "#session-play-button", HTMLButtonElement);
+        this.#passButton = DomUtils.requireChild(this.root, "#turn-pass-button", HTMLButtonElement);
 
         if (this.#idleSecondsOutput !== null) {
             const idleSeconds = Constants.MAX_IDLE_MS / 1000;
@@ -130,7 +130,7 @@ export class LocalPlayerController extends ViewController {
     initialize() {
         this.#bindActionButton(this.#drawButton, Constants.ACTIONS.DRAW);
         this.#bindActionButton(this.#passButton, Constants.ACTIONS.PASS);
-        this.#bindActionButton(this.#startButton, Constants.ACTIONS.START);
+        this.#bindActionButton(this.#playButton, Constants.ACTIONS.START);
 
         this.#sortControl.addEventListener("change", function () {
             this.#submitSortChange();
@@ -266,7 +266,7 @@ export class LocalPlayerController extends ViewController {
         const canStartSession = data.status === Constants.STATUS.WAITING ||
             (this.#canRestartFinishedSession && data.status === Constants.STATUS.FINISHED);
 
-        this.#startButton.disabled = data.isBusy || !canStartSession;
+        this.#playButton.disabled = data.isBusy || !canStartSession;
         this.#passButton.disabled = data.isBusy ||
             data.status !== Constants.STATUS.PLAYING ||
             !TurnUtils.isTurnOwner(data.turnOwnerKey, data.key);

@@ -25,7 +25,7 @@ export class CountdownController extends ViewController {
     constructor(selector) {
         super(selector);
         this.#remainingSecondsOutput = DomUtils.requireChild(this.root, "#countdown-value", HTMLOutputElement);
-        this.bindDismissButton("#countdown-dismiss-button");
+        this.bindDismissButton("#countdown-ok-button");
     }
 
     /**

@@ -10,12 +10,13 @@ import { SessionEndController } from "./SessionEndController.js";
 import { LocalPlayerController } from "./LocalPlayerController.js";
 import { NotificationUtils } from "./NotificationUtils.js";
 import { OpponentUtils } from "./OpponentUtils.js";
+import { PlayerDisplayUtils } from "./PlayerDisplayUtils.js";
 import { PlayingCard } from "./PlayingCard.js";
 import { SessionRowUtils } from "./SessionRowUtils.js";
 import { SuitSelectionController } from "./SuitSelectionController.js";
 import { ViewController } from "./ViewController.js";
 
-/** Controls the session page for both Local and Server play. */
+/** Controls the session page for both Local and Network play. */
 export class SessionController extends ViewController {
     /** @type {Object|null} */
     #session = null;
@@ -105,14 +106,14 @@ export class SessionController extends ViewController {
                 this.#sendCardMove(Constants.ACTIONS.DISCARD, {card: event.detail.card});
             }
         });
-        DomUtils.require("#leave-session-button", HTMLButtonElement).addEventListener("click", () => {
+        DomUtils.require("#session-leave-button", HTMLButtonElement).addEventListener("click", () => {
             this.#isLeaving = true;
             this.client?.send(Constants.ACTIONS.LEAVE);
         });
-        DomUtils.require("#join-session-button", HTMLButtonElement).addEventListener("click", () => {
+        DomUtils.require("#session-join-button", HTMLButtonElement).addEventListener("click", () => {
             this.#join();
         });
-        DomUtils.require("#copy-invite-button", HTMLButtonElement).addEventListener("click", () => {
+        DomUtils.require("#session-invite-button", HTMLButtonElement).addEventListener("click", () => {
             void this.#copyInvite();
         });
     }
@@ -199,8 +200,14 @@ export class SessionController extends ViewController {
             this.#suitController.hide();
         }
 
-        if (localPlayer !== null && session.status === Constants.STATUS.FINISHED) {
+        if (
+            localPlayer !== null &&
+            previousStatus !== Constants.STATUS.FINISHED &&
+            nextStatus === Constants.STATUS.FINISHED
+        ) {
             this.#sessionEndController.show(session);
+        } else if (localPlayer === null || nextStatus !== Constants.STATUS.FINISHED) {
+            this.#sessionEndController.hide();
         }
     }
 
@@ -232,7 +239,12 @@ export class SessionController extends ViewController {
         const localName = session.localPlayerName ?? null;
         container.replaceChildren();
 
-        for (const player of SessionController.#getPlayers(session)) {
+        const players = PlayerDisplayUtils.localFirst(
+            SessionController.#getPlayers(session),
+            localName
+        );
+
+        for (const player of players) {
             if (player.name !== localName) {
                 container.appendChild(OpponentUtils.create(player, session.circle));
             }
@@ -262,12 +274,12 @@ export class SessionController extends ViewController {
         }
     }
 
-    /** Shows actions supported by the current server. */
+    /** Shows actions supported by the current game host. */
     #renderSessionActions(localPlayer) {
-        DomUtils.require("#leave-session-button", HTMLButtonElement).hidden = false;
-        DomUtils.require("#join-session-button", HTMLButtonElement).hidden =
+        DomUtils.require("#session-leave-button", HTMLButtonElement).hidden = false;
+        DomUtils.require("#session-join-button", HTMLButtonElement).hidden =
             localPlayer !== null || this.#capabilities.join !== true;
-        DomUtils.require("#copy-invite-button", HTMLButtonElement).hidden =
+        DomUtils.require("#session-invite-button", HTMLButtonElement).hidden =
             this.#capabilities.invite !== true;
     }
 
@@ -283,7 +295,7 @@ export class SessionController extends ViewController {
         }
     }
 
-    /** Copies a Server session link. */
+    /** Copies a Network session link. */
     async #copyInvite() {
         if (!this.#session?.name) {
             return;
@@ -291,7 +303,7 @@ export class SessionController extends ViewController {
 
         const base = new URL("../", location.href);
         const url = new URL("session/", base);
-        url.searchParams.set("mode", "server");
+        url.searchParams.set("mode", "network");
         url.searchParams.set("session", this.#session.name);
 
         try {

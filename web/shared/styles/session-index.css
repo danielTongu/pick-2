@@ -1,14 +1,5 @@
 /* styles for the session index page */
 
-/* ----- header (grid only) ----- */
-#app-title {
-    font-weight: 600;
-}
-
-#app-home-link::before {
-    content: "P2";
-}
-
 #connection-status {
     display: grid;
     grid-template-columns: auto 1fr;
@@ -61,16 +52,6 @@
     min-width: 660px;
 }
 
-#session-info-table th {
-    color: var(--muted);
-    border-bottom: 1px solid var(--line);
-}
-
-#session-info-table td {
-    border-bottom: 1px solid rgba(255, 255, 255, .08);
-    font-weight: 500;
-}
-
 #session-info-table .placeholder-row td {
     color: var(--muted);
     font-weight: 400;
@@ -91,11 +72,11 @@
     white-space: nowrap;
 }
 
-#join-session-button {
+#session-join-button {
     --button-background: var(--forest-soft);
 }
 
-#copy-invite-button {
+#session-invite-button {
     --button-background: var(--acid);
     --button-color: var(--control-ink);
     --button-border: 1px solid var(--forest);
@@ -124,7 +105,7 @@
 
 .opponent[data-is-winner="true"],
 [data-is-winner="true"] > .local-player-region {
-    border-color: gold !important;
+    border-color: gold;
 }
 
 .opponent[data-is-turn-owner="true"]:not([data-is-winner="true"]),
@@ -169,13 +150,6 @@
     overflow-x: auto;
     overflow-y: hidden;
     border-radius: var(--container-radius);
-}
-
-@media (min-width: 641px) {
-    #session-play-area {
-        --opponent-min-height: 86px;
-        --opponent-max-height: 130px;
-    }
 }
 
 #opponent-player-list:empty {
@@ -310,8 +284,8 @@
 }
 
 #session-play-area[data-is-turn-bound="false"] > .local-player-region,
-#session-play-area[data-session-status="waiting"] #pass-turn-button,
-#session-play-area:not([data-session-status="waiting"]) #start-session-button{
+#session-play-area:is([data-session-status="waiting"],[data-session-status="finished"]) #turn-pass-button,
+#session-play-area:not([data-session-status="waiting"],[data-session-status="finished"]) #session-play-button {
     display: none;
     pointer-events: none;
 }
@@ -319,6 +293,10 @@
 #session-play-area[data-is-turn-bound="false"] {
     grid-template-rows: 30% 50%;
     min-height: min(60vh, 680px);
+}
+
+#session-play-area[data-is-turn-bound="true"] {
+    min-height: 80svh;
 }
 
 #local-player-idle-warning {
@@ -363,7 +341,6 @@
     grid-template-columns: auto 1fr;
     align-items: center;
     gap: 6px;
-    cursor: pointer;
 }
 
 #card-sort-control > span {
@@ -385,12 +362,12 @@
     outline: 0;
 }
 
-#pass-turn-button {
+#turn-pass-button {
     opacity: .5;
     cursor: not-allowed;
 }
 
-#pass-turn-button:enabled {
+#turn-pass-button:enabled {
     opacity: 1;
     cursor: pointer;
 }
@@ -440,7 +417,7 @@ summary > span:last-child {
 
 summary:not(#game-guide-header) + div {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 5px;
     padding: 5px;
 }
@@ -453,44 +430,48 @@ summary + div > article {
 
 #scores-tables {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 24px;
 }
 
 #scores-tables table {
     --table-heading-padding: 8px 12px;
     --table-cell-padding: 8px 12px;
-
-    font-size: 13px;
-    border: 3px solid black;
+    --table-border: 3px solid black;
+    --table-font-size: 13px;
 }
 
-#scores-tables th {
-    font-size: 10px;
-    letter-spacing: .06em;
-    color: var(--muted);
-    border-bottom: 1px solid var(--line);
+#game-guide-header {
+    grid-template-columns: auto 1fr;
 }
 
-#scores-tables td {
-    border-bottom: 1px solid rgba(255, 255, 255, .08);
+#game-guide-header > span:last-child {
+    display: none;
 }
 
-@media (max-width: 720px) {
-    #session-play-area[data-is-turn-bound="true"] {
-        min-height: 80svh;
+@media (min-width: 721px) {
+    #session-play-area {
+        --opponent-min-height: 86px;
+        --opponent-max-height: 130px;
     }
 
-    summary:not(#game-guide-header) + div,
+    #session-play-area[data-is-turn-bound="true"] {
+        min-height: 90vh;
+    }
+
+    summary:not(#game-guide-header) + div {
+        grid-template-columns: 1fr 1fr;
+    }
+
     #scores-tables {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
     }
 
     #game-guide-header {
-        grid-template-columns: auto 1fr;
+        grid-template-columns: auto 1fr auto;
     }
 
     #game-guide-header > span:last-child {
-        display: none;
+        display: block;
     }
 }

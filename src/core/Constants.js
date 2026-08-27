@@ -20,6 +20,11 @@ export class Constants {
     static COUNTDOWN_SECONDS = 5;
 
     /**
+     * Maximum time allowed for a Network-mode availability check.
+     */
+    static NETWORK_CONNECTION_TIMEOUT_MS = 3 * 1000;
+
+    /**
      * Number of cards dealt to each player when a game starts.
      */
     static PLAYER_INITIAL_CARD_COUNT = 7;
@@ -35,7 +40,7 @@ export class Constants {
     static LOCAL_OPPONENT_NAMES = Object.freeze(["AI 1", "AI 2", "AI 3"]);
 
     /**
-     * Default sessions available in Local and Server registries.
+     * Default sessions available in Local and Network registries.
      */
     static DEFAULT_SESSIONS = Object.freeze([
         Object.freeze({name: "Default-S0", capacity: 4, aiCount: 3}),
@@ -182,8 +187,8 @@ export class Constants {
         SCORE: Object.freeze({
             TWO: 20,
             SEVEN_OF_HEARTS: 30,
-            ACE_OF_SPADES: 40,
-            JOKER: 50
+            JOKER: 40,
+            ACE_OF_SPADES: 50,
         })
     });
 

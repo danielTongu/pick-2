@@ -2,20 +2,22 @@
 
 import { GameClient } from "./client/GameClient.js";
 import { LocalTransport } from "./client/LocalTransport.js";
-import { ServerStatus } from "./client/ServerStatus.js";
 import { ClientStore } from "./client/ClientStore.js";
 import { WebSocketTransport } from "./client/WebSocketTransport.js";
+import { Card } from "./core/Card.js";
 import { Constants } from "./core/Constants.js";
 import { LocalServer } from "./local/LocalServer.js";
 import { DomUtils } from "./ui/DomUtils.js";
 import { GuideController } from "./ui/GuideController.js";
 import { GameController } from "./ui/GameController.js";
+import { NetworkConnectionController } from "./ui/NetworkConnectionController.js";
+import { PlayingCard } from "./ui/PlayingCard.js";
 import { SessionController } from "./ui/SessionController.js";
 
-/** @param {"local"|"server"} mode - Play mode. */
+/** @param {"local"|"network"} mode - Play mode. */
 function createClient(mode) {
-    const transport = mode === "server"
-        ? new WebSocketTransport(ClientStore.getServerUrl())
+    const transport = mode === "network"
+        ? new WebSocketTransport(ClientStore.getNetworkUrl())
         : new LocalTransport(new LocalServer());
 
     return new GameClient(transport);
@@ -32,26 +34,122 @@ function renderYear() {
     }
 }
 
+/** Renders one score-ordered card from each special-card group. */
+function renderSpecialCardFan() {
+    const fan = document.querySelector(".card-fan");
+
+    if (!(fan instanceof HTMLElement)) {
+        return;
+    }
+
+    const {SUIT, VALUE} = Constants.CARD;
+    const specialCards = [
+        new Card(VALUE.TWO.id, SUIT.CLUBS, 0),
+        new Card(VALUE.EIGHT.id, SUIT.DIAMONDS, 0),
+        new Card(VALUE.JACK.id, SUIT.SPADES, 0),
+        new Card(VALUE.ACE.id, SUIT.HEARTS, 0),
+        new Card(VALUE.SEVEN.id, SUIT.HEARTS, 0),
+        new Card(VALUE.JOKER.id, SUIT.BLACK, 0),
+        new Card(VALUE.ACE.id, SUIT.SPADES, 0)
+    ].sort((left, right) => left.score - right.score);
+
+    fan.replaceChildren(...specialCards.map((card) => {
+        const element = PlayingCard.create(card, {isDraggable: false});
+        element.style.removeProperty("--card-rotation");
+        element.dataset.decorative = "";
+        return element;
+    }));
+}
+
 /** Starts the shared game page. */
 async function startGamePage() {
+    const preferredMode = ClientStore.getMode();
+    const gamePageView = DomUtils.require("#game-page-view", HTMLElement);
     const controller = new GameController();
+    const networkController = new NetworkConnectionController();
     const notice = ClientStore.takeNotice();
     let client = null;
     let mode = "local";
-    const preferredMode = ClientStore.getMode();
 
-    const connect = (nextMode) => {
-        client?.close();
-        mode = nextMode === "server" ? "server" : "local";
-        ClientStore.setMode(mode);
-        controller.selectMode(mode);
-        client = createClient(mode);
-        client.setController(controller);
-        controller.setClient(client);
-        client.connect();
+    const updateModeUrl = (nextMode) => {
+        const url = new URL(location.href);
+        url.searchParams.set("mode", nextMode);
+        history.replaceState(null, "", url);
     };
 
-    controller.setModeHandler((nextMode) => connect(nextMode));
+    const disconnect = () => {
+        const previousClient = client;
+        client = null;
+        previousClient?.close();
+    };
+
+    const showNetworkState = (status, networkUrl = "") => {
+        DomUtils.hide(gamePageView);
+        networkController.show();
+        networkController.render(status, networkUrl);
+    };
+
+    const connect = (nextMode) => {
+        disconnect();
+        mode = nextMode === "network" ? "network" : "local";
+        ClientStore.setMode(mode);
+        controller.selectMode(mode);
+        const nextClient = createClient(mode);
+        client = nextClient;
+        nextClient.setController(controller);
+        controller.setClient(nextClient);
+
+        if (mode === "network") {
+            const networkUrl = ClientStore.getNetworkUrl();
+            nextClient.setStatusHandler((status) => {
+                if (client !== nextClient || mode !== "network") {
+                    return;
+                }
+
+                showNetworkState(status, networkUrl);
+            });
+            nextClient.setSyncHandler((view) => {
+                if (client !== nextClient || mode !== "network" || view !== Constants.VIEWS.GAME) {
+                    return;
+                }
+
+                networkController.hide();
+                DomUtils.show(gamePageView);
+                updateModeUrl("network");
+            });
+        }
+
+        nextClient.connect();
+    };
+
+    const selectLocal = () => {
+        networkController.cancel();
+        networkController.hide();
+        DomUtils.show(gamePageView);
+        ClientStore.clearNetworkUrl();
+        updateModeUrl("local");
+        connect("local");
+    };
+    const selectNetwork = () => {
+        disconnect();
+        mode = "network";
+        ClientStore.setMode("network");
+        controller.selectMode("network");
+        showNetworkState("connecting");
+        void networkController.connect();
+    };
+
+    controller.setModeHandler((nextMode) => {
+        if (nextMode === "network") {
+            selectNetwork();
+        } else {
+            selectLocal();
+        }
+    });
+    networkController.setConnectedHandler((networkUrl) => {
+        ClientStore.setNetworkUrl(networkUrl);
+        connect("network");
+    });
     controller.setSessionHandler((action, payload) => {
         ClientStore.setMode(mode);
         ClientStore.setIntent({mode, action, payload});
@@ -62,19 +160,16 @@ async function startGamePage() {
     });
 
     await controller.initialize();
+    networkController.initialize();
 
     if (notice !== null) {
         controller.handleNotification(notice);
     }
 
-    controller.setServerAvailable(false);
-    connect("local");
-
-    const isServerAvailable = await ServerStatus.check();
-    controller.setServerAvailable(isServerAvailable);
-
-    if (isServerAvailable && preferredMode === "server") {
-        connect("server");
+    if (preferredMode === "network") {
+        selectNetwork();
+    } else {
+        selectLocal();
     }
 }
 
@@ -156,6 +251,7 @@ try {
     const page = document.body.dataset.page;
 
     if (page === Constants.VIEWS.GAME) {
+        renderSpecialCardFan();
         await startGamePage();
     } else if (page === Constants.VIEWS.SESSION) {
         await startSessionPage();

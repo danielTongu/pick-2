@@ -42,6 +42,7 @@ test("browser controller, custom element, and template utility families share th
             { SessionEndController },
             { GameController },
             { LocalPlayerController },
+            { NetworkConnectionController },
             { SessionController },
             { SuitSelectionController },
             { ViewController },
@@ -52,6 +53,7 @@ test("browser controller, custom element, and template utility families share th
             import("../src/ui/SessionEndController.js"),
             import("../src/ui/GameController.js"),
             import("../src/ui/LocalPlayerController.js"),
+            import("../src/ui/NetworkConnectionController.js"),
             import("../src/ui/SessionController.js"),
             import("../src/ui/SuitSelectionController.js"),
             import("../src/ui/ViewController.js"),
@@ -63,7 +65,7 @@ test("browser controller, custom element, and template utility families share th
             SessionEndController,
             SuitSelectionController
         ];
-        const viewTypes = [GameController, SessionController];
+        const viewTypes = [GameController, NetworkConnectionController, SessionController];
         const playingCardMethods = [
             "update",
             "getCard",

@@ -7,19 +7,21 @@ export class ClientStore {
     static #MODE_KEY = "pick2.mode";
     static #INTENT_KEY = "pick2.sessionIntent";
     static #NOTICE_KEY = "pick2.notice";
+    static #NETWORK_URL_KEY = "pick2.networkUrl";
 
-    /** @returns {"local"|"server"} Selected play mode. */
+    /** @returns {"local"|"network"} Selected play mode. */
     static getMode() {
         const queryMode = new URLSearchParams(globalThis.location?.search ?? "").get("mode");
         const savedMode = globalThis.sessionStorage?.getItem(this.#MODE_KEY);
-        return queryMode === "server" || (queryMode === null && savedMode === "server")
-            ? "server"
+        const requestedMode = queryMode ?? savedMode;
+        return requestedMode === "network" || requestedMode === "server"
+            ? "network"
             : "local";
     }
 
     /** @param {string} mode - Play mode. */
     static setMode(mode) {
-        globalThis.sessionStorage?.setItem(this.#MODE_KEY, mode === "server" ? "server" : "local");
+        globalThis.sessionStorage?.setItem(this.#MODE_KEY, mode === "network" ? "network" : "local");
     }
 
     /** @param {Object} intent - Session action and payload. */
@@ -63,23 +65,90 @@ export class ClientStore {
         }
     }
 
-    /**
-     * Resolves the configured Server-mode WebSocket URL.
-     *
-     * @returns {string} WebSocket URL.
-     */
-    static getServerUrl() {
-        const configuredOrigin = globalThis.document
+    /** @param {string} url - Verified Network-mode WebSocket URL. */
+    static setNetworkUrl(url) {
+        globalThis.sessionStorage?.setItem(this.#NETWORK_URL_KEY, url);
+    }
+
+    /** Clears the last verified Network-mode URL. */
+    static clearNetworkUrl() {
+        globalThis.sessionStorage?.removeItem(this.#NETWORK_URL_KEY);
+    }
+
+    /** @returns {string|null} Configured server origin, when supplied. */
+    static getConfiguredServerOrigin() {
+        const origin = globalThis.document
             ?.querySelector('meta[name="pick-2-server-origin"]')
             ?.getAttribute("content")
             ?.trim();
-        const origin = configuredOrigin || globalThis.location?.origin || "http://localhost";
-        const url = new URL(origin);
 
-        url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+        return origin || null;
+    }
+
+    /**
+     * Resolves a server origin as a Network-mode WebSocket URL.
+     *
+     * @param {string|null} [origin] - Server origin to resolve.
+     * @returns {string} WebSocket URL.
+     */
+    static resolveNetworkUrl(origin = this.getConfiguredServerOrigin()) {
+
+        if (origin === null) {
+            throw new Error("Server origin is not configured.");
+        }
+
+        const url = new URL(origin, globalThis.location?.href);
+        const protocols = {
+            "http:": "ws:",
+            "https:": "wss:",
+            "ws:": "ws:",
+            "wss:": "wss:"
+        };
+        const protocol = protocols[url.protocol];
+
+        if (protocol === undefined) {
+            throw new Error(`Unsupported server protocol: ${url.protocol}`);
+        }
+
+        url.protocol = protocol;
         url.pathname = "/";
         url.search = "";
         url.hash = "";
+
         return url.href;
+    }
+
+    /** @returns {string|null} WebSocket URL for the host serving this page. */
+    static getCurrentHostUrl() {
+        const origin = globalThis.location?.origin;
+
+        if (!origin || origin === "null") {
+            return null;
+        }
+
+        return this.resolveNetworkUrl(origin);
+    }
+
+    /** @returns {string} Last verified or configured Network-mode WebSocket URL. */
+    static getNetworkUrl() {
+        const savedUrl = globalThis.sessionStorage?.getItem(this.#NETWORK_URL_KEY)?.trim();
+
+        if (savedUrl) {
+            return savedUrl;
+        }
+
+        const configuredOrigin = this.getConfiguredServerOrigin();
+
+        if (configuredOrigin !== null) {
+            return this.resolveNetworkUrl(configuredOrigin);
+        }
+
+        const currentHostUrl = this.getCurrentHostUrl();
+
+        if (currentHostUrl === null) {
+            throw new Error("Network host is not available.");
+        }
+
+        return currentHostUrl;
     }
 }

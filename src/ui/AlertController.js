@@ -28,7 +28,7 @@ export class AlertController extends ViewController {
         this.#icon = DomUtils.requireChild(this.root, "#alert-icon", HTMLElement);
         this.#title = DomUtils.requireChild(this.root, "#alert-title", HTMLElement);
         this.#message = DomUtils.requireChild(this.root, "#alert-message", HTMLOutputElement);
-        this.bindDismissButton("#alert-dismiss-button");
+        this.bindDismissButton("#alert-ok-button");
     }
 
     /**
