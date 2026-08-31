@@ -375,7 +375,7 @@ playing-card[data-is-dragging="true"] {
 
 #card-draw-button::before,
 #card-draw-button::after {
-    pointer-events: none;
+    /*pointer-events: none;*/
     content: "";
     position: absolute;
     left: 50%;
