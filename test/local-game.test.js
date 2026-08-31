@@ -263,9 +263,10 @@ test("Local and Network modes share one game page and one session page", () => {
     assert.doesNotMatch(gameHtml, /id="game-guide-section"/);
     assert.match(sessionHtml, /<body data-page="session">/);
     assert.match(gameHtml, /<article id="network-connection-view"[^>]+hidden>/);
-    assert.match(sessionHtml, /id="session-play-area"[^>]+data-is-turn-bound="false"/);
-    assert.match(sessionHtml, /class="[^"]*local-player-region[^"]*"[^>]+data-card-count="0"/);
-    assert.match(sessionHtml, /class="[^"]*local-player-region[^"]*"[^>]+id="local-player-hand"/);
+    assert.match(sessionHtml, /id="session-play-area"[^>]+data-is-player-view="true"/);
+    assert.match(sessionHtml, /id="player-area"[^>]+data-is-turn-owner="false"[^>]+data-is-winner="true"/);
+    assert.match(sessionHtml, /id="player-summary"[\s\S]*?<span data-card-count="0"><\/span>/);
+    assert.match(sessionHtml, /class="playing-card-area" id="player-hand"/);
     assert.match(sessionHtml, /class="playing-card-area" id="discard-pile"/);
     assert.doesNotMatch(sessionHtml, /id="local-player-region"/);
     assert.match(sessionHtml, /id="game-guide-section"/);
@@ -436,8 +437,9 @@ test("the shared session preserves touch-friendly card presentation", () => {
     assert.match(cardCss, /\.playing-card-drag-handle\s*\{[\s\S]*?width:\s*100%/);
     assert.match(cardCss, /\.playing-card-area:not\(#discard-pile\)[\s\S]*overflow-x:\s*auto/);
     assert.match(sessionCss, /@keyframes turn-owner-border-strobe/);
-    assert.match(sessionCss, /\[data-is-turn-bound="false"\] > \.local-player-region/);
-    assert.match(gameCss, /\.toggle-switch label:has\(input:checked\)/);
-    assert.match(controller, /setBooleanState\(this\.root, "isTurnBound", true\)/);
-    assert.match(controller, /setBooleanState\(this\.root, "isTurnBound", false\)/);
+    assert.match(sessionCss, /\[data-is-player-view="false"\] > #player-area/);
+    assert.match(gameCss, /\.toggle-switch > label:has\(input:checked\) > span/);
+    assert.match(controller, /setBooleanState\(this\.#playArea, "isPlayerView", true\)/);
+    assert.match(controller, /setBooleanState\(this\.#playArea, "isPlayerView", false\)/);
+    assert.doesNotMatch(controller, /#local-player|isTurnBound/);
 });

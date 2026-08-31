@@ -189,7 +189,7 @@ summary > span:first-child {
 }
 
 .brand-copy small,
-#local-player-idle-warning,
+#player-idle-warning,
 #app-footer {
     font-size: 11px;
 }

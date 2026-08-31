@@ -32,7 +32,7 @@
         </aside>
     </header>
 
-    <article id="session-view" aria-label="Game session">
+    <section id="session-view" aria-label="Game session">
         <header id="session-header">
             <div class="table-container">
                 <table id="session-info-table">
@@ -60,29 +60,31 @@
                 <button id="session-invite-button" hidden>Invite</button>
             </nav>
         </header>
-        <section id="session-play-area" aria-label="Session table" data-session-status="waiting" data-is-turn-bound="false" data-is-turn-owner="false" data-is-winner="false">
+        <article id="session-play-area" aria-label="Session table" data-session-status="waiting" data-is-player-view="true">
             <div id="opponent-player-list" role="list" aria-label="Other players"></div>
             <div class="playing-card-area" id="discard-pile" title="Discard pile" data-is-drag-over="false"></div>
-            <div class="local-player-region" id="local-player-summary" data-card-count="0" aria-live="polite" aria-atomic="true">
-                <span id="local-player-status">Your area</span>
-                <output id="local-player-card-count">0 cards</output>
+            <div id="player-area" data-is-turn-owner="false" data-is-winner="true">
+                <header id="player-summary" aria-live="polite" aria-atomic="true">
+                    <span id="player-status"></span>
+                    <span data-card-count="0"></span>
+                </header>
+                <div class="playing-card-area" id="player-hand" title="Your cards">
+                    <button id="card-draw-button" aria-label="Draw card">
+                        <span data-draw-allowance="1"></span>
+                    </button>
+                </div>
+                <p id="player-idle-warning">You may be removed after <em data-idle-seconds="30">seconds</em> of inactivity.</p>
+                <footer role="group" id="player-actions">
+                    <label id="card-sort-control">
+                        <span>Sort</span>
+                        <select id="card-sort-key-select"></select>
+                    </label>
+                    <button id="session-play-button">Play</button>
+                    <button id="turn-pass-button">Pass</button>
+                </footer>
             </div>
-            <div class="local-player-region playing-card-area" id="local-player-hand" title="Your cards">
-                <button id="card-draw-button" aria-label="Draw card">
-                    <span data-draw-allowance="1"></span>
-                </button>
-            </div>
-            <p class="local-player-region" id="local-player-idle-warning">You may be removed after <em data-idle-seconds="30">seconds</em> of inactivity.</p>
-            <div class="local-player-region" id="local-player-actions">
-                <label id="card-sort-control">
-                    <span>Sort</span>
-                    <select id="card-sort-key-select"></select>
-                </label>
-                <button id="session-play-button">Play</button>
-                <button id="turn-pass-button">Pass</button>
-            </div>
-        </section>
-    </article>
+        </article>
+    </section>
 
     <details id="game-guide-section" open>
         <summary id="game-guide-header">

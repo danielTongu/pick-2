@@ -46,7 +46,7 @@ export class SessionController extends ViewController {
     #alertController = new AlertController("#alert-dialog");
 
     /** @type {LocalPlayerController} */
-    #playerController = new LocalPlayerController("#session-play-area");
+    #playerController = new LocalPlayerController("#player-area");
 
     /** @type {SuitSelectionController} */
     #suitController = new SuitSelectionController("#suit-selection-dialog");
@@ -267,7 +267,7 @@ export class SessionController extends ViewController {
 
         this.#playerController.setCanRestartFinishedSession(this.#capabilities.restart === true);
         this.#playerController.show(player, session, this.client.sortKey);
-        const idleWarning = document.querySelector("#local-player-idle-warning");
+        const idleWarning = document.querySelector("#player-idle-warning");
 
         if (idleWarning instanceof HTMLElement) {
             idleWarning.hidden = session.mode === "local";

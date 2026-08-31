@@ -85,48 +85,53 @@
 /* ----- play area ----- */
 
 #session-play-area {
-    --opponent-min-height: 72px;
-    --opponent-max-height: 105px;
-    --player-area-bg-color: rgba(255,255,255,.04);
-    --player-area-border:  2px solid var(--line);
-
     display: grid;
-    grid-template-rows: minmax(var(--opponent-min-height), var(--opponent-max-height)) 1fr auto 1fr auto auto;
+    grid-template-rows: 0.3fr 0.7fr 1fr;
     padding: 5px;
     border: 1px solid var(--line);
     border-radius: 18px;
     background: var(--forest);
-    min-height: 90vh;
-    color: rgba(255, 255, 255, .68);
+    min-height: 80vh;
+    color: rgba(255,255,255,.55);
     text-wrap: nowrap;
     overflow: hidden;
     position: relative;
 }
 
-.opponent[data-is-winner="true"],
-[data-is-winner="true"] > .local-player-region {
-    border-color: gold;
+#session-play-area[data-is-player-view="false"] > #player-area,
+#session-play-area:is([data-session-status="waiting"],[data-session-status="finished"]) #turn-pass-button,
+#session-play-area:not([data-session-status="waiting"],[data-session-status="finished"]) #session-play-button {
+    display: none;
+    pointer-events: none;
 }
 
-.opponent[data-is-turn-owner="true"]:not([data-is-winner="true"]),
-[data-is-turn-owner="true"]:not([data-is-winner="true"]) > .local-player-region {
+#session-play-area > #player-area,
+#session-play-area > #opponent-player-list > .opponent {
+    background: rgba(255,255,255,.04);
+    border: 2px solid;
+}
+
+#session-play-area[data-session-status="finished"] [data-is-winner="true"]{
+    color: gold;
+}
+
+#session-play-area[data-session-status="playing"] [data-is-turn-owner="true"] {
     animation: turn-owner-border-strobe 1.2s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .opponent[data-is-turn-owner="true"],
-    [data-is-turn-owner="true"] > .local-player-region  {
+    #session-play-area[data-session-status="playing"] [data-is-turn-owner="true"]  {
         animation: none;
     }
 }
 
 @keyframes turn-owner-border-strobe {
     0%, 100% {
-        border-color: limegreen;
+        color: limegreen;
     }
 
     50% {
-        border-color: var(--line);
+        color: var(--line);
     }
 }
 
@@ -149,7 +154,6 @@
     min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;
-    border-radius: var(--container-radius);
 }
 
 #opponent-player-list:empty {
@@ -158,7 +162,6 @@
 
 #opponent-player-list:empty::before {
     content: "waiting for opponents...";
-    color: rgba(255,255,255,.55);
     font-style: italic;
 }
 
@@ -166,6 +169,9 @@
     --opponent-height: 100cqh;
     --opponent-width: calc(var(--opponent-height) * .72);
     --opponent-skin: #edbb99;
+
+    border-radius: calc(var(--container-radius) / 2);
+    border-bottom-color: transparent;
 
     height: var(--opponent-height);
     width: var(--opponent-width);
@@ -177,12 +183,6 @@
     grid-template-rows: auto minmax(0, 1fr);
 
     overflow: hidden;
-
-    border: var(--player-area-border);
-    border-bottom-color: transparent;
-    border-radius: var(--container-radius);
-    background: var(--player-area-bg-color);
-
     user-select: none;
 }
 
@@ -196,10 +196,13 @@
     text-overflow: ellipsis;
 
     text-align: center;
-    color: rgba(255,255,255,.85);
     font-size: calc(var(--opponent-height) / 11);
     font-weight: 700;
     line-height: 1.1;
+}
+
+.opponent[data-is-winner="true"]::before {
+    content: "🏆 " attr(data-player-name);
 }
 
 .opponent[data-card-count="0"]::after {
@@ -221,6 +224,8 @@
     border: 2px solid black;
     background: crimson;
     color: white;
+
+    box-shadow: var(--shadow-black);
 
     display: grid;
     place-items: center;
@@ -259,48 +264,47 @@
     height: 100%;
 }
 
-.opponent[data-is-winner="true"]::before {
-    content: "🏆 " attr(data-player-name);
-}
-
 /* ----- play area - local player elements ----- */
-
-.local-player-region {
-    border-left: var(--player-area-border);
-    border-right: var(--player-area-border);
-    background: var(--player-area-bg-color);
+#player-area {
+    display: grid;
+    grid-template-rows: auto 1fr auto auto;
+    overflow: hidden;
+    border-radius: var(--container-radius);
+    box-shadow: var(--shadow-black);
 }
 
-#local-player-summary {
+[data-session-status="finished"] > #player-area[data-is-winner="false"] #player-status::before {
+    content: "😂 You Lost!";
+}
+
+[data-session-status="finished"] > #player-area[data-is-winner="true"] #player-status::before {
+    content: "🏆 You Won!";
+}
+
+#player-status::before {
+    content: "Your hand";
+}
+
+#player-area[data-is-turn-owner="true"] #player-status::before {
+    content: "Your Turn";
+}
+
+#player-summary {
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
     font-weight: 600;
     font-size: 14px;
-    padding: 0 1rem;
-    border-top: var(--player-area-border);
-    border-top-left-radius: var(--container-radius);
-    border-top-right-radius: var(--container-radius);
+    padding: 1px 1rem 0;
 }
 
-#session-play-area[data-is-turn-bound="false"] > .local-player-region,
-#session-play-area:is([data-session-status="waiting"],[data-session-status="finished"]) #turn-pass-button,
-#session-play-area:not([data-session-status="waiting"],[data-session-status="finished"]) #session-play-button {
-    display: none;
-    pointer-events: none;
+#player-summary > [data-card-count]::before {
+    content: "card count: " attr(data-card-count);
 }
 
-#session-play-area[data-is-turn-bound="false"] {
-    grid-template-rows: 30% 50%;
-    min-height: min(60vh, 680px);
-}
-
-#session-play-area[data-is-turn-bound="true"] {
-    min-height: 80svh;
-}
-
-#local-player-idle-warning {
+#player-idle-warning {
     text-align: center;
+    text-wrap: wrap;
     margin: 0;
 }
 
@@ -313,18 +317,15 @@
     content: attr(data-idle-seconds) " ";
 }
 
-#local-player-actions {
+#player-actions {
     --button-padding: 1rem;
-    --button-border: 1px solid var(--forest-soft);
-    --button-background: var(--forest);
+    --button-border: 1px solid var(--forest);
+    --button-background: var(--forest-soft);
 
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 8px;
-    padding: 2px;
-    border-bottom: var(--player-area-border);
-    border-bottom-left-radius: var(--container-radius);
-    border-bottom-right-radius: var(--container-radius);
+    gap: 1rem;
+    padding: 2px 0;
 }
 
 #card-sort-control {
@@ -450,15 +451,6 @@ summary + div > article {
 }
 
 @media (min-width: 721px) {
-    #session-play-area {
-        --opponent-min-height: 86px;
-        --opponent-max-height: 130px;
-    }
-
-    #session-play-area[data-is-turn-bound="true"] {
-        min-height: 90vh;
-    }
-
     summary:not(#game-guide-header) + div {
         grid-template-columns: 1fr 1fr;
     }

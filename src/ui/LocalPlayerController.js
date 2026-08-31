@@ -9,7 +9,7 @@ import { PlayingCard } from "./PlayingCard.js";
 import { ViewController } from "./ViewController.js";
 
 /**
- * Controls the local-player elements within the shared session play area.
+ * Controls the player area within the shared session play area.
  */
 export class LocalPlayerController extends ViewController {
     /** @type {Function|null} */
@@ -19,13 +19,10 @@ export class LocalPlayerController extends ViewController {
     #sortHandler = null;
 
     /** @type {HTMLElement} */
-    #playerSummary;
+    #playArea;
 
-    /** @type {HTMLElement} */
-    #playerStatus;
-
-    /** @type {HTMLOutputElement} */
-    #playerCardCountOutput;
+    /** @type {HTMLSpanElement} */
+    #playerCardCount;
 
     /** @type {HTMLDivElement} */
     #handElement;
@@ -52,9 +49,9 @@ export class LocalPlayerController extends ViewController {
     #canRestartFinishedSession;
 
     /**
-     * Creates a local-player region controller.
+     * Creates a player-area controller.
      *
-     * @param {string} selector - Local-player region selector.
+     * @param {string} selector - Player-area selector.
      * @param {Object} [options={}] - Control options.
      * @param {boolean} [options.canRestartFinishedSession=false] - Whether Play is available after a finished Session.
      * @throws {Error}
@@ -62,17 +59,19 @@ export class LocalPlayerController extends ViewController {
     constructor(selector, {canRestartFinishedSession = false} = {}) {
         super(selector);
         this.#canRestartFinishedSession = canRestartFinishedSession === true;
-        this.#playerSummary = DomUtils.requireChild(this.root, "#local-player-summary", HTMLElement);
-        this.#playerStatus = DomUtils.requireChild(this.#playerSummary, "#local-player-status", HTMLElement);
-        this.#playerCardCountOutput = DomUtils.requireChild(
-            this.#playerSummary,
-            "#local-player-card-count",
-            HTMLOutputElement
-        );
-        this.#handElement = DomUtils.requireChild(this.root, "#local-player-hand", HTMLDivElement);
+        const playArea = this.root.closest("#session-play-area");
+
+        if (!(playArea instanceof HTMLElement)) {
+            throw new Error("Player area must belong to the Session play area.");
+        }
+
+        this.#playArea = playArea;
+        const playerSummary = DomUtils.requireChild(this.root, "#player-summary", HTMLElement);
+        this.#playerCardCount = DomUtils.requireChild(playerSummary, "[data-card-count]", HTMLSpanElement);
+        this.#handElement = DomUtils.requireChild(this.root, "#player-hand", HTMLDivElement);
         this.#drawButton = DomUtils.requireChild(this.root, "#card-draw-button", HTMLButtonElement);
         this.#drawAllowanceOutput = DomUtils.requireChild(this.root, "#card-draw-button > span", HTMLSpanElement);
-        const idleSecondsOutput = this.root.querySelector("#local-player-idle-warning > em");
+        const idleSecondsOutput = this.root.querySelector("#player-idle-warning > em");
 
         if (idleSecondsOutput instanceof HTMLElement) {
             this.#idleSecondsOutput = idleSecondsOutput;
@@ -138,7 +137,7 @@ export class LocalPlayerController extends ViewController {
     }
 
     /**
-     * Shows and updates the local-player region.
+     * Shows and updates the player area.
      *
      * @param {Object} player - Player payload.
      * @param {Object} session - Session payload.
@@ -153,7 +152,7 @@ export class LocalPlayerController extends ViewController {
             isBusy: session.isBusy === true
         };
 
-        DomUtils.setBooleanState(this.root, "isTurnBound", true);
+        DomUtils.setBooleanState(this.#playArea, "isPlayerView", true);
         this.#renderRootState(data);
         this.#renderHeader(data);
         this.#renderControls(data, sortKey);
@@ -161,11 +160,11 @@ export class LocalPlayerController extends ViewController {
     }
 
     /**
-     * Clears and hides the local-player region.
+     * Clears and hides the player area.
      */
     hide() {
         this.#clear();
-        DomUtils.setBooleanState(this.root, "isTurnBound", false);
+        DomUtils.setBooleanState(this.#playArea, "isPlayerView", false);
     }
 
     /**
@@ -174,9 +173,7 @@ export class LocalPlayerController extends ViewController {
     #clear() {
         this.root.dataset.isTurnOwner = "false";
         this.root.dataset.isWinner = "false";
-        this.#playerSummary.dataset.cardCount = "0";
-        this.#playerStatus.textContent = "Your area";
-        this.#playerCardCountOutput.textContent = "0 cards";
+        this.#playerCardCount.dataset.cardCount = "0";
         this.#drawAllowanceOutput.dataset.drawAllowance = "0";
         this.#drawButton.disabled = true;
         this.#handElement.replaceChildren(this.#drawButton);
@@ -236,20 +233,7 @@ export class LocalPlayerController extends ViewController {
      */
     #renderHeader(data) {
         const cardCount = data.hand.cards.length;
-        const isTurnOwner = TurnUtils.isTurnOwner(data.turnOwnerKey, data.key);
-        let status = "Your area";
-
-        if (data.isWinner === true) {
-            status = "🏆 You won!";
-        } else if (data.status === Constants.STATUS.FINISHED) {
-            status = "You lost.";
-        } else if (isTurnOwner) {
-            status = "Your turn. Drag a matching card.";
-        }
-
-        this.#playerSummary.dataset.cardCount = String(cardCount);
-        this.#playerStatus.textContent = status;
-        this.#playerCardCountOutput.textContent = `${cardCount} ${cardCount === 1 ? "card" : "cards"}`;
+        this.#playerCardCount.dataset.cardCount = String(cardCount);
     }
 
     /**
