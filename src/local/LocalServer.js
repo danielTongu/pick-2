@@ -34,8 +34,31 @@ export class LocalServer {
     /** @type {number} */
     #operationId = 0;
 
+    /** @type {*} */
+    #aiJoinTimer = null;
+
+    /** @type {Function} */
+    #setTimeout;
+
+    /** @type {Function} */
+    #clearTimeout;
+
     /** @type {Function|null} */
     #responseHandler = null;
+
+    /**
+     * Creates a Local Server.
+     *
+     * @param {{setTimeout?:Function,clearTimeout?:Function}} [timer={}] - Timer adapter.
+     */
+    constructor(timer = {}) {
+        this.#setTimeout = typeof timer.setTimeout === "function"
+            ? timer.setTimeout
+            : (callback, delay) => globalThis.setTimeout(callback, delay);
+        this.#clearTimeout = typeof timer.clearTimeout === "function"
+            ? timer.clearTimeout
+            : (timerId) => globalThis.clearTimeout(timerId);
+    }
 
     /** @param {Function|null} handler - Response callback. */
     set onResponse(handler) {
@@ -76,6 +99,7 @@ export class LocalServer {
     disconnect() {
         this.#operationId += 1;
         this.#isBusy = false;
+        this.#clearAiJoinTimer();
 
         if (this.#session !== null) {
             if (this.#ownsRegistryEntry) {
@@ -102,7 +126,7 @@ export class LocalServer {
     }
 
     /**
-     * Creates a local session, joins the human, and fills remaining seats with AI.
+     * Creates a local session and joins the human.
      *
      * @param {Object} payload - Create-session payload.
      */
@@ -147,9 +171,9 @@ export class LocalServer {
             const player = await this.#session.join(playerName, false, this.#viewerId);
             this.#playerName = player.name;
             this.#viewerId = null;
-            await this.#fillAiSeats(this.#session, player.name, this.#session.capacity);
             this.#stopIdleMonitoring(this.#session);
             this.#sendSessionSync();
+            this.#scheduleAiJoin(this.#session);
             this.#sendWelcome(player.name);
             return;
         }
@@ -205,12 +229,12 @@ export class LocalServer {
     async #openSession(sessionName, playerName, capacity, ownsRegistryEntry = false) {
         const session = new Session(sessionName, capacity);
         const human = await session.join(playerName, false);
-        await this.#fillAiSeats(session, human.name, session.capacity);
         this.#activateSession(session, human.name, null, ownsRegistryEntry);
     }
 
     /** Activates one local session. */
     #activateSession(session, playerName, viewerId, ownsRegistryEntry) {
+        this.#clearAiJoinTimer();
         this.#session = session;
         this.#playerName = playerName;
         this.#viewerId = viewerId;
@@ -220,6 +244,10 @@ export class LocalServer {
         session.onAnyChange = () => this.#sendSessionSync();
         this.#stopIdleMonitoring(session);
         this.#sendSessionSync();
+
+        if (playerName !== null) {
+            this.#scheduleAiJoin(session);
+        }
     }
 
     /** Fills a session to the requested player count with uniquely named AI. */
@@ -234,6 +262,58 @@ export class LocalServer {
                 await session.join(aiName, true);
             }
         }
+    }
+
+    /** Schedules the next local AI to attempt the shared Session join path. */
+    #scheduleAiJoin(session) {
+        const canAttempt = this.#session === session &&
+            this.#playerName !== null &&
+            !session.isFull();
+
+        if (!canAttempt || this.#aiJoinTimer !== null) {
+            return;
+        }
+
+        const delay = Constants.COUNTDOWN_SECONDS * 1000;
+
+        this.#aiJoinTimer = this.#setTimeout(async () => {
+            this.#aiJoinTimer = null;
+            await this.#attemptAiJoin(session);
+        }, delay);
+        this.#aiJoinTimer?.unref?.();
+    }
+
+    /** Attempts one AI admission, then schedules another attempt when seats remain. */
+    async #attemptAiJoin(session) {
+        if (this.#session !== session || this.#playerName === null || session.isFull()) {
+            return;
+        }
+
+        const aiName = this.#getAvailableAiName(session, this.#playerName);
+
+        try {
+            await session.join(aiName, true);
+            this.#stopIdleMonitoring(session);
+        } catch (error) {
+            if (!(error instanceof UserNotification)) {
+                this.#sendError(error);
+            }
+        } finally {
+            this.#scheduleAiJoin(session);
+        }
+    }
+
+    /** Returns the first familiar AI name not already present in the Session. */
+    #getAvailableAiName(session, humanName) {
+        let index = 0;
+        let aiName = LocalServer.#getAiName(index, humanName);
+
+        while (session.isPlayerPresent(aiName)) {
+            index += 1;
+            aiName = LocalServer.#getAiName(index, humanName);
+        }
+
+        return aiName;
     }
 
     /**
@@ -259,6 +339,7 @@ export class LocalServer {
 
         const session = this.#session;
         this.#operationId += 1;
+        this.#clearAiJoinTimer();
         session.onAnyChange = null;
         this.#stopIdleMonitoring(session);
         if (this.#ownsRegistryEntry) {
@@ -410,7 +491,7 @@ export class LocalServer {
         this.#send(null, StateMapper.toMessage(
             Constants.STATUS.INFO,
             "Session Ready",
-            `${playerName}, your AI opponents are ready.`
+            `${playerName}, AI opponents will join as seats become available.`
         ), null);
     }
 
@@ -450,6 +531,14 @@ export class LocalServer {
     #stopIdleMonitoring(session) {
         for (const player of session.circle.players.values()) {
             player.stopIdleMonitoring();
+        }
+    }
+
+    /** Cancels the pending local AI admission attempt. */
+    #clearAiJoinTimer() {
+        if (this.#aiJoinTimer !== null) {
+            this.#clearTimeout(this.#aiJoinTimer);
+            this.#aiJoinTimer = null;
         }
     }
 

@@ -18,30 +18,99 @@ async function send(server, type, payload = {}) {
     return responses;
 }
 
+function createTimer() {
+    let nextId = 1;
+    const tasks = new Map();
+
+    return {
+        setTimeout: (callback, delay) => {
+            const id = nextId;
+            nextId += 1;
+            tasks.set(id, {callback, delay});
+            return id;
+        },
+        clearTimeout: (id) => tasks.delete(id),
+        get size() {
+            return tasks.size;
+        },
+        get nextDelay() {
+            return tasks.values().next().value?.delay ?? null;
+        },
+        async runNext() {
+            const entry = tasks.entries().next().value;
+
+            assert.notEqual(entry, undefined);
+            const [id, task] = entry;
+            tasks.delete(id);
+            await task.callback();
+        }
+    };
+}
+
 async function createSession(capacity, suffix = capacity) {
-    const server = new LocalServer();
+    const timer = createTimer();
+    const server = new LocalServer(timer);
     const responses = await send(server, Constants.ACTIONS.CREATE, {
         sessionName: `Local Session ${suffix}`,
         playerName: "Daniel",
         capacity
     });
     const session = responses.findLast((response) => response.view === Constants.VIEWS.SESSION)?.sync;
-    return {server, session, responses};
+    return {server, session, responses, timer};
 }
 
-test("local sessions fill every remaining capacity seat with AI", async () => {
+test("local AIs join one seat per shared countdown interval", async () => {
     for (const capacity of [2, 3, 4]) {
-        const {session} = await createSession(capacity);
+        const {server, responses, session, timer} = await createSession(capacity);
 
         assert.equal(session.capacity, capacity);
-        assert.equal(session.playerCount, capacity);
+        assert.equal(session.playerCount, 1);
         assert.equal(session.localPlayerName, "Daniel");
         assert.equal(session.circle.players[0].name, "Daniel");
-        assert.equal(session.circle.players.slice(1).length, capacity - 1);
         assert.equal(session.mode, "local");
         assert.equal(session.capabilities.aiFill, true);
         assert.equal(session.capabilities.view, true);
+
+        for (let playerCount = 2; playerCount <= capacity; playerCount += 1) {
+            assert.equal(timer.size, 1);
+            assert.equal(timer.nextDelay, Constants.COUNTDOWN_SECONDS * 1000);
+            await timer.runNext();
+
+            const current = responses.findLast(
+                (response) => response.view === Constants.VIEWS.SESSION
+            ).sync;
+            assert.equal(current.playerCount, playerCount);
+            assert.equal(current.circle.players.at(-1).name, `AI ${playerCount - 1}`);
+        }
+
+        assert.equal(timer.size, 0);
+        server.disconnect();
     }
+});
+
+test("local AI admission keeps retrying through the shared active-session rejection", async () => {
+    const {server, timer} = await createSession(3, "Retry");
+
+    await timer.runNext();
+    assert.equal(timer.size, 1);
+
+    const responses = await send(server, Constants.ACTIONS.START);
+    const playingSession = responses.findLast(
+        (response) => response.view === Constants.VIEWS.SESSION
+    ).sync;
+    assert.equal(playingSession.status, Constants.STATUS.PLAYING);
+    assert.equal(playingSession.playerCount, 2);
+
+    const responseCount = responses.length;
+    await timer.runNext();
+    const rejectedAttempt = responses.findLast(
+        (response) => response.view === Constants.VIEWS.SESSION
+    ).sync;
+    assert.equal(rejectedAttempt.playerCount, 2);
+    assert.equal(responses.length, responseCount);
+    assert.equal(timer.size, 1);
+    assert.equal(timer.nextDelay, Constants.COUNTDOWN_SECONDS * 1000);
+    server.disconnect();
 });
 
 test("the local server uses the same game, session, and action response vocabulary", async () => {
@@ -90,10 +159,11 @@ test("local default sessions support the same view and join actions as Network s
 });
 
 test("local sessions disappear from the registry when their player leaves", async () => {
-    const {server} = await createSession(3, "Saved");
+    const {server, timer} = await createSession(3, "Saved");
     const exitResponses = await send(server, Constants.ACTIONS.LEAVE);
     const game = exitResponses.findLast((response) => response.view === Constants.VIEWS.GAME).sync;
 
+    assert.equal(timer.size, 0);
     assert.equal(game.sessions.length, Constants.DEFAULT_SESSIONS.length);
     assert.equal(game.sessions.some((session) => session.name === "Local Session Saved"), false);
     assert.equal(
@@ -149,10 +219,11 @@ test("listed local sessions can be joined with a player name", async () => {
 });
 
 test("disconnecting a local player removes its session", async () => {
-    const {server} = await createSession(2, "Closed");
+    const {server, timer} = await createSession(2, "Closed");
     server.disconnect();
     const game = (await send(server, Constants.ACTIONS.LIST))[0].sync;
 
+    assert.equal(timer.size, 0);
     assert.equal(game.sessions.length, Constants.DEFAULT_SESSIONS.length);
     assert.equal(game.sessions.some((session) => session.name === "Local Session Closed"), false);
 });
@@ -162,7 +233,8 @@ test("local game actions start the shared Session model through the common proto
     Math.random = () => 0;
 
     try {
-        const {server} = await createSession(2, "Action");
+        const {server, timer} = await createSession(2, "Action");
+        await timer.runNext();
         const responses = await send(server, Constants.ACTIONS.START);
         const session = responses.findLast((response) => response.view === Constants.VIEWS.SESSION).sync;
 

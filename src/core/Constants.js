@@ -44,8 +44,8 @@ export class Constants {
      */
     static DEFAULT_SESSIONS = Object.freeze([
         Object.freeze({name: "Default-S0", capacity: 4, aiCount: 3}),
-        Object.freeze({name: "Default-S1", capacity: 3, aiCount: 2}),
-        Object.freeze({name: "Default-S2", capacity: 2, aiCount: 1}),
+        Object.freeze({name: "Default-S1", capacity: 4, aiCount: 2}),
+        Object.freeze({name: "Default-S2", capacity: 4, aiCount: 1}),
     ]);
 
     /**
