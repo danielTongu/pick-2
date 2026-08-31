@@ -1,7 +1,7 @@
 /* public/styles/overlays.css */
 
 .dialog-overlay {
-    --accent: slategrey;
+    --accent: dodgerblue;
 
     position: fixed;
     inset: 0;
@@ -64,9 +64,8 @@
     color: var(--accent);
 }
 
-.dialog-panel > header > p:nth-child(2) {
-    --accent: darkslategrey;
-    font-style: italic;
+.dialog-panel > header > p:last-of-type {
+    font-size: small;
 }
 
 .dialog-panel > output {
@@ -217,7 +216,8 @@
    SUIT SELECTION DIALOG
    ======================================== */
 #suit-selection-dialog {
-    --accent: slategrey;
+    --accent: #00ff05;
+    --button-color: black;
 }
 
 #suit-selection-panel {
@@ -266,9 +266,6 @@
     background: transparent;
 }
 
-#suit-selection-timeout-button {
-    --accent: darkslategrey;
-}
 
 /* ========================================
    SESSION END DIALOG
@@ -285,8 +282,11 @@
     border-top: 1px solid;
 }
 
-#session-end-message-output:has(tbody > tr)
-> #session-end-selected-player-hand:not(:has(*))::before {
+#session-end-message-output:has(tbody > tr) > #session-end-selected-player-hand:not(:has(*)){
+    border-top: 1px solid;
+}
+
+#session-end-message-output:has(tbody > tr) > #session-end-selected-player-hand:not(:has(*))::before {
     content: "Select a player to see their hand.";
 }
 
@@ -305,4 +305,8 @@
     color: cyan;
     font-size: small;
     font-style: italic;
+}
+
+#session-end-selected-player-hand > .playing-card {
+    pointer-events: none;
 }
