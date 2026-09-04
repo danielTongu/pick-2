@@ -2,29 +2,29 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Card } from "../src/core/Card.js";
-import { Constants } from "../src/core/Constants.js";
-import { Deck } from "../src/core/Deck.js";
-import { Player } from "../src/core/Player.js";
-import { Session } from "../src/core/Session.js";
-import { UserNotification } from "../src/core/UserNotification.js";
+import { Card } from "../core/Card.js";
+import { Constants } from "../core/Constants.js";
+import { Deck } from "../core/Deck.js";
+import { Player } from "../core/Player.js";
+import { Room } from "../core/Room.js";
+import { UserNotification } from "../core/UserNotification.js";
 
 test("actionable player and game-rule failures use UserNotification", async () => {
     assert.throws(() => new Player(""), UserNotification);
 
-    const session = new Session("Expected errors");
-    await session.join("Alice");
-    await session.join("Bob");
-    await session.start();
+    const room = new Room("Expected errors");
+    await room.join("Alice");
+    await room.join("Bob");
+    await room.start();
 
-    const turnOwner = session.circle.getTurnOwner();
-    const otherPlayer = [...session.circle.players.values()].find(
+    const turnOwner = room.circle.getTurnOwner();
+    const otherPlayer = [...room.circle.players.values()].find(
         (player) => player.key !== turnOwner.key
     );
 
-    await assert.rejects(session.passTurn(otherPlayer.name), UserNotification);
+    await assert.rejects(room.passTurn(otherPlayer.name), UserNotification);
 
-    for (const player of session.circle.players.values()) {
+    for (const player of room.circle.players.values()) {
         player.stopIdleMonitoring();
     }
 });

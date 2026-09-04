@@ -4,20 +4,20 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { CardSortUtils } from "../src/core/CardSortUtils.js";
-import { Constants } from "../src/core/Constants.js";
-import { NormalizeUtils } from "../src/core/NormalizeUtils.js";
-import { Serializable } from "../src/core/Serializable.js";
-import { StateMapper } from "../src/core/StateMapper.js";
-import { TurnUtils } from "../src/core/TurnUtils.js";
-import { UserNotification } from "../src/core/UserNotification.js";
-import { SessionRowUtils } from "../src/ui/SessionRowUtils.js";
-import { ThrottleGuard } from "../src/server/ThrottleGuard.js";
-import { NotificationUtils } from "../src/ui/NotificationUtils.js";
-import { OpponentUtils } from "../src/ui/OpponentUtils.js";
-import { TemplateUtils } from "../src/ui/TemplateUtils.js";
+import { CardSortUtils } from "../core/CardSortUtils.js";
+import { Constants } from "../core/Constants.js";
+import { ValidationUtils } from "../core/ValidationUtils.js";
+import { Serializable } from "../core/Serializable.js";
+import { StateMapper } from "../core/StateMapper.js";
+import { TurnUtils } from "../core/TurnUtils.js";
+import { UserNotification } from "../core/UserNotification.js";
+import { RoomRowUtils } from "../ui/utilities/RoomRowUtils.js";
+import { RateLimit } from "../runtime/RateLimit.js";
+import { NotificationUtils } from "../ui/utilities/NotificationUtils.js";
+import { OpponentUtils } from "../ui/utilities/OpponentUtils.js";
+import { TemplateUtils } from "../ui/utilities/TemplateUtils.js";
 
-const INDEX_HTML = readFileSync(new URL("../session/index.html", import.meta.url), "utf8");
+const INDEX_HTML = readFileSync(new URL("../room.html", import.meta.url), "utf8");
 const OVERLAYS_CSS = readFileSync(new URL("../web/shared/styles/overlays.css", import.meta.url), "utf8");
 
 test("browser controller, custom element, and template utility families share their intended APIs", async () => {
@@ -39,33 +39,33 @@ test("browser controller, custom element, and template utility families share th
         const [
             { AlertController },
             { CountdownController },
-            { SessionEndController },
-            { GameController },
+            { ResultsController },
+            { RoomController },
+            { HomeController },
             { LocalPlayerController },
             { NetworkConnectionController },
-            { SessionController },
             { SuitSelectionController },
             { ViewController },
             { PlayingCard }
         ] = await Promise.all([
-            import("../src/ui/AlertController.js"),
-            import("../src/ui/CountdownController.js"),
-            import("../src/ui/SessionEndController.js"),
-            import("../src/ui/GameController.js"),
-            import("../src/ui/LocalPlayerController.js"),
-            import("../src/ui/NetworkConnectionController.js"),
-            import("../src/ui/SessionController.js"),
-            import("../src/ui/SuitSelectionController.js"),
-            import("../src/ui/ViewController.js"),
-            import("../src/ui/PlayingCard.js")
+            import("../ui/controllers/AlertController.js"),
+            import("../ui/controllers/CountdownController.js"),
+            import("../ui/controllers/ResultsController.js"),
+            import("../ui/controllers/RoomController.js"),
+            import("../ui/controllers/HomeController.js"),
+            import("../ui/controllers/LocalPlayerController.js"),
+            import("../ui/controllers/NetworkConnectionController.js"),
+            import("../ui/controllers/SuitSelectionController.js"),
+            import("../ui/controllers/ViewController.js"),
+            import("../ui/PlayingCard.js")
         ]);
         const overlayTypes = [
             AlertController,
             CountdownController,
-            SessionEndController,
+            ResultsController,
             SuitSelectionController
         ];
-        const viewTypes = [GameController, NetworkConnectionController, SessionController];
+        const viewTypes = [HomeController, NetworkConnectionController, RoomController];
         const playingCardMethods = [
             "update",
             "getCard",
@@ -90,7 +90,7 @@ test("browser controller, custom element, and template utility families share th
             assert.equal(typeof Type.prototype.hide, "function");
         }
 
-        for (const Type of [OpponentUtils, SessionRowUtils]) {
+        for (const Type of [OpponentUtils, RoomRowUtils]) {
             assert.equal(Type.prototype instanceof TemplateUtils, true);
             assert.equal(typeof Type.load, "function");
             assert.equal(typeof Type.create, "function");
@@ -121,15 +121,15 @@ test("browser controller, custom element, and template utility families share th
     }
 });
 
-test("NormalizeUtils validates integer categories without coercion", () => {
-    assert.equal(NormalizeUtils.integer(-2, "Count"), -2);
-    assert.equal(NormalizeUtils.nonNegativeInteger(0, "Count"), 0);
-    assert.equal(NormalizeUtils.nonNegativeInteger(3, "Count"), 3);
+test("ValidationUtils validates integer categories without coercion", () => {
+    assert.equal(ValidationUtils.integer(-2, "Count"), -2);
+    assert.equal(ValidationUtils.nonNegativeInteger(0, "Count"), 0);
+    assert.equal(ValidationUtils.nonNegativeInteger(3, "Count"), 3);
 
-    assert.throws(() => NormalizeUtils.integer(1.5, "Count"), /Count must be an integer/);
-    assert.throws(() => NormalizeUtils.integer("1", "Count"), /Count must be an integer/);
-    assert.throws(() => NormalizeUtils.nonNegativeInteger(-1, "Count"), /Count must be a non-negative integer/);
-    assert.throws(() => NormalizeUtils.nonNegativeInteger(1.5, "Count"), /Count must be a non-negative integer/);
+    assert.throws(() => ValidationUtils.integer(1.5, "Count"), /Count must be an integer/);
+    assert.throws(() => ValidationUtils.integer("1", "Count"), /Count must be an integer/);
+    assert.throws(() => ValidationUtils.nonNegativeInteger(-1, "Count"), /Count must be a non-negative integer/);
+    assert.throws(() => ValidationUtils.nonNegativeInteger(1.5, "Count"), /Count must be a non-negative integer/);
 });
 
 test("Serializable handles nested models, dates, arrays, objects, maps, sets, and field filters", () => {
@@ -157,13 +157,13 @@ test("Serializable handles nested models, dates, arrays, objects, maps, sets, an
     assert.deepEqual(model.toJSON(["child", "date"], ["date"]), {child: {value: 2}});
 });
 
-test("StateMapper builds immutable response, message, game, and detailed session payloads", () => {
+test("StateMapper builds immutable response, message, Home, and detailed Game payloads", () => {
     const message = StateMapper.toMessage(Constants.STATUS.INFO, "Ready", "Take your turn.");
-    const response = StateMapper.toResponse(Constants.VIEWS.SESSION, message, {version: 1});
+    const response = StateMapper.toResponse(Constants.VIEWS.ROOM, message, {version: 1});
     const state = {
-        name: "Mapped Session",
+        name: "Mapped Room",
         status: Constants.STATUS.PLAYING,
-        capacity: 4,
+        playerLimit: 4,
         createdAt: "invalid",
         lastActiveAt: 0,
         viewers: ["one", "two"],
@@ -191,35 +191,35 @@ test("StateMapper builds immutable response, message, game, and detailed session
         isAwaitingSuit: true,
         declaredSuit: Constants.CARD.SUIT.SPADES
     };
-    const session = {toJSON: () => state};
+    const room = {toJSON: () => state};
 
     assert.equal(Object.isFrozen(message), true);
     assert.equal(Object.isFrozen(response), true);
     assert.equal(response.message.title, "Ready");
 
-    const game = StateMapper.toGamePayload([session]);
-    assert.equal(game.sessions[0].viewerCount, 2);
-    assert.equal(game.sessions[0].createdAt, "");
+    const home = StateMapper.toHomeData([room]);
+    assert.equal(home.rooms[0].viewerCount, 2);
+    assert.equal(home.rooms[0].createdAt, "");
 
-    const payload = StateMapper.toSessionPayload(session, "Alice");
-    assert.equal(payload.circle.turnOwnerKey, "alice");
+    const data = StateMapper.toRoomData(room, "Alice");
+    assert.equal(data.circle.turnOwnerKey, "alice");
     assert.equal(
-        TurnUtils.isTurnOwner(payload.circle.turnOwnerKey, payload.circle.players[0].key),
+        TurnUtils.isTurnOwner(data.circle.turnOwnerKey, data.circle.players[0].key),
         true
     );
-    assert.equal(payload.circle.players[0].hand.cards.length, 1);
-    assert.equal(payload.circle.players[0].hand.score, 5);
-    assert.equal(payload.discardPile.length, 2);
-    assert.deepEqual(payload.discardPile[1], {suit: Constants.CARD.SUIT.SPADES, rotation: 0});
-    assert.equal(payload.deckCount, 2);
-    assert.deepEqual(payload.scores, {Alice: 5});
+    assert.equal(data.circle.players[0].hand.cards.length, 1);
+    assert.equal(data.circle.players[0].hand.score, 5);
+    assert.equal(data.discardPile.length, 2);
+    assert.deepEqual(data.discardPile[1], {suit: Constants.CARD.SUIT.SPADES, rotation: 0});
+    assert.equal(data.deckCount, 2);
+    assert.deepEqual(data.scores, {Alice: 5});
 });
 
-test("StateMapper supplies safe defaults for incomplete session state", () => {
+test("StateMapper supplies safe defaults for incomplete game state", () => {
     const state = {
         name: "Empty",
         status: Constants.STATUS.WAITING,
-        capacity: 2,
+        playerLimit: 2,
         createdAt: null,
         lastActiveAt: null,
         viewers: 3,
@@ -231,37 +231,37 @@ test("StateMapper supplies safe defaults for incomplete session state", () => {
         isAwaitingSuit: false,
         declaredSuit: null
     };
-    const session = {toJSON: () => state};
-    const payload = StateMapper.toSessionPayload(session);
+    const room = {toJSON: () => state};
+    const data = StateMapper.toRoomData(room, null);
 
-    assert.equal(payload.playerCount, 0);
-    assert.equal(payload.viewerCount, 3);
-    assert.deepEqual(payload.circle.players, []);
-    assert.deepEqual(payload.discardPile, []);
-    assert.deepEqual(payload.winners, []);
-    assert.deepEqual(payload.scores, {});
-    assert.equal(payload.deckCount, 0);
-    assert.equal(payload.circle.turnOwnerKey, null);
+    assert.equal(data.playerCount, 0);
+    assert.equal(data.viewerCount, 3);
+    assert.deepEqual(data.circle.players, []);
+    assert.deepEqual(data.discardPile, []);
+    assert.deepEqual(data.winners, []);
+    assert.deepEqual(data.scores, {});
+    assert.equal(data.deckCount, 0);
+    assert.equal(data.circle.turnOwnerKey, null);
 });
 
-test("ThrottleGuard isolates scopes and supports reset, pruning, and validation", () => {
-    const guard = new ThrottleGuard();
+test("RateLimit isolates scopes and supports reset, pruning, and validation", () => {
+    const guard = new RateLimit();
 
-    guard.enforceSocketThrottle({tabId: " tab "}, "sync", 1000);
+    guard.enforceConnection({tabId: " tab "}, "sync", 1000);
     assert.throws(
-        () => guard.enforceSocketThrottle({tabId: "tab"}, "sync", 1000),
+        () => guard.enforceConnection({tabId: "tab"}, "sync", 1000),
         UserNotification
     );
 
-    guard.reset("socket:tab");
-    guard.enforceSocketThrottle({tabId: "tab"}, "sync", 1000);
+    guard.reset("connection:tab");
+    guard.enforceConnection({tabId: "tab"}, "sync", 1000);
     guard.enforcePlayerThrottle("player-tab", "move", 0);
-    guard.enforceSessionThrottle("session-key", "start", 0);
+    guard.enforceSessionThrottle("room-key", "start", 0);
     guard.prune(0);
     guard.resetAll();
 
     assert.throws(() => guard.enforcePlayerThrottle("", "move", 1), /cannot be empty/);
-    assert.throws(() => guard.enforceSessionThrottle("session", "move", -1), /non-negative integer/);
+    assert.throws(() => guard.enforceSessionThrottle("room", "move", -1), /non-negative integer/);
 });
 
 test("CardSortUtils supports every sort mode without mutating its input", () => {
@@ -285,7 +285,7 @@ test("the shared guide initializes canonical card-sort options", () => {
 
     assert.match(INDEX_HTML, /<select id="card-sort-key-select"><\/select>/);
     assert.match(controller, /Constants\.CARD\.SORT_OPTIONS/);
-    assert.match(controller, /PlayingCard\.create\(card, \{[\s\S]*?isDraggable: false/);
+    assert.match(controller, /PlayingCard\.create\(card, false\)/);
 });
 
 test("drag clones scale from the rendered card instead of the body container", () => {

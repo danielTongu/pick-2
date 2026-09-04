@@ -3,8 +3,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Card } from "../src/core/Card.js";
-import { Constants } from "../src/core/Constants.js";
+import { Card } from "../core/Card.js";
+import { Constants } from "../core/Constants.js";
 
 const { VALUE, SUIT } = Constants.CARD;
 
@@ -20,13 +20,13 @@ test("card-domain constants expose immutable canonical collections", () => {
     assert.equal(Constants.CARD.DRAG_CLONE_SCALE > 0, true);
 });
 
-test("default session configuration exposes three AI-capacity levels", () => {
-    assert.deepEqual(Constants.DEFAULT_SESSIONS.map((session) => session.aiCount), [3, 2, 1]);
-    assert.equal(Constants.DEFAULT_SESSIONS.every((session) => Object.isFrozen(session)), true);
-    assert.equal(Object.isFrozen(Constants.DEFAULT_SESSIONS), true);
+test("default game configuration exposes three bot player-limit levels", () => {
+    assert.deepEqual(Constants.DEFAULT_ROOMS.map((room) => room.botCount), [3, 2, 1]);
+    assert.equal(Constants.DEFAULT_ROOMS.every((room) => Object.isFrozen(room)), true);
+    assert.equal(Object.isFrozen(Constants.DEFAULT_ROOMS), true);
 });
 
-test("the Session API uses one-word actions", () => {
+test("the Game API uses one-word actions", () => {
     assert.deepEqual(Constants.ACTIONS, {
         LIST: "list",
         CREATE: "create",
@@ -44,7 +44,7 @@ test("the Session API uses one-word actions", () => {
 
 test("local opponent names are centralized and immutable", () => {
     assert.equal(Object.isFrozen(Constants.LOCAL_OPPONENT_NAMES), true);
-    assert.equal(Constants.LOCAL_OPPONENT_NAMES.length, Constants.SESSION_MAX_CAPACITY - 1);
+    assert.equal(Constants.LOCAL_OPPONENT_NAMES.length, Constants.ROOM_PLAYER_LIMIT - 1);
     assert.equal(
         Constants.LOCAL_OPPONENT_NAMES.every((name) => typeof name === "string" && name.trim().length > 0),
         true
@@ -143,7 +143,7 @@ test("draw penalties only accept a sufficient draw card or ace of spades", () =>
 });
 
 test("special card effects vary by player count", () => {
-    assert.equal(new Card(VALUE.SEVEN.id, SUIT.HEARTS).isSessionEndCard(), true);
+    assert.equal(new Card(VALUE.SEVEN.id, SUIT.HEARTS).isRoundEndingCard(), true);
     assert.equal(new Card(VALUE.EIGHT.id, SUIT.CLUBS).isSkip(4), true);
     assert.equal(new Card(VALUE.JACK.id, SUIT.CLUBS).isSkip(2), true);
     assert.equal(new Card(VALUE.JACK.id, SUIT.CLUBS).isReverse(4), true);

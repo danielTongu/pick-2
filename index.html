@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>Play Pick 2 | Match cards. Make moves</title>
-    <meta name="description" content="Create a private Pick 2 session, invite your players, and start the next deal.">
+    <meta name="description" content="Create a private Pick 2 game, invite your players, and start the next deal.">
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
     <link rel="canonical" href="https://danieltongu.github.io/pick-2/">
     <link rel="sitemap" href="https://danieltongu.github.io/pick-2/sitemap.xml">
@@ -13,22 +13,22 @@
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="Pick 2">
     <meta property="og:title" content="Play Pick 2 | Match cards. Make moves">
-    <meta property="og:description" content="Create a private session, invite your players, and start the next deal.">
+    <meta property="og:description" content="Create a private game, invite your players, and start the next deal.">
     <meta property="og:url" content="https://danieltongu.github.io/pick-2/">
     <meta property="og:locale" content="en_US">
 
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="Play Pick 2 | Match cards. Make moves">
-    <meta name="twitter:description" content="Create a private session, invite your players, and start the next deal.">
+    <meta name="twitter:description" content="Create a private game, invite your players, and start the next deal.">
 
-    <meta name="pick-2-shared-root" content="./web/shared/">
+    <meta name="pick-2-shared-root" content="./ui/">
     <meta name="pick-2-server-origin" content="">
 
-    <link rel="stylesheet" href="./web/shared/styles/base.css">
-    <link rel="stylesheet" href="./web/shared/styles/table.css">
-    <link rel="stylesheet" href="./web/shared/styles/pick2-index.css">
-    <link rel="stylesheet" href="./web/shared/styles/playing-card.css">
-    <link rel="stylesheet" href="./web/shared/styles/overlays.css">
+    <link rel="stylesheet" href="ui/styles/base.css">
+    <link rel="stylesheet" href="ui/styles/table.css">
+    <link rel="stylesheet" href="ui/styles/home.css">
+    <link rel="stylesheet" href="ui/styles/playing-card.css">
+    <link rel="stylesheet" href="ui/styles/overlays.css">
 
     <script type="application/ld+json">
         {
@@ -36,7 +36,7 @@
             "@type": "WebApplication",
             "name": "Pick 2",
             "url": "https://danieltongu.github.io/pick-2/",
-            "description": "A browser card game with Local and Network sessions.",
+            "description": "A browser card game with Local and Network games.",
             "applicationCategory": "GameApplication",
             "operatingSystem": "Any",
             "browserRequirements": "Requires JavaScript and a modern web browser.",
@@ -48,17 +48,19 @@
         }
     </script>
 </head>
-<body data-page="game">
+<body data-page="home">
 <main class="site-shell">
     <header id="app-header">
-        <a id="app-home-link" href="./" aria-label="Open the Pick 2 game">
-            <h1 class="brand-mark" aria-hidden="true">P2</h1>
-            <aside class="brand-copy">
-                <strong>Pick 2</strong>
-                <small>Match cards. Make moves</small>
-            </aside>
-        </a>
-        <aside id="connection-status" class="toggle-switch" role="radiogroup" data-status="connecting" aria-label="Connection mode. Local connecting.">
+        <h1>
+            <a id="app-home-link" href="./" aria-label="Pick 2 Home">
+                <span class="brand-mark">P2</span>
+                <span class="brand-copy">
+                    Pick 2
+                    <small>Match cards. Make moves</small>
+                </span>
+            </a>
+        </h1>
+        <aside id="connection-status" class="toggle-switch" data-status="connecting" aria-label="Connection mode. Local connecting.">
             <label>
                 <input id="local-mode-input" name="connection-mode" type="radio" value="local" checked>
                 <span>Local</span>
@@ -70,44 +72,44 @@
         </aside>
     </header>
 
-    <article id="game-page-view" aria-labelledby="hero-title">
+    <article id="home-view" aria-labelledby="hero-title">
         <header class="hero">
-            <section class="eyebrow">Private tables · Instant play</section>
+            <section class="eyebrow">Private rooms · Instant play</section>
             <section>
                 <aside>
-                    <h2 id="hero-title"><span>Your table.</span><em>Your rules.</em></h2>
-                    <p>Start a private session, invite your circle, and play Pick 2 at a table designed to keep the game moving.</p>
+                    <h2 id="hero-title"><span>Your room.</span><em>Your rules.</em></h2>
+                    <p>Start a private game, invite your circle, and play Pick 2 in a room designed to keep the game moving.</p>
                 </aside>
-                <aside class="card-fan" aria-hidden="true" inert></aside>
+                <aside class="card-fan" aria-hidden="true"></aside>
             </section>
         </header>
 
-        <section id="game-view">
-            <aside id="session-registration">
+        <section id="home-directory">
+            <aside id="registration">
                 <header class="panel-header">
                     <div>
-                        <span class="section-kicker">New session</span>
-                        <h2>Find or start a game</h2>
+                        <span class="section-kicker">New room</span>
+                        <h2>Find or start a room</h2>
                     </div>
                     <span class="step" aria-hidden="true">01</span>
                 </header>
-                <form id="session-registration-form">
+                <form id="registration-form">
                     <div id="field-group">
                         <label>
                             <span>Player name</span>
                             <input id="player-name-input" autocomplete="nickname" maxlength="24" required placeholder="What should we call you?">
                         </label>
                         <label>
-                            <span>Session name</span>
-                            <input id="session-name-input" autocomplete="off" maxlength="48" required placeholder="e.g. Friday night">
+                            <span>Room name</span>
+                            <input id="room-name-input" autocomplete="off" maxlength="48" required placeholder="e.g. Friday night">
                         </label>
                         <label>
                             <span>Seats</span>
-                            <input id="session-capacity-input" type="number" min="2" max="4" value="4" required>
+                            <input id="player-limit-input" type="number" min="2" max="4" value="4" required>
                         </label>
                     </div>
                     <footer>
-                        <p class="control-label">I want to</p>
+                        <p id="request-mode-label" class="control-label">I want to</p>
                         <div id="request-actions">
                             <div id="request-mode-control" class="toggle-switch" role="radiogroup" aria-labelledby="request-mode-label">
                                 <label>
@@ -119,22 +121,22 @@
                                     <span>Join</span>
                                 </label>
                             </div>
-                            <button id="session-enter-button">Enter session</button>
+                            <button id="enter-button">Enter room</button>
                         </div>
                     </footer>
                 </form>
             </aside>
 
-            <aside id="session-list-panel">
+            <aside id="list-panel">
                 <header class="panel-header">
                     <div>
                         <span class="section-kicker">Now playing</span>
-                        <h2>Live sessions</h2>
+                        <h2>Live rooms</h2>
                     </div>
-                    <label id="session-filter-control">
+                    <label id="filter-control">
                         <span class="visually-hidden">Status</span>
-                        <select id="session-status-filter">
-                            <option value="">All sessions</option>
+                        <select id="status-filter">
+                            <option value="">All rooms</option>
                             <option value="waiting">Waiting</option>
                             <option value="playing">Playing</option>
                             <option value="finished">Finished</option>
@@ -142,22 +144,22 @@
                     </label>
                 </header>
                 <div class="table-container">
-                    <table id="session-list-table">
+                    <table id="list-table">
                         <thead>
                         <tr>
-                            <th scope="col">Session</th>
+                            <th scope="col">Room</th>
                             <th scope="col">Status</th>
                             <th scope="col">Players</th>
                             <th scope="col">Viewers</th>
-                            <th scope="col">Capacity</th>
+                        <th scope="col">Player limit</th>
                             <th scope="col">Last active</th>
                             <th scope="col">Created</th>
                         </tr>
                         </thead>
-                        <tbody id="session-list-table-body">
-                        <tr class="empty-session-row">
+                        <tbody id="list-table-body">
+                        <tr class="empty-row">
                             <td colspan="7">
-                                <span class="empty-state-mark" aria-hidden="true">♣ ♥</span>No sessions available.
+                                <span class="empty-state-mark" aria-hidden="true">♣ ♥</span>No rooms available.
                             </td>
                         </tr>
                         </tbody>
@@ -174,8 +176,8 @@
         </header>
         <section>
             <i id="network-connection-indicator" aria-hidden="true"></i>
-            <output id="network-connection-message" aria-live="polite">Checking the configured and local Pick 2 Network hosts.</output>
-            <output id="network-connection-origin" aria-label="Network host address" hidden></output>
+            <section id="network-connection-message" aria-live="polite">Checking the configured and local Pick 2 Network hosts.</section>
+            <section id="network-connection-origin" aria-label="Network host address" hidden></section>
         </section>
         <footer id="network-connection-actions">
             <button id="network-connection-retry-button" hidden>Retry</button>
@@ -200,17 +202,17 @@
 
 <!-- dialogs -->
 
-<aside id="alert-dialog" class="dialog-overlay" data-status="info" role="alertdialog" aria-modal="true" aria-labelledby="alert-title" aria-describedby="alert-message" hidden>
+<aside id="alert-dialog" class="dialog-overlay" data-status="info" aria-labelledby="alert-title" aria-describedby="alert-message" hidden>
     <div class="dialog-panel">
         <header>
             <i id="alert-icon" data-icon="info" aria-hidden="true"></i>
             <h1 id="alert-title"></h1>
         </header>
-        <output id="alert-message"></output>
+        <section id="alert-message"></section>
         <button id="alert-ok-button">OK</button>
     </div>
 </aside>
 
-<script type="module" src="./src/main.js"></script>
+<script type="module" src="main.js"></script>
 </body>
 </html>

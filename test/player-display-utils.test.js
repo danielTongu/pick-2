@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PlayerDisplayUtils } from "../src/ui/PlayerDisplayUtils.js";
+import { PlayerDisplayUtils } from "../ui/utilities/PlayerDisplayUtils.js";
 
 test("player display starts with the local player and preserves circle order", () => {
     const players = [

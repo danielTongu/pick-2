@@ -1,0 +1,136 @@
+/* Shared table foundations and data presentation. */
+
+.table-container {
+    overflow-x: auto;
+    border-top: 1px solid rgba(255, 255, 255, .12);
+}
+
+table {
+    --table-heading-padding: var(--container-spacing);
+    --table-cell-padding: var(--container-spacing);
+    --table-border: none;
+    --table-font-size: 12px;
+
+    width: 100%;
+    border: var(--table-border);
+    border-collapse: collapse;
+    font-size: var(--table-font-size);
+}
+
+thead {
+    background: rgba(255, 255, 255, .08);
+}
+
+th {
+    padding: var(--table-heading-padding);
+    color: var(--muted);
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: .1em;
+    text-align: left;
+    text-transform: uppercase;
+}
+
+tr {
+    border-bottom: 1px solid rgba(255, 255, 255, .08);
+    transition:
+            background-color .2s ease,
+            color .2s ease;
+}
+
+td {
+    padding: var(--table-cell-padding);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+table:has(> tbody:empty)::after {
+    content: "no entries";
+    display: table-caption;
+    caption-side: bottom;
+    padding: var(--table-cell-padding);
+    color: var(--muted);
+    font-size: small;
+    font-style: italic;
+}
+
+tbody tr[tabindex] {
+    cursor: pointer;
+}
+
+tbody tr:is(:hover, :focus-visible) {
+    background: rgb(0 255 255 / .12);
+}
+
+tbody tr:focus-visible {
+    outline-offset: -3px;
+}
+
+tbody tr[data-is-selected="true"] {
+    color: cyan;
+}
+
+td:empty::before {
+    content: "--";
+    display: inline-block;
+    font-style: italic;
+}
+
+td::before {
+    transition: content .2s ease-in-out;
+}
+
+td[data-room-name]::before {
+    content: attr(data-room-name);
+}
+
+td[data-status]::before {
+    content: attr(data-status);
+}
+
+td[data-status] > .status-indicator {
+    display: inline-block;
+    width: .8rem;
+    height: .8rem;
+    margin-left: var(--container-spacing);
+    border-radius: var(--container-radius);
+    vertical-align: middle;
+    background: gray;
+    transition: background .2s ease-in-out;
+}
+
+td[data-status="waiting"] > .status-indicator {
+    background: orange;
+}
+
+td[data-status="playing"] > .status-indicator {
+    background: limegreen;
+}
+
+td[data-status="finished"] > .status-indicator {
+    background: gold;
+}
+
+td[data-status="error"] > .status-indicator {
+    background: crimson;
+}
+
+td[data-player-count]::before {
+    content: attr(data-player-count);
+}
+
+td[data-viewer-count]::before {
+    content: attr(data-viewer-count);
+}
+
+td[data-player-limit]::before {
+    content: attr(data-player-limit);
+}
+
+td[data-last-active-at]::before {
+    content: attr(data-last-active-at);
+}
+
+td[data-created-at]::before {
+    content: attr(data-created-at);
+}

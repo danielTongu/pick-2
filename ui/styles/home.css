@@ -1,0 +1,510 @@
+/* styles for the index page */
+
+.toggle-switch {
+    --button-background: var(--surface);
+    --button-border: 1px solid var(--line);
+
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    padding: 4px;
+}
+
+.toggle-switch > label {
+    cursor: pointer;
+    position: relative;
+}
+
+.toggle-switch > label > input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.toggle-switch > label > span {
+    min-width: 64px;
+    min-height: 36px;
+    height: 100%;
+    display: grid;
+    place-items: center;
+    padding: 0 12px;
+    border-radius: 999px;
+    color: var(--muted);
+    font-weight: 750;
+    transition: background-color .2s ease, color .2s ease, box-shadow .2s ease;
+}
+
+.toggle-switch > label:has(input:checked) > span {
+    background: var(--acid);
+    color: var(--control-ink);
+    box-shadow: 0 5px 18px rgba(0, 0, 0, .28);
+}
+
+.toggle-switch > label:has(input:focus-visible) > span {
+    outline: 3px solid var(--acid);
+    outline-offset: 2px;
+}
+
+.toggle-switch > label:has(input:disabled) {
+    opacity: .36;
+    cursor: not-allowed;
+}
+
+.hero {
+    display: grid;
+    gap: 24px;
+    padding: 58px 0 2rem;
+    border-bottom: 1px solid var(--line);
+}
+
+.hero > section:last-child {
+    display: grid;
+    grid-template-columns: 1fr;
+    align-items: center;
+    gap: clamp(30px, 6vw, 90px);
+}
+
+.eyebrow,
+.section-kicker {
+    letter-spacing: .17em;
+}
+
+.eyebrow {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 10px;
+}
+
+.eyebrow::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    margin-left: 4px;
+    border-radius: 50%;
+    background: #68ad5c;
+    box-shadow: 0 0 0 4px rgba(104, 173, 92, .15);
+}
+
+.hero h2 {
+    margin: 0;
+    font-size: clamp(56px, 17vw, 75px);
+    font-weight: 500;
+    line-height: .82;
+    letter-spacing: -.066em;
+}
+
+.hero h2 span,
+.hero h2 em {
+    display: block;
+    text-wrap: nowrap;
+}
+
+.hero h2 em {
+    color: var(--acid);
+    font-weight: 400;
+}
+
+.hero p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.65;
+}
+
+.card-fan {
+    container-type: inline-size;
+    position: relative;
+    justify-self: center;
+    width: min(calc(100% - 56px), 340px);
+    aspect-ratio: 3 / 2;
+    min-width: 0;
+}
+
+.card-fan > playing-card {
+    --card-size: clamp(100px, 36cqi, 130px);
+    --card-left: 50%;
+    --card-shift-y: 0%;
+
+    position: absolute;
+    bottom: calc(var(--card-size) / 7);
+    left: var(--card-left);
+    pointer-events: none;
+    transform: translate(-50%, var(--card-shift-y)) rotate(var(--card-rotation));
+    transform-origin: 50% 110%;
+}
+
+.card-fan > playing-card:nth-child(1) {
+    --card-left: 22%;
+    --card-shift-y: 14%;
+    --card-rotation: -24deg;
+}
+
+.card-fan > playing-card:nth-child(2) {
+    --card-left: 30%;
+    --card-shift-y: 6%;
+    --card-rotation: -16deg;
+}
+
+.card-fan > playing-card:nth-child(3) {
+    --card-left: 40%;
+    --card-rotation: -8deg;
+}
+
+.card-fan > playing-card:nth-child(5) {
+    --card-left: 60%;
+    --card-rotation: 8deg;
+}
+
+.card-fan > playing-card:nth-child(6) {
+    --card-left: 70%;
+    --card-shift-y: 6%;
+    --card-rotation: 16deg;
+}
+
+.card-fan > playing-card:nth-child(7) {
+    --card-left: 78%;
+    --card-shift-y: 14%;
+    --card-rotation: 24deg;
+}
+
+#home-directory {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    padding: 18px 0;
+}
+
+#registration,
+#list-panel {
+    min-width: 0;
+    padding: 25px;
+    border-radius: 18px;
+}
+
+#registration {
+    border: 1px solid var(--line);
+    background: rgba(32, 36, 31, .86);
+    box-shadow: var(--shadow);
+}
+
+#list-panel {
+    background: var(--forest);
+    color: white;
+    box-shadow: 0 20px 55px rgba(19, 62, 49, .17);
+}
+
+.panel-header {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: start;
+    gap: 18px;
+    margin-bottom: 34px;
+}
+
+.panel-header h2 {
+    margin: 7px 0 0;
+    font-size: 29px;
+    font-weight: 500;
+    line-height: 1.1;
+    letter-spacing: -.035em;
+}
+
+.section-kicker {
+    color: var(--muted);
+}
+
+#list-panel .section-kicker {
+    color: #9eb9ae;
+}
+
+.step {
+    color: var(--muted);
+    font-size: 18px;
+    font-style: italic;
+}
+
+/* ----- GAME REGISTRATION FORM  ----- */
+
+#registration-form {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+}
+
+#field-group {
+    display: grid;
+    /*grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));*/
+    gap: 12px;
+}
+
+#field-group label {
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 6px;
+}
+
+#field-group label > span,
+.control-label {
+    display: block;
+    color: var(--muted);
+    letter-spacing: .11em;
+}
+
+#field-group input,
+#status-filter {
+    width: 100%;
+    height: 54px;
+    padding: 0 16px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--paper);
+    outline: none;
+    transition: border-color .2s, box-shadow .2s, background .2s;
+}
+
+#field-group input::placeholder {
+    color: var(--muted);
+}
+
+#field-group input:focus,
+#status-filter:focus {
+    border-color: var(--acid);
+    box-shadow: 0 0 0 3px rgba(202, 255, 106, .15);
+    background: var(--surface-raised);
+}
+
+form > footer {
+    border-top: 1px solid var(--line);
+    display: grid;
+    padding-top: 1rem;
+}
+
+#request-actions {
+    --button-min-height: 58px;
+    --button-padding: 0 9px 0 21px;
+    --button-border: 0;
+    --button-background: var(--acid);
+    --button-color: var(--control-ink);
+    --button-weight: 750;
+
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+    gap: 1rem
+}
+
+#request-mode-control {
+    --button-background: var(--surface);
+}
+
+#request-mode-control > label:has(input:checked) span {
+    background: var(--forest-soft);
+    color: var(--acid);
+    box-shadow: none;
+}
+
+#enter-button {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 10px 25px rgba(23, 23, 19, .14);
+    transition: transform .2s, box-shadow .2s;
+}
+
+#enter-button::after {
+    content: "↗";
+    width: 40px;
+    height: 40px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--forest);
+    color: white;
+    font-size: 18px;
+}
+
+#enter-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 15px 32px rgba(23, 23, 19, .2);
+}
+
+#enter-button:active {
+    transform: translateY(0);
+}
+
+#list-panel .panel-header {
+    align-items: center;
+}
+
+#filter-control {
+    width: 130px;
+}
+
+#status-filter {
+    height: 40px;
+    padding: 0 12px;
+    color: white;
+    background: rgba(255, 255, 255, .07);
+    border-color: rgba(255, 255, 255, .16);
+}
+
+#status-filter option {
+    color: var(--ink);
+}
+
+#list-table {
+    --table-heading-padding: 15px 12px;
+    --table-cell-padding: 16px 12px;
+
+    min-width: 660px;
+}
+
+.empty-row td {
+    height: 250px;
+    color: #a8bdb4;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.empty-state-mark {
+    display: block;
+    margin-bottom: 12px;
+    color: var(--acid);
+    font-size: 26px;
+}
+
+#network-connection-view {
+    --connection-accent: var(--acid);
+
+    min-height: 620px;
+    display: grid;
+    align-content: center;
+    gap: 22px;
+    border-bottom: 1px solid var(--line);
+}
+
+#network-connection-view > section {
+    display: grid;
+    justify-items: start;
+    gap: 22px;
+
+    position: relative;
+}
+
+#network-connection-title {
+    font-family: var(--display-font);
+    font-size: clamp(40px, 6vw, 80px);
+    font-weight: 400;
+    line-height: .92;
+    letter-spacing: -.055em;
+}
+
+#network-connection-indicator {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 140px;
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--connection-accent) 52%, transparent);
+    border-radius: 50%;
+    color: var(--connection-accent);
+    box-shadow:
+        0 0 0 25px color-mix(in srgb, var(--connection-accent) 6%, transparent),
+        0 0 80px color-mix(in srgb, var(--connection-accent) 18%, transparent);
+}
+
+#network-connection-indicator::before {
+    content: "";
+    width: 30%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 28px currentColor;
+}
+
+#network-connection-message {
+    color: var(--muted);
+    font-size: 17px;
+    line-height: 1.65;
+}
+
+#network-connection-origin {
+    width: fit-content;
+    padding: 10px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    color: var(--connection-accent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow-wrap: anywhere;
+}
+
+#network-connection-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+#network-connection-actions > button {
+    --button-background: var(--connection-accent);
+    --button-color: var(--control-ink);
+}
+
+#network-connection-view:is([data-status="connecting"], [data-status="reconnecting"]),
+#network-connection-indicator {
+    animation: network-connection-pulse 1.4s ease-in-out infinite alternate;
+}
+
+#network-connection-view[data-status="disconnected"],
+#network-connection-view[data-status="error"],
+#network-connection-view[data-status="unconfigured"] {
+    --connection-accent: #ff786f;
+}
+
+@keyframes network-connection-pulse {
+    to {
+        transform: scale(1.04);
+        box-shadow:
+            0 0 0 38px color-mix(in srgb, var(--connection-accent) 3%, transparent),
+            0 0 105px color-mix(in srgb, var(--connection-accent) 25%, transparent);
+    }
+}
+
+@media (min-width: 721px) {
+    .hero {
+        padding: 2rem 0;
+    }
+
+    .hero > section:last-child {
+        grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr);
+    }
+
+    .hero h2 {
+        font-size: clamp(60px, 8vw, 108px);
+    }
+
+    .card-fan > playing-card {
+        --card-size: clamp(100px, 40cqi, 170px);
+    }
+
+    #home-directory {
+        grid-template-columns: minmax(341px, .7fr) minmax(0, 1fr);
+    }
+
+    #registration,
+    #list-panel {
+        padding: 32px;
+    }
+
+    #network-connection-view {
+        padding: 80px clamp(30px, 8vw, 110px);
+    }
+
+    #network-connection-indicator {
+        width: clamp(150px, 21vw, 250px);
+    }
+}
+

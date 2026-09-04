@@ -23,7 +23,7 @@ Apply these standards to every future HTML, CSS, and UI-script change in this re
 - Initialize the common typography and text properties on `body`.
 - Let descendants inherit typography, text, and color values by default.
 - Put common element foundations in the appropriate shared foundation stylesheet; keep buttons, controls, and links in `base.css`.
-- Keep all foundational table rules in `web/shared/styles/table.css`; page and component styles may add only table-specific differences.
+- Keep all foundational table rules in `ui/styles/table.css`; page and component styles may add only table-specific differences.
 - Use translucent cyan for a hovered or keyboard-focused table row.
 - Represent `tr[data-is-selected="true"]` with solid cyan text only; selection must not add a background.
 - Component and page selectors should add only their visual differences; they must not repeat or reset an existing foundation.
@@ -36,6 +36,9 @@ Apply these standards to every future HTML, CSS, and UI-script change in this re
 ## UI scripts
 
 - Keep selectors synchronized with the current markup; delete references to removed elements.
+- Use `Home` for the root directory/creation page and `Room` for the active play page; use `Room` for the internal domain model as well.
+- Prefer named functions and class methods over arrow functions in application source.
+- Keep function parameters explicit. Do not use a default `options = {}` bag; introduce a small configuration class when an operation genuinely needs grouped options.
 - Prefer existing `data-*` state hooks over adding presentation-only classes or attributes.
 - Reuse shared timing and configuration constants instead of duplicating values.
 - Clear transient dialog content when its owning state ends, and open transition dialogs only when entering that state.
@@ -43,6 +46,6 @@ Apply these standards to every future HTML, CSS, and UI-script change in this re
 
 ## Verification
 
-- When shared markup or CSS changes, verify both `index.html` and `session/index.html`.
+- When shared markup or CSS changes, verify both `index.html` and `room.html`.
 - Confirm that inheritance produces the intended computed styles and that component rules contain only necessary differences.
 - Add or update focused tests when markup structure or UI behavior changes.
