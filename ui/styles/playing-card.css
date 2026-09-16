@@ -1,0 +1,411 @@
+:root {
+    --card-aspect-ratio-x: 172;
+    --card-aspect-ratio-y: 242;
+    --card-aspect-ratio: var(--card-aspect-ratio-x) / var(--card-aspect-ratio-y);
+    --card-height-min: 91px;
+    --card-height: max(100cqh, var(--card-height-min));
+    --card-gap: calc(var(--container-spacing, 8px) / 2);
+}
+
+/* ========================================
+   CONTAINERS - Horizontal flow, no wrap
+   ======================================== */
+
+.playing-card-area {
+    container-type: size;
+
+    font-size: var(--card-area-font-size, 0);
+    white-space: var(--card-area-white-space, nowrap);
+    text-wrap: nowrap;
+    text-align: center;
+
+    overscroll-behavior-inline: contain;
+    scroll-padding-inline: var(--container-spacing);
+    scrollbar-width: none;
+
+    height: 100%;
+    min-height: calc(var(--card-height-min) + var(--card-gap) * 2);
+}
+
+.playing-card-area:not(#table-play-area > [data-is-drag-over]) {
+    overflow: hidden;
+    overflow-x: auto;
+}
+
+.playing-card-area > playing-card {
+    margin: 0 calc(var(--card-gap) / 2);
+}
+
+.playing-card-area > playing-card:first-child {
+    margin-left: 0;
+}
+
+.playing-card-area > playing-card:last-child {
+    margin-right: 0;
+}
+
+/* ========================================
+   DRAG IMAGE (Body-level card)
+   ======================================== */
+
+body > playing-card {
+    position: fixed;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+/* ========================================
+   CARDS & DRAW BUTTON - Shared sizing
+   ======================================== */
+
+playing-card,
+#draw-button {
+    --card-width: calc(var(--card-height) * var(--card-aspect-ratio));
+
+    user-select: none;
+
+    display: inline-block;
+    text-align: center;
+
+    height: var(--card-height);
+    width: var(--card-width);
+
+    border-radius: calc(var(--card-width) / 10);
+}
+
+/* ========================================
+   DRAG HANDLE
+   ======================================== */
+
+.playing-card-drag-handle {
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+
+    position: absolute;
+    z-index: 3;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+
+    display: grid;
+    place-items: start center;
+    width: 100%;
+    height: calc(var(--card-height) / 3);
+}
+
+.playing-card-drag-handle::before {
+    content: "";
+    display: block;
+    width: calc(100% / 3);
+    height: 0.25rem;
+    margin-top: 0.35rem;
+    border-radius: var(--container-radius);
+    background: currentColor;
+    opacity: 0.3;
+}
+
+.playing-card-drag-handle:hover::before {
+    opacity: 0.7;
+}
+
+.playing-card-drag-handle:active {
+    cursor: grabbing;
+}
+
+/* ========================================
+   PLAYING CARD
+   ======================================== */
+
+playing-card {
+    --red: crimson; /* override base color */
+    --symbol: "";
+    --color: var(--black);
+    --card-rotation: 0deg;
+    --corner-font-size: calc(var(--card-width) / 4);
+    --center-symbol-size: calc(var(--card-height) / 1.7);
+    --joker-font-size: calc(var(--card-width) / 7);
+    --joker-size: 73%;
+    --card-back-primary: var(--red);
+    --card-back-secondary: var(--white);
+    --card-back-pattern:
+        repeating-linear-gradient(45deg, var(--card-back-secondary) 0 1px, transparent 1px 10px),
+        repeating-linear-gradient(-45deg, var(--card-back-secondary) 0 1px, transparent 1px 10px),
+        var(--card-back-primary);
+
+    font-family: "Segoe UI", Roboto, system-ui, sans-serif;
+    position: relative;
+    vertical-align: top;
+    background: var(--white); /* Same color as the joker image background */
+    border: 1px solid var(--black);
+    box-shadow: none;
+    color: var(--color);
+
+    transition: none;
+}
+
+playing-card[role="button"] {
+    cursor: pointer;
+}
+
+playing-card[data-is-face-up="false"] {
+    background: var(--card-back-pattern);
+    background-size: calc(var(--card-width) / 8) calc(var(--card-width) / 8);
+}
+
+#table-play-area > [data-is-drag-over] > playing-card:last-child {
+    box-shadow: var(--shadow-black);
+}
+
+/* ========================================
+   CARD CENTER - Rank/Suit display
+   ======================================== */
+
+playing-card > .playing-card-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+}
+
+playing-card[data-suit="spades"] > .playing-card-center,
+playing-card[data-suit="clubs"] > .playing-card-center {
+    top: 45%;
+}
+
+playing-card[data-suit="hearts"] > .playing-card-center {
+    top: 53%;
+}
+
+playing-card > .playing-card-center::before {
+    content: var(--symbol);
+    font-size: var(--center-symbol-size);
+    line-height: 1;
+}
+
+/* ========================================
+   JOKER SPECIAL STYLES
+   ======================================== */
+
+playing-card[data-value="joker"] > .playing-card-center::before {
+    content: "";
+    display: block;
+    width: var(--joker-size);
+    height: var(--joker-size);
+    background-image: url("../images/joker.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+playing-card[data-value="joker"] > .playing-card-center {
+    display: grid;
+    place-items: center;
+    width: var(--card-width);
+    height: var(--card-height);
+}
+
+playing-card[data-value="joker"]::before,
+playing-card[data-value="joker"]::after {
+    content: "J\A O\A K\A E\A R";
+    --corner-font-size: var(--joker-font-size);
+    letter-spacing: 0.05em;
+    line-height: 1.1;
+}
+
+/* ========================================
+   SUIT COLORS
+   ======================================== */
+
+playing-card[data-suit="hearts"],
+playing-card[data-suit="diamonds"],
+playing-card[data-suit="red"] {
+    --color: var(--red);
+}
+
+playing-card[data-suit="clubs"],
+playing-card[data-suit="spades"],
+playing-card[data-suit="black"] {
+    --color: var(--black);
+}
+
+playing-card[data-suit="hearts"] {
+    --symbol: "♥";
+}
+
+playing-card[data-suit="diamonds"] {
+    --symbol: "♦";
+}
+
+playing-card[data-suit="clubs"] {
+    --symbol: "♣";
+}
+
+playing-card[data-suit="spades"] {
+    --symbol: "♠";
+}
+
+/* ========================================
+   CARD CORNERS - Rank/Suit indicators
+   ======================================== */
+
+playing-card::before,
+playing-card::after {
+    pointer-events: none;
+    content: attr(data-value) "\A" var(--symbol);
+    position: absolute;
+    z-index: 2;
+    white-space: pre;
+    line-height: 0.9;
+    font-size: var(--corner-font-size);
+    font-weight: 800;
+    text-transform: uppercase;
+    text-shadow: 0 1px 1px color-mix(in srgb, var(--white) 30%, transparent);
+    letter-spacing: -0.02em;
+}
+
+playing-card::before {
+    top: calc(var(--card-height) / 17);
+    left: calc(var(--card-width) / 17);
+}
+
+playing-card::after {
+    right: calc(var(--card-width) / 17);
+    bottom: calc(var(--card-height) / 17);
+    transform: rotate(180deg);
+}
+
+playing-card[data-is-face-up="false"]::before,
+playing-card[data-is-face-up="false"]::after,
+playing-card[data-is-face-up="false"] > .playing-card-center {
+    display: none;
+}
+
+/* ========================================
+   DRAGGING STATE
+   ======================================== */
+
+playing-card[data-is-dragging="true"] {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* ========================================
+   DRAW CARD BUTTON - Placeholder card
+   ======================================== */
+
+#draw-button {
+    --plus-length: calc(var(--card-width) * 0.5);
+    --plus-length-hover: calc(var(--card-width) * 0.7);
+    --plus-thickness: calc(var(--card-width) * 0.035);
+
+    position: relative;
+    display: inline-block;
+    background: color-mix(in srgb, var(--white) 8%, transparent);
+    color: var(--white);
+    font-weight: lighter;
+    transition:
+        background 0.3s ease,
+        border-color 0.3s ease,
+        color 0.3s ease;
+}
+
+#draw-button::before,
+#draw-button::after {
+    pointer-events: none;
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    background: currentColor;
+    transform: translate(-50%, -50%);
+    transition:
+        width 0.3s ease,
+        height 0.3s ease;
+}
+
+#draw-button::before {
+    width: var(--plus-length);
+    height: var(--plus-thickness);
+}
+
+#draw-button::after {
+    width: var(--plus-thickness);
+    height: var(--plus-length);
+}
+
+#draw-button > span[data-draw-allowance] {
+    position: absolute;
+    bottom: calc(var(--card-height) / 17);
+    font-size: calc(var(--card-height) / 8);
+    line-height: 1;
+    pointer-events: none;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+#draw-button > span[data-draw-allowance]::before {
+    content: "draw ";
+}
+
+#draw-button > span[data-draw-allowance]::after {
+    content: attr(data-draw-allowance);
+}
+
+#draw-button:hover::before {
+    width: var(--plus-length-hover);
+}
+
+#draw-button:hover::after {
+    height: var(--plus-length-hover);
+}
+
+#draw-button:disabled {
+    opacity: 1;
+}
+
+#draw-button:disabled:hover::before {
+    width: var(--plus-length);
+}
+
+#draw-button:disabled:hover::after {
+    height: var(--plus-length);
+}
+
+/* ========================================
+   PRINT STYLES
+   ======================================== */
+
+@media print {
+    playing-card,
+    #draw-button {
+        --card-height: var(--card-aspect-ratio-y);
+        --card-width: var(--card-aspect-ratio-x);
+    }
+
+    playing-card {
+        break-inside: avoid;
+    }
+
+    #draw-button {
+        border: 1px solid color-mix(in srgb, var(--black) 20%, transparent);
+        background: var(--white);
+        color: var(--gray);
+    }
+}
+
+/* ========================================
+   REDUCED MOTION
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    playing-card,
+    playing-card > .playing-card-center::before,
+    #draw-button,
+    #draw-button::before,
+    #draw-button::after {
+        transition: none;
+    }
+}

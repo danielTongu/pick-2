@@ -1,0 +1,57 @@
+# Dependencies
+node_modules/
+
+# Environment and local configuration
+.env
+.env.*
+!.env.example
+*.local
+
+# Logs and runtime files
+logs/
+*.log
+*.pid
+*.pid.lock
+*.seed
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Tests and coverage
+coverage/
+.nyc_output/
+test-results/
+
+# Generated output and caches
+dist/
+build/
+.cache/
+.eslintcache
+.parcel-cache/
+.vite/
+tmp/
+temp/
+
+# Node.js local state
+.node_repl_history
+
+# Editors and IDEs
+.idea/
+.vscode/
+*.iml
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# Operating-system metadata
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Desktop.ini

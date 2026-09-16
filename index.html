@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <title>Play Pick 2 Online | Card Game</title>
+        <meta name="description" content="Play Pick 2 online: match suits or values, use special cards, and empty your hand in direct or hosted multiplayer rooms." />
+
+        <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+        <link rel="canonical" href="https://danieltongu.github.io/pick-2/" />
+        <link rel="sitemap" href="https://danieltongu.github.io/pick-2/sitemap.xml" />
+        <meta name="google-site-verification" content="1y4PstMN0Q7yR-3xCeDPlAHfFBGO3HrWMhTDX8tGJnk" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Pick 2" />
+        <meta property="og:title" content="Play Pick 2 Online | Card Game" />
+        <meta property="og:description" content="Play Pick 2 online: match suits or values, use special cards, and empty your hand in direct or hosted multiplayer rooms." />
+        <meta property="og:url" content="https://danieltongu.github.io/pick-2/" />
+        <meta property="og:locale" content="en_US" />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content="Play Pick 2 Online | Card Game" />
+        <meta name="twitter:description" content="Play Pick 2 online: match suits or values, use special cards, and empty your hand in direct or hosted multiplayer rooms." />
+        <meta name="game-server-origin" content="" />
+
+        <link rel="stylesheet" href="ui/styles/base.css" />
+        <link rel="stylesheet" href="ui/styles/table.css" />
+        <link rel="stylesheet" href="ui/styles/home.css" />
+        <link rel="stylesheet" href="ui/styles/preview-fan.css" />
+        <link rel="stylesheet" href="ui/styles/playing-card.css" />
+        <link rel="stylesheet" href="ui/styles/dialogs.css" />
+
+        <script type="application/ld+json">
+            {
+                "@context": "https://schema.org",
+                "@type": "WebApplication",
+                "name": "Pick 2",
+                "url": "https://danieltongu.github.io/pick-2/",
+                "description": "Play Pick 2 online: match suits or values, use special cards, and empty your hand in direct or hosted multiplayer rooms.",
+                "applicationCategory": "GameApplication",
+                "operatingSystem": "Any",
+                "browserRequirements": "Requires JavaScript and a modern web browser.",
+                "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+            }
+        </script>
+    </head>
+    <body data-game="pick2" data-page="home">
+        <main class="site-shell">
+            <header id="app-header">
+                <h1>
+                    <a id="app-home-link" href="index.html">
+                        <span class="brand-mark">P2</span>
+                        <span class="brand-copy">Pick 2<small>Match cards. Make moves.</small></span>
+                    </a>
+                </h1>
+                <aside class="toggle-switch" data-status="connecting" aria-label="Connection mode. Direct connecting.">
+                    <label>
+                        <input id="direct-mode-input" name="connection-mode" type="radio" value="direct" checked />
+                        <span>Direct</span>
+                    </label>
+                    <label>
+                        <input id="hosted-mode-input" name="connection-mode" type="radio" value="hosted" />
+                        <span>Hosted</span>
+                    </label>
+                </aside>
+            </header>
+            <article id="home-view" aria-labelledby="hero-title">
+                <header class="hero">
+                    <section class="eyebrow">Private rooms · Instant play</section>
+                    <section>
+                        <aside>
+                            <h2 id="hero-title"><span>Your room.</span><em>Your rules.</em></h2>
+                            <p>Start a private game, invite your circle, and play Pick 2 in a room designed to keep the game moving.</p>
+                        </aside>
+                        <aside>
+                            <span data-game-preview aria-hidden="true"></span>
+                        </aside>
+                    </section>
+                </header>
+                <section id="home-directory">
+                    <aside id="registration">
+                        <header class="panel-header">
+                            <div>
+                                <span class="section-kicker">New room</span>
+                                <h2>Find or start a room</h2>
+                            </div>
+                            <span class="step" aria-hidden="true">01</span>
+                        </header>
+                        <form id="registration-form">
+                            <div id="field-group">
+                                <label>
+                                    <span>Player name</span>
+                                    <input id="player-name-input" autocomplete="nickname" minlength="2" maxlength="24" required placeholder="What should we call you?" />
+                                </label>
+                                <label>
+                                    <span>Room name</span>
+                                    <input id="room-name-input" autocomplete="off" minlength="2" maxlength="48" required placeholder="e.g. Friday night" />
+                                </label>
+                                <label>
+                                    <span>Seats</span>
+                                    <input id="player-limit-input" type="number" min="2" max="4" value="4" required />
+                                </label>
+                            </div>
+                            <footer>
+                                <p id="request-mode-label" class="control-label">I want to</p>
+                                <div id="request-actions">
+                                    <div id="request-mode-control" class="toggle-switch" role="radiogroup" aria-labelledby="request-mode-label">
+                                        <label>
+                                            <input id="create-mode-input" name="registration-mode" type="radio" value="create" checked />
+                                            <span>Create</span>
+                                        </label>
+                                        <label>
+                                            <input id="join-mode-input" name="registration-mode" type="radio" value="join" />
+                                            <span>Join</span>
+                                        </label>
+                                    </div>
+                                    <button id="enter-button">Enter room</button>
+                                </div>
+                            </footer>
+                        </form>
+                    </aside>
+                    <aside id="list-panel">
+                        <header class="panel-header">
+                            <div>
+                                <span class="section-kicker">Now playing</span>
+                                <h2>Live rooms</h2>
+                            </div>
+                            <label id="filter-control">
+                                <span class="visually-hidden">Status</span>
+                                <select id="status-filter">
+                                    <option value="">All rooms</option>
+                                    <option value="waiting">Waiting</option>
+                                    <option value="active">Active</option>
+                                    <option value="finished">Finished</option>
+                                </select>
+                            </label>
+                        </header>
+                        <div class="table-container">
+                            <table id="list-table">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Room</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col">Players</th>
+                                        <th scope="col">Viewers</th>
+                                        <th scope="col">Player limit</th>
+                                        <th scope="col">Last active</th>
+                                        <th scope="col">Created</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="list-table-body">
+                                    <tr class="empty-row">
+                                        <td colspan="7"><span class="empty-state-mark" aria-hidden="true"></span>No rooms available.</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </aside>
+                </section>
+            </article>
+            <article id="network-connection-view" data-status="connecting" aria-labelledby="network-connection-title" hidden>
+                <header class="network-panel-header">
+                    <span class="section-kicker">Hosted mode</span>
+                    <h2 id="network-connection-title"></h2>
+                    <p id="network-connection-message" aria-live="polite"></p>
+                </header>
+                <form id="network-connection-form">
+                    <label for="network-connection-origin">Network host address</label>
+                    <div class="network-connection-field">
+                        <input id="network-connection-origin" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://play.example.com" aria-describedby="network-connection-help" />
+                        <button id="network-connection-connect-button" type="submit" disabled>Connecting…</button>
+                    </div>
+                    <p id="network-connection-help">
+                        <span>Provide the server origin or WebSocket URL. </span>
+                        <span>Pick 2</span>
+                        <span> will resolve the WebSocket endpoint.</span>
+                    </p>
+                </form>
+                <section class="network-connection-status" aria-hidden="true">
+                    <i id="network-connection-indicator" aria-hidden="true"></i>
+                </section>
+            </article>
+            <aside id="alert-dialog" class="dialog-overlay" data-status="info" aria-labelledby="alert-title" aria-describedby="alert-message" hidden>
+                <div class="dialog-panel">
+                    <header>
+                        <span data-icon="info" aria-hidden="true"></span>
+                        <h1 id="alert-title"></h1>
+                    </header>
+                    <section id="alert-message"></section>
+                    <button id="alert-ok-button">OK</button>
+                </div>
+            </aside>
+            <footer id="app-footer">
+                <div id="app-footer-brand">
+                    <strong>Pick 2</strong>
+                    <p>Match cards. Make moves.</p>
+                </div>
+                <nav id="app-footer-navigation" aria-label="Footer navigation">
+                    <a href="#app-header">Back to top ↑</a>
+                </nav>
+                <small id="app-footer-note">
+                    <span>© <time id="copyright-year" datetime="2026">2026</time> <span>Pick 2</span>. All rights reserved.</span>
+                    <span>Direct and hosted play</span>
+                </small>
+            </footer>
+        </main>
+        <script type="module" src="index.js"></script>
+    </body>
+</html>

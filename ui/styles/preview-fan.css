@@ -1,0 +1,56 @@
+/* ========================================
+   PLAYING CARD AREA - CARD FAN
+   ======================================== */
+
+[data-game-preview] > playing-card {
+    --card-height: clamp(100px, 36cqi, 130px);
+    --card-left: 50%;
+    --card-shift-y: 0%;
+
+    position: absolute;
+    bottom: calc(var(--card-height) / 7);
+    left: var(--card-left);
+    pointer-events: none;
+    transform: translate(-50%, var(--card-shift-y)) rotate(var(--card-rotation));
+    transform-origin: 50% 110%;
+}
+
+[data-game-preview] > playing-card:nth-child(1) {
+    --card-left: 22%;
+    --card-shift-y: 14%;
+    --card-rotation: -24deg;
+}
+
+[data-game-preview] > playing-card:nth-child(2) {
+    --card-left: 30%;
+    --card-shift-y: 6%;
+    --card-rotation: -16deg;
+}
+
+[data-game-preview] > playing-card:nth-child(3) {
+    --card-left: 40%;
+    --card-rotation: -8deg;
+}
+
+[data-game-preview] > playing-card:nth-child(5) {
+    --card-left: 60%;
+    --card-rotation: 8deg;
+}
+
+[data-game-preview] > playing-card:nth-child(6) {
+    --card-left: 70%;
+    --card-shift-y: 6%;
+    --card-rotation: 16deg;
+}
+
+[data-game-preview] > playing-card:nth-child(7) {
+    --card-left: 78%;
+    --card-shift-y: 14%;
+    --card-rotation: 24deg;
+}
+
+@media (min-width: 721px) {
+    [data-game-preview] > playing-card {
+        --card-height: clamp(100px, 40cqi, 170px);
+    }
+}

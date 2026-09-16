@@ -1,0 +1,198 @@
+.dialog-overlay {
+    --accent: var(--blue);
+
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: var(--container-spacing);
+    color: var(--white);
+    background: color-mix(in srgb, var(--black) 55%, transparent);
+    backdrop-filter: blur(10px);
+    animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+/* ========================================
+   DIALOG BASE
+   ======================================== */
+
+.dialog-panel {
+    max-width: 94vw;
+    max-height: 94vh;
+    text-align: center;
+    display: grid;
+    grid-template-rows: auto 1fr auto;
+    gap: calc(var(--container-spacing) * 2);
+    padding: calc(var(--container-spacing) * 2);
+    border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--white) 10%);
+    border-radius: var(--container-radius);
+    background: var(--black);
+    box-shadow:
+        0 24px 70px color-mix(in srgb, var(--black) 50%, transparent),
+        0 0 34px color-mix(in srgb, var(--accent) 26%, transparent);
+    animation: slideUp 0.3s ease;
+}
+
+.dialog-panel-large {
+    max-width: 980px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.dialog-panel > header {
+    display: grid;
+    gap: var(--container-spacing);
+}
+
+.dialog-panel > header > h1 {
+    margin: 0;
+    font-size: xx-large;
+    font-weight: 500;
+    text-transform: capitalize;
+}
+
+.dialog-panel > header > p {
+    margin: 0;
+    color: var(--accent);
+}
+
+.dialog-panel > header > p:last-of-type {
+    font-size: small;
+}
+
+.dialog-panel > section {
+    overflow: auto;
+    display: grid;
+    gap: var(--container-spacing);
+    color: color-mix(in srgb, var(--white) 72%, transparent);
+}
+
+.dialog-panel > footer {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 1rem;
+}
+
+.dialog-panel button {
+    --button-padding: 1rem;
+    --button-background: var(--accent);
+    --button-weight: bold;
+    --button-transform-duration: 0.15s;
+
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.dialog-panel button:hover {
+    filter: brightness(130%);
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* ========================================
+   ALERT DIALOG
+   ======================================== */
+
+#alert-dialog[data-status="info"] {
+    --accent: var(--blue);
+}
+
+#alert-dialog[data-status="warning"] {
+    --accent: var(--orange);
+}
+
+#alert-dialog[data-status="error"] {
+    --accent: var(--red);
+}
+
+#alert-dialog[data-status="success"] {
+    --accent: var(--green);
+}
+
+[data-icon] {
+    display: grid;
+    place-items: center;
+    width: 4rem;
+    aspect-ratio: 1;
+    justify-self: center;
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    color: var(--accent);
+    font-size: xx-large;
+    font-weight: 700;
+}
+
+[data-icon][data-icon="info"]::before {
+    content: "i";
+}
+
+[data-icon][data-icon="warning"]::before {
+    content: "⚠";
+}
+
+[data-icon][data-icon="error"]::before {
+    content: "✕";
+}
+
+[data-icon][data-icon="success"]::before {
+    content: "✓";
+}
+
+#alert-title:empty::before {
+    content: "title not provided";
+}
+
+#alert-message:empty::before {
+    content: "message not provided";
+}
+
+#stats-panel {
+    overflow: auto;
+}
+
+#message-output {
+    gap: 0;
+    border-block: 1px solid;
+}
+
+#message-output:has(tbody > tr) > #selected-player-items:not(:has(*))::before {
+    content: "Select a player to see their items.";
+}
+
+#player-stats-table tbody tr[data-is-winner="true"] {
+    color: var(--gold);
+}
+
+#selected-player-items {
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-top: 1px solid;
+    background: color-mix(in srgb, var(--cyan) 17%, transparent);
+    color: var(--cyan);
+    font-size: small;
+    font-style: italic;
+    padding: 1rem 0;
+}
+
+#selected-player-items > * {
+    pointer-events: none;
+}

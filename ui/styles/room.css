@@ -1,0 +1,582 @@
+/* Connection status */
+
+#app-header > aside[data-status] {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--white) 8%, transparent);
+    font-weight: 600;
+    color: var(--gray);
+}
+
+#app-header > aside[data-status]::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 15%, transparent);
+}
+
+#app-header > aside[data-status][data-status="connecting"]::before {
+    background: var(--orange);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--orange) 15%, transparent);
+}
+
+#app-header > aside[data-status][data-status="error"]::before {
+    background: var(--red);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--red) 15%, transparent);
+}
+
+/* Room header and controls */
+
+#room-view {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding: 24px 0 32px;
+}
+
+#room-header {
+    display: grid;
+    gap: 1rem;
+}
+
+#info-table {
+    --table-heading-padding: 12px 14px;
+    --table-cell-padding: 14px;
+
+    min-width: 660px;
+}
+
+#info-table .placeholder-row td {
+    color: var(--gray);
+    font-weight: 400;
+}
+
+#room-actions {
+    --button-padding: 0 24px;
+    --button-background: var(--red);
+
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    gap: 8px;
+    align-self: center;
+}
+
+#room-actions button {
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+#room-join-button {
+    --button-background: var(--green);
+}
+
+#room-invite-button {
+    --button-background: var(--light-green);
+    --button-color: var(--black);
+    --button-border: 1px solid var(--dark-green);
+}
+
+/* Play area */
+
+[data-game-region] {
+    --light-green: lime;
+    --play-area-color: color-mix(in srgb, var(--white) 55%, transparent);
+    --play-area-rows: minmax(3rem, 0.3fr) minmax(10rem, 0.7fr) minmax(25rem, 1fr);
+
+    position: relative;
+    display: grid;
+    grid-template-rows: var(--play-area-rows);
+    min-height: 80vh;
+    padding: 5px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--dark-green);
+    color: var(--play-area-color);
+    text-wrap: nowrap;
+    overflow: hidden;
+}
+
+[data-game-region="view"] {
+    --play-area-rows: minmax(3rem, 0.3fr) minmax(10rem, 0.7fr);
+
+    min-height: 40vh;
+}
+
+[data-game-region]:not([data-state="active"]) #turn-pass-button,
+[data-game-region]:not([data-state="waiting"]):not([data-state="finished"]) #room-play-button {
+    display: none;
+}
+
+[data-game-region="act"][data-state="active"] [data-is-turn-owner="true"] {
+    animation: turn-owner-border-strobe 1.2s ease-in-out infinite;
+}
+
+[data-game-region="act"][data-state="finished"] [data-is-winner="true"] {
+    color: var(--gold);
+}
+
+#actor-region,
+#opponent-list > li {
+    border: 2px solid;
+    background: color-mix(in srgb, var(--white) 4%, transparent);
+}
+
+/* Opponents */
+
+ul#opponent-list {
+    container-type: size;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: max-content;
+    justify-content: center;
+    align-items: stretch;
+    gap: var(--container-spacing);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    list-style: none;
+}
+
+ul#opponent-list:empty {
+    place-items: center;
+}
+
+ul#opponent-list:empty::before {
+    content: "waiting for opponents…";
+    font-style: italic;
+}
+
+ul#opponent-list > li {
+    --opponent-height: 100cqh;
+    --opponent-width: calc(var(--opponent-height) * 0.72);
+    --opponent-skin: var(--peach);
+
+    position: relative;
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+    align-self: stretch;
+    width: var(--opponent-width);
+    height: var(--opponent-height);
+    border-bottom-color: transparent;
+    border-radius: calc(var(--container-radius) / 2);
+    overflow: hidden;
+    user-select: none;
+}
+
+ul#opponent-list > li::before {
+    content: attr(data-actor-name);
+    display: block;
+    padding: 0.5rem;
+    overflow: hidden;
+    font-size: calc(var(--opponent-height) / 11);
+    font-weight: 700;
+    line-height: 1.1;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+ul#opponent-list > li[data-is-winner="true"]::before {
+    content: "🏆 " attr(data-actor-name);
+}
+
+ul#opponent-list > li[data-item-count="0"]::after {
+    display: none;
+}
+
+ul#opponent-list > li::after {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    min-width: calc(var(--opponent-width) * 0.38);
+    height: calc(var(--opponent-height) * 0.2);
+    border: 2px solid var(--black);
+    border-radius: 5px;
+    background: var(--red);
+    color: var(--white);
+    box-shadow: var(--shadow-black);
+    font-size: calc(var(--opponent-height) / 6);
+    font-weight: 800;
+    line-height: 1;
+    transform: translateX(-50%);
+}
+
+ul#opponent-list > li::after {
+    content: attr(data-item-count);
+}
+
+ul#opponent-list > li > div {
+    position: relative;
+    display: grid;
+    grid-template-rows: 40% 50%;
+    place-items: center;
+    min-height: 0;
+}
+
+ul#opponent-list > li > div::before,
+ul#opponent-list > li > div::after {
+    content: "";
+    display: block;
+    background: var(--opponent-skin);
+}
+
+ul#opponent-list > li > div::before {
+    width: 50%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+}
+
+ul#opponent-list > li > div::after {
+    width: 100%;
+    height: 100%;
+    border-radius: 50% 50% 0 0;
+}
+
+[data-game-region="view"] > #actor-region {
+    display: none;
+}
+
+#actor-region {
+    display: grid;
+    grid-template-rows: auto 1fr auto auto;
+    border-radius: var(--container-radius);
+    box-shadow: var(--shadow-black);
+    overflow: hidden;
+}
+
+#table-play-area {
+    min-height: 0;
+    padding: 2rem 0;
+}
+
+#table-play-area > .playing-card-area {
+    --card-gap: 21px;
+    --card-area-font-size: 1em;
+    --card-area-white-space: normal;
+
+    position: relative;
+    height: 100%;
+    display: grid;
+    place-items: center;
+}
+
+#table-play-area > .playing-card-area:empty::after {
+    content: "Discard Here";
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#table-play-area > .playing-card-area::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    height: 100%;
+    width: min(calc(var(--card-height) * 1), 100%);
+    outline: 1px dashed var(--cyan);
+    outline-offset: -1rem;
+    transition: width 0.2s ease-in-out;
+}
+
+#table-play-area > .playing-card-area[data-is-drag-over="true"]::before {
+    width: min(calc(var(--card-height) * 3), 100%);
+}
+
+#table-play-area > .playing-card-area > playing-card {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%) rotate(var(--card-rotation));
+    transform-origin: center center;
+
+    transition:
+        transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+        box-shadow 0.3s ease,
+        opacity 0.3s ease,
+        background 0.3s ease;
+}
+
+/* Player area and controls */
+
+#player-hand {
+    container-type: size;
+    display: grid;
+    grid-template-columns: auto max-content;
+    align-items: center;
+    justify-content: center;
+    gap: var(--player-hand-gap, var(--container-spacing));
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+#player-hand > [data-is-drag-over] {
+    width: max-content;
+    min-width: 0;
+}
+
+#player-summary {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.4rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+#player-summary > span:last-child {
+    color: color-mix(in srgb, currentColor 70%, transparent);
+}
+
+#player-idle-warning {
+    margin: 0;
+    text-align: center;
+    text-wrap: wrap;
+}
+
+[data-game-region="act"][data-mode="direct"] #player-idle-warning {
+    display: none;
+}
+
+#player-idle-warning em {
+    font-style: normal;
+    font-weight: 700;
+}
+
+#player-actions {
+    --button-radius: 0.9rem;
+    --button-padding: 1rem;
+    --button-border: 3px solid var(--dark-green);
+    --button-background: var(--green);
+
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+    gap: 1rem;
+}
+
+#turn-pass-button {
+    --button-background: var(--green);
+}
+
+#player-status {
+    font-size: small;
+    border-right: 1px solid var(--line);
+}
+
+[data-idle-seconds]::before {
+    content: attr(data-idle-seconds) " ";
+}
+
+[data-state] #player-status::before {
+    content: attr(data-actor-name);
+    text-transform: capitalize;
+}
+
+[data-state="active"] > [data-is-turn-owner="true"] #player-status::before {
+    content: "your turn";
+}
+
+[data-state="finished"] > [data-is-winner="true"] #player-status::before {
+    content: "🏆 you won!";
+}
+
+[data-state="finished"] > [data-is-winner="false"] #player-status::before {
+    content: "😂 You Lost!";
+}
+
+#player-summary > [data-item-count]::after {
+    content: "card count: " attr(data-item-count);
+}
+
+#sort-control {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 6px;
+    padding: var(--button-padding);
+    border: var(--button-border);
+    border-radius: var(--button-radius, 999px);
+    background: var(--button-background);
+    color: var(--white);
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition:
+        background 0.2s,
+        transform 0.1s;
+}
+
+#sort-control > span {
+    letter-spacing: 0.04em;
+}
+
+#sort-key-select {
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+#sort-control:has(select:focus-visible) {
+    outline: 3px solid var(--light-green);
+    outline-offset: 3px;
+}
+
+#sort-control select:focus-visible {
+    outline: 0;
+}
+
+#turn-pass-button {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#turn-pass-button:enabled {
+    opacity: 1;
+    cursor: pointer;
+}
+
+#player-hand > [data-is-drag-over] {
+    container-type: normal;
+}
+
+#player-hand > [data-is-drag-over="true"] {
+    outline: 1px dashed var(--cyan);
+    outline-offset: -1px;
+}
+
+/* Game guide */
+
+summary::-webkit-details-marker {
+    display: none;
+}
+
+summary {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-top: 1px solid var(--line);
+    cursor: pointer;
+}
+
+summary::after {
+    content: "+";
+    color: var(--light-green);
+    font-size: 2rem;
+    text-align: right;
+}
+
+#game-guide > summary {
+    grid-template-areas: "header aside" "footer aside";
+}
+
+#game-guide > summary > b {
+    grid-area: header;
+}
+
+#game-guide > summary > span {
+    grid-area: footer;
+}
+
+#game-guide > summary::after {
+    grid-area: aside;
+}
+
+details[open] > summary::after {
+    content: "−";
+}
+
+details[open]:not(#game-guide) > summary,
+summary:hover {
+    background: var(--line);
+}
+
+summary > b {
+    color: var(--light-green);
+}
+
+summary > span,
+summary + div > article > span {
+    color: var(--gray);
+}
+
+#game-guide details > summary + div {
+    --line: rgba(255, 255, 255, 0.03);
+
+    display: grid;
+    grid-template-columns: 1fr;
+    border: 3px solid var(--line);
+}
+
+summary + div > article {
+    display: grid;
+    gap: 0.2rem;
+    min-height: 6.5rem;
+    padding: 1rem;
+    border: 3px solid var(--line);
+}
+
+#scores-tables table {
+    --table-heading-padding: 8px 12px;
+    --table-cell-padding: 8px 12px;
+    --table-border: 3px solid var(--black);
+    --table-font-size: 13px;
+    background: var(--line);
+}
+
+/* Animation */
+
+@keyframes turn-owner-border-strobe {
+    0%,
+    100% {
+        color: var(--light-green);
+    }
+
+    50% {
+        color: var(--line);
+    }
+}
+
+/* Responsive and motion preferences */
+
+@media (min-width: 721px) {
+    #game-guide details > summary + div {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [data-game-region] [data-is-turn-owner="true"] {
+        animation: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #table-play-area > [data-is-drag-over] > playing-card {
+        transition: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+}
