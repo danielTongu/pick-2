@@ -1,3 +1,7 @@
+/* ========================================
+   DIALOG OVERLAY
+   ======================================== */
+
 .dialog-overlay {
     --accent: var(--blue);
 
@@ -23,17 +27,18 @@
 }
 
 /* ========================================
-   DIALOG BASE
+   DIALOG BASE  (mobile first)
    ======================================== */
 
 .dialog-panel {
     max-width: 94vw;
     max-height: 94vh;
+
     text-align: center;
     display: grid;
-    grid-template-rows: auto 1fr auto;
-    gap: calc(var(--container-spacing) * 2);
-    padding: calc(var(--container-spacing) * 2);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: calc(var(--container-spacing) * 1.5);
+    padding: calc(var(--container-spacing) * 1.5);
     border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--white) 10%);
     border-radius: var(--container-radius);
     background: var(--black);
@@ -44,7 +49,6 @@
 }
 
 .dialog-panel-large {
-    max-width: 980px;
     max-height: 90vh;
     overflow-y: auto;
 }
@@ -56,7 +60,7 @@
 
 .dialog-panel > header > h1 {
     margin: 0;
-    font-size: xx-large;
+    font-size: x-large;
     font-weight: 500;
     text-transform: capitalize;
 }
@@ -75,6 +79,7 @@
     display: grid;
     gap: var(--container-spacing);
     color: color-mix(in srgb, var(--white) 72%, transparent);
+    min-height: 0; /* lets the 1fr row shrink instead of blowing out */
 }
 
 .dialog-panel > footer {
@@ -105,6 +110,22 @@
     to {
         opacity: 1;
         transform: translateY(0);
+    }
+}
+
+/* desktop refinement */
+@media (min-width: 40rem) {
+    .dialog-overlay {
+        font-size: larger;
+    }
+
+    .dialog-panel > header > h1 {
+        font-size: xxx-large;
+    }
+
+    .dialog-panel-large {
+        width: 100%;
+        max-width: 980px;
     }
 }
 
@@ -165,10 +186,6 @@
     content: "message not provided";
 }
 
-#stats-panel {
-    overflow: auto;
-}
-
 /* ========================================
    COUNTDOWN DIALOG
    ======================================== */
@@ -227,21 +244,23 @@
 
 #suit-selection-panel {
     display: grid;
-    grid-template-columns: repeat(4, minmax(60px, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--container-spacing);
     padding: 2px;
 }
 
 #suit-selection-panel label {
+    container-type: size;      /* label is its own size container */
+    position: relative;        /* anchors the absolutely positioned radio */
     display: grid;
     place-items: center;
-    font-size: clamp(3rem, 7vw, 11rem);
     aspect-ratio: 1;
     background: var(--white);
     color: var(--black);
     border: 2px solid transparent;
     border-radius: var(--container-radius);
     cursor: pointer;
+    overflow: hidden;
     transition:
         background-color 0.2s ease,
         border-color 0.2s ease,
@@ -275,6 +294,19 @@
     background: transparent;
 }
 
+#suit-selection-panel label > span {
+    display: block;
+    font-size: 67cqmin;        /* scales to the label, not the viewport */
+    line-height: 1;
+}
+
+/* desktop: 4 across */
+@media (min-width: 37rem) {
+    #suit-selection-panel {
+        grid-template-columns: repeat(4, minmax(7rem, 1fr));
+    }
+}
+
 /* ========================================
    RESULTS DIALOG
    ======================================== */
@@ -282,6 +314,11 @@
 #message-output {
     gap: 0;
     border-block: 1px solid;
+}
+
+#stats-panel {
+    min-height: 7rem;
+    overflow-x: auto;
 }
 
 #message-output:has(tbody > tr) > #selected-player-items:not(:has(*))::before {

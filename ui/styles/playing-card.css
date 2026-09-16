@@ -24,7 +24,7 @@
     scrollbar-width: none;
 
     height: 100%;
-    min-height: calc(var(--card-height-min) + var(--card-gap) * 2);
+    min-height: var(--card-height-min);
 }
 
 .playing-card-area:not(#table-play-area > [data-is-drag-over]) {

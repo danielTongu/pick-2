@@ -1,4 +1,6 @@
-/* Connection status */
+/* ========================================
+   CONNECTION STATUS
+   ======================================== */
 
 #app-header > aside[data-status] {
     display: grid;
@@ -31,7 +33,9 @@
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--red) 15%, transparent);
 }
 
-/* Room header and controls */
+/* ========================================
+   ROOM HEADER AND CONTROLS
+   ======================================== */
 
 #room-view {
     display: grid;
@@ -82,52 +86,46 @@
     --button-border: 1px solid var(--dark-green);
 }
 
-/* Play area */
+/* ========================================
+   GAME REGION
+   ======================================== */
 
 [data-game-region] {
-    --light-green: lime;
     --play-area-color: color-mix(in srgb, var(--white) 55%, transparent);
-    --play-area-rows: minmax(3rem, 0.3fr) minmax(10rem, 0.7fr) minmax(25rem, 1fr);
+    --card-row-floor: calc(var(--card-height-min, 91px) + 2rem);
+    min-height: 80vh;
 
     position: relative;
     display: grid;
     grid-template-rows: var(--play-area-rows);
-    min-height: 80vh;
+    grid-auto-rows: 0;
+
     padding: 5px;
     border: 1px solid var(--line);
-    border-radius: 18px;
+    border-radius: var(--container-radius);
     background: var(--dark-green);
     color: var(--play-area-color);
-    text-wrap: nowrap;
-    overflow: hidden;
+    overflow: clip;
 }
 
+/* viewer: 2 rows (opponents, table) — no actor region in the DOM */
 [data-game-region="view"] {
-    --play-area-rows: minmax(3rem, 0.3fr) minmax(10rem, 0.7fr);
-
-    min-height: 40vh;
+    --play-area-rows:
+        minmax(var(--card-height-min), 0.2fr)
+        minmax(var(--card-row-floor), 0.8fr);
 }
 
-[data-game-region]:not([data-state="active"]) #turn-pass-button,
-[data-game-region]:not([data-state="waiting"]):not([data-state="finished"]) #room-play-button {
-    display: none;
+/* player: 3 rows (opponents, table, actor) */
+[data-game-region="act"] {
+    --play-area-rows:
+        minmax(var(--card-height-min), 0.2fr)
+        minmax(calc(var(--card-row-floor) * 2), 0.3fr)
+        minmax(calc(var(--card-row-floor) * 5/2), 0.5fr);
 }
 
-[data-game-region="act"][data-state="active"] [data-is-turn-owner="true"] {
-    animation: turn-owner-border-strobe 1.2s ease-in-out infinite;
-}
-
-[data-game-region="act"][data-state="finished"] [data-is-winner="true"] {
-    color: var(--gold);
-}
-
-#actor-region,
-#opponent-list > li {
-    border: 2px solid;
-    background: color-mix(in srgb, var(--white) 4%, transparent);
-}
-
-/* Opponents */
+/* ========================================
+   OPPONENTS
+   ======================================== */
 
 ul#opponent-list {
     container-type: size;
@@ -167,8 +165,10 @@ ul#opponent-list > li {
     align-self: stretch;
     width: var(--opponent-width);
     height: var(--opponent-height);
+    border: 2px solid;
     border-bottom-color: transparent;
     border-radius: calc(var(--container-radius) / 2);
+    background: color-mix(in srgb, var(--white) 4%, transparent);
     overflow: hidden;
     user-select: none;
 }
@@ -195,6 +195,7 @@ ul#opponent-list > li[data-item-count="0"]::after {
 }
 
 ul#opponent-list > li::after {
+    content: attr(data-item-count);
     position: absolute;
     bottom: 0;
     left: 50%;
@@ -212,10 +213,6 @@ ul#opponent-list > li::after {
     font-weight: 800;
     line-height: 1;
     transform: translateX(-50%);
-}
-
-ul#opponent-list > li::after {
-    content: attr(data-item-count);
 }
 
 ul#opponent-list > li > div {
@@ -245,17 +242,9 @@ ul#opponent-list > li > div::after {
     border-radius: 50% 50% 0 0;
 }
 
-[data-game-region="view"] > #actor-region {
-    display: none;
-}
-
-#actor-region {
-    display: grid;
-    grid-template-rows: auto 1fr auto auto;
-    border-radius: var(--container-radius);
-    box-shadow: var(--shadow-black);
-    overflow: hidden;
-}
+/* ========================================
+   PLAY AREA
+   ======================================== */
 
 #table-play-area {
     min-height: 0;
@@ -269,6 +258,7 @@ ul#opponent-list > li > div::after {
 
     position: relative;
     height: 100%;
+    min-height: 0;
     display: grid;
     place-items: center;
 }
@@ -293,7 +283,7 @@ ul#opponent-list > li > div::after {
     height: 100%;
     width: min(calc(var(--card-height) * 1), 100%);
     outline: 1px dashed var(--cyan);
-    outline-offset: -1rem;
+    /*outline-offset: -1rem;*/
     transition: width 0.2s ease-in-out;
 }
 
@@ -315,7 +305,24 @@ ul#opponent-list > li > div::after {
         background 0.3s ease;
 }
 
-/* Player area and controls */
+/* ========================================
+   ACTOR REGION
+   ======================================== */
+
+#actor-region {
+    display: grid;
+    grid-template-rows: auto minmax(var(--card-height-min), 1fr) auto auto;
+    min-height: 0;
+    border: 2px solid;
+    border-radius: var(--container-radius);
+    background: color-mix(in srgb, var(--white) 4%, transparent);
+    box-shadow: var(--shadow-black);
+    overflow: hidden;
+}
+
+/* ========================================
+   PLAYER HAND
+   ======================================== */
 
 #player-hand {
     container-type: size;
@@ -325,6 +332,7 @@ ul#opponent-list > li > div::after {
     justify-content: center;
     gap: var(--player-hand-gap, var(--container-spacing));
     min-width: 0;
+    min-height: 0;
     overflow-x: auto;
     overflow-y: hidden;
 }
@@ -332,7 +340,18 @@ ul#opponent-list > li > div::after {
 #player-hand > [data-is-drag-over] {
     width: max-content;
     min-width: 0;
+    min-height: 0;
+    container-type: normal;
 }
+
+#player-hand > [data-is-drag-over="true"] {
+    outline: 1px dashed var(--cyan);
+    outline-offset: -1px;
+}
+
+/* ========================================
+   PLAYER SUMMARY AND CONTROLS
+   ======================================== */
 
 #player-summary {
     display: grid;
@@ -354,10 +373,6 @@ ul#opponent-list > li > div::after {
     text-wrap: wrap;
 }
 
-[data-game-region="act"][data-mode="direct"] #player-idle-warning {
-    display: none;
-}
-
 #player-idle-warning em {
     font-style: normal;
     font-weight: 700;
@@ -374,39 +389,18 @@ ul#opponent-list > li > div::after {
     gap: 1rem;
 }
 
-#turn-pass-button {
-    --button-background: var(--green);
-}
-
 #player-status {
     font-size: small;
     border-right: 1px solid var(--line);
 }
 
-[data-idle-seconds]::before {
-    content: attr(data-idle-seconds) " ";
-}
-
-[data-state] #player-status::before {
-    content: attr(data-actor-name);
-    text-transform: capitalize;
-}
-
-[data-state="active"] > [data-is-turn-owner="true"] #player-status::before {
-    content: "your turn";
-}
-
-[data-state="finished"] > [data-is-winner="true"] #player-status::before {
-    content: "🏆 you won!";
-}
-
-[data-state="finished"] > [data-is-winner="false"] #player-status::before {
-    content: "😂 You Lost!";
-}
-
 #player-summary > [data-item-count]::after {
     content: "card count: " attr(data-item-count);
 }
+
+/* ========================================
+   SORT CONTROL
+   ======================================== */
 
 #sort-control {
     display: grid;
@@ -445,6 +439,21 @@ ul#opponent-list > li > div::after {
     outline: 0;
 }
 
+/* ========================================
+   BUTTON VISIBILITY MATRIX
+   ======================================== */
+
+#room-play-button,
+#turn-pass-button {
+    display: none;
+}
+
+[data-game-region="act"][data-state="waiting"] #room-play-button,
+[data-game-region="act"][data-state="active"] #turn-pass-button,
+[data-game-region="act"][data-state="finished"] #room-play-button {
+    display: block;
+}
+
 #turn-pass-button {
     opacity: 0.5;
     cursor: not-allowed;
@@ -455,16 +464,50 @@ ul#opponent-list > li > div::after {
     cursor: pointer;
 }
 
-#player-hand > [data-is-drag-over] {
-    container-type: normal;
+/* ========================================
+   STATE-DRIVEN STYLING
+   ======================================== */
+
+[data-game-region="act"][data-state="active"] [data-is-turn-owner="true"] {
+    animation: turn-owner-border-strobe 1.2s ease-in-out infinite;
 }
 
-#player-hand > [data-is-drag-over="true"] {
-    outline: 1px dashed var(--cyan);
-    outline-offset: -1px;
+[data-game-region="act"][data-state="finished"] [data-is-winner="true"] {
+    color: var(--gold);
 }
 
-/* Game guide */
+[data-game-region="act"][data-mode="direct"] #player-idle-warning {
+    display: none;
+}
+
+/* ========================================
+   DATA-ATTRIBUTE TEXT INJECTION
+   ======================================== */
+
+[data-idle-seconds]::before {
+    content: attr(data-idle-seconds) " ";
+}
+
+[data-state] #player-status::before {
+    content: attr(data-actor-name);
+    text-transform: capitalize;
+}
+
+[data-state="active"] > [data-is-turn-owner="true"] #player-status::before {
+    content: "your turn";
+}
+
+[data-state="finished"] > [data-is-winner="true"] #player-status::before {
+    content: "🏆 you won!";
+}
+
+[data-state="finished"] > [data-is-winner="false"] #player-status::before {
+    content: "😂 You Lost!";
+}
+
+/* ========================================
+   GAME GUIDE
+   ======================================== */
 
 summary::-webkit-details-marker {
     display: none;
@@ -545,7 +588,9 @@ summary + div > article {
     background: var(--line);
 }
 
-/* Animation */
+/* ========================================
+   ANIMATION
+   ======================================== */
 
 @keyframes turn-owner-border-strobe {
     0%,
@@ -558,7 +603,9 @@ summary + div > article {
     }
 }
 
-/* Responsive and motion preferences */
+/* ========================================
+   RESPONSIVE
+   ======================================== */
 
 @media (min-width: 721px) {
     #game-guide details > summary + div {
@@ -566,17 +613,16 @@ summary + div > article {
     }
 }
 
+/* ========================================
+   REDUCED MOTION
+   ======================================== */
+
 @media (prefers-reduced-motion: reduce) {
     [data-game-region] [data-is-turn-owner="true"] {
         animation: none;
     }
-}
 
-@media (prefers-reduced-motion: reduce) {
     #table-play-area > [data-is-drag-over] > playing-card {
         transition: none;
     }
-}
-
-@media (prefers-reduced-motion: reduce) {
 }
