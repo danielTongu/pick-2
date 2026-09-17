@@ -346,12 +346,8 @@ playing-card[data-is-dragging="true"] {
     transform: translateX(-50%);
 }
 
-#draw-button > span[data-draw-allowance]::before {
-    content: "draw ";
-}
-
-#draw-button > span[data-draw-allowance]::after {
-    content: attr(data-draw-allowance);
+#draw-button > span:not([data-draw-allowance=""], [data-draw-allowance="0"])::before {
+  content: "draw " attr(data-draw-allowance);
 }
 
 #draw-button:hover::before {
