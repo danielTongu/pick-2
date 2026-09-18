@@ -2,14 +2,17 @@
 
 .table-container {
     overflow-x: auto;
-    border-top: 1px solid color-mix(in srgb, var(--white) 12%, transparent);
+    border-top: var(--table-data-border, 1px solid color-mix(in srgb, var(--white) 12%, transparent));
 }
 
 table {
     --table-heading-padding: var(--container-spacing);
     --table-cell-padding: var(--container-spacing);
     --table-border: none;
+    --table-data-border: 1px solid color-mix(in srgb, var(--white) 8%, transparent);
     --table-font-size: 12px;
+
+    text-wrap: nowrap;
 
     width: 100%;
     border: var(--table-border);
@@ -24,16 +27,13 @@ thead {
 th {
     padding: var(--table-heading-padding);
     color: var(--gray);
-    font-size: 9px;
     font-weight: 800;
     letter-spacing: 0.1em;
-    text-align: left;
     text-transform: uppercase;
-    text-wrap: nowrap;
 }
 
 tr {
-    border-bottom: 1px solid color-mix(in srgb, var(--white) 8%, transparent);
+    border-top: var(--table-data-border);
     transition:
         background-color 0.2s ease,
         color 0.2s ease;
@@ -42,7 +42,11 @@ tr {
 td {
     padding: var(--table-cell-padding);
     font-weight: 500;
-    text-wrap: nowrap;
+}
+
+th:not(:last-child),
+td:not(:last-child) {
+     border-right: var(--table-data-border);
 }
 
 table:has(> tbody:empty)::after {

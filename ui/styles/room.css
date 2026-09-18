@@ -50,9 +50,10 @@
 }
 
 #info-table {
+    --table-data-border: none;
     --table-heading-padding: 12px 14px;
     --table-cell-padding: 14px;
-
+    text-align: left;
     min-width: 660px;
 }
 
@@ -165,7 +166,7 @@ ul#opponent-list > li {
     align-self: stretch;
     width: var(--opponent-width);
     height: var(--opponent-height);
-    border: 2px solid;
+    border: 3px solid;
     border-bottom-color: transparent;
     border-radius: calc(var(--container-radius) / 2);
     background: color-mix(in srgb, var(--white) 4%, transparent);
@@ -283,7 +284,6 @@ ul#opponent-list > li > div::after {
     height: 100%;
     width: min(calc(var(--card-height) * 1), 100%);
     outline: 1px dashed var(--cyan);
-    /*outline-offset: -1rem;*/
     transition: width 0.2s ease-in-out;
 }
 
@@ -313,7 +313,7 @@ ul#opponent-list > li > div::after {
     display: grid;
     grid-template-rows: auto minmax(var(--card-height-min), 1fr) auto auto;
     min-height: 0;
-    border: 2px solid;
+    border: 3px solid;
     border-radius: var(--container-radius);
     background: color-mix(in srgb, var(--white) 4%, transparent);
     box-shadow: var(--shadow-black);
@@ -432,7 +432,7 @@ ul#opponent-list > li > div::after {
 
 #sort-control:has(select:focus-visible) {
     outline: 3px solid var(--light-green);
-    outline-offset: 3px;
+    outline-offset: -6px;
 }
 
 #sort-control select:focus-visible {

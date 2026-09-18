@@ -17,7 +17,6 @@
     font-size: var(--card-area-font-size, 0);
     white-space: var(--card-area-white-space, nowrap);
     text-wrap: nowrap;
-    text-align: center;
 
     overscroll-behavior-inline: contain;
     scroll-padding-inline: var(--container-spacing);

@@ -338,7 +338,6 @@
 #selected-player-items {
     overflow-x: auto;
     overflow-y: hidden;
-    border-top: 1px solid;
     background: color-mix(in srgb, var(--cyan) 17%, transparent);
     color: var(--cyan);
 }
