@@ -166,8 +166,7 @@ ul#opponent-list > li {
     align-self: stretch;
     width: var(--opponent-width);
     height: var(--opponent-height);
-    border: 3px solid;
-    border-bottom-color: transparent;
+    border: 3px solid transparent;
     border-radius: calc(var(--container-radius) / 2);
     background: color-mix(in srgb, var(--white) 4%, transparent);
     overflow: hidden;
@@ -473,7 +472,7 @@ ul#opponent-list > li > div::after {
 }
 
 [data-game-region="act"][data-state="finished"] [data-is-winner="true"] {
-    color: var(--gold);
+    border-color: var(--gold);
 }
 
 [data-game-region="act"][data-mode="direct"] #player-idle-warning {
@@ -595,11 +594,11 @@ summary + div > article {
 @keyframes turn-owner-border-strobe {
     0%,
     100% {
-        color: var(--light-green);
+        border-color: var(--light-green);
     }
 
     50% {
-        color: var(--line);
+        border-color: var(--line);
     }
 }
 
