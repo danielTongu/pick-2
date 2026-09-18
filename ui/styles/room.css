@@ -472,7 +472,7 @@ ul#opponent-list > li > div::after {
 }
 
 [data-game-region="act"][data-state="finished"] [data-is-winner="true"] {
-    border-color: var(--gold);
+    border-color: var(--gold) !important;
 }
 
 [data-game-region="act"][data-mode="direct"] #player-idle-warning {
