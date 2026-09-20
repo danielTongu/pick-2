@@ -121,7 +121,7 @@ async function startRoomPage(basePath, mode, validIntent) {
                 return mode;
             },
             getIntent() {
-                return validIntent ? { mode, action: Constants.ACTIONS.JOIN, data: { roomName: "Test" } } : null;
+                return validIntent ? { mode, command: Constants.COMMANDS.JOIN, data: { roomName: "Test" } } : null;
             },
             getHostedUrl() {
                 return "wss://example.test/";

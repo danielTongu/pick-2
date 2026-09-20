@@ -21,7 +21,7 @@ export class RoomController extends ViewController {
     /** @type {Object|null} Latest authoritative Room transport snapshot. */
     room = null;
 
-    /** @type {Object} Current transport and room-action capabilities. */
+    /** @type {Object} Current transport and room-command capabilities. */
     capabilities = {};
 
     /** @type {Object|null} Pending create, join, or view request. */
@@ -56,7 +56,7 @@ export class RoomController extends ViewController {
         if (room === null) return;
         this.room = room;
         this.renderRoomInformation(room);
-        this.renderGameActions(room.localActorName === null ? null : room.localActorName);
+        this.renderGameCommands(room.localActorName === null ? null : room.localActorName);
     }
 
     /** Resolves Room shell elements and initializes shared subcontrollers. */
@@ -84,11 +84,11 @@ export class RoomController extends ViewController {
         this.#readyHandler = handler;
     }
 
-    /** Prevents duplicate exits and submits the authenticated leave action. */
+    /** Prevents duplicate exits and submits the authenticated leave command. */
     #leave(event) {
         event.preventDefault();
         this.#isLeaving = true;
-        const requestAccepted = this.client?.request(Constants.ACTIONS.LEAVE, {}) === true;
+        const requestAccepted = this.client?.request(Constants.COMMANDS.LEAVE, {}) === true;
 
         if (requestAccepted) {
             this.#homeHandler?.(null);
@@ -109,14 +109,14 @@ export class RoomController extends ViewController {
             return;
         }
 
-        let action = this.#intent.action;
+        let command = this.#intent.command;
 
-        if (this.#hasOpened && action === Constants.ACTIONS.CREATE) {
-            action = Constants.ACTIONS.JOIN;
+        if (this.#hasOpened && command === Constants.COMMANDS.CREATE) {
+            command = Constants.COMMANDS.JOIN;
         }
 
         this.#hasOpened = true;
-        this.client?.request(action, this.#intent.data);
+        this.client?.request(command, this.#intent.data);
     }
 
     /** Routes Home transitions or stores and renders an authoritative Room snapshot. */
@@ -152,20 +152,20 @@ export class RoomController extends ViewController {
         DomUtils.require("#info-table-body", HTMLTableSectionElement).replaceChildren(RoomRowUtils.create(room));
     }
 
-    /** Renders game actions. */
-    renderGameActions(localPlayer) {
+    /** Renders game commands. */
+    renderGameCommands(localPlayer) {
         DomUtils.require("#room-leave-button", HTMLButtonElement).hidden = false;
         DomUtils.require("#room-join-button", HTMLButtonElement).hidden =
             localPlayer !== null || this.capabilities.join !== true;
         DomUtils.require("#room-invite-button", HTMLButtonElement).hidden = this.capabilities.invite !== true;
     }
 
-    /** Reads the join form and submits a join action for the current Room. */
+    /** Reads the join form and submits a join command for the current Room. */
     #join() {
         const playerName = window.prompt("Enter your name:");
 
         if (playerName?.trim() && this.room?.name) {
-            this.client?.request(Constants.ACTIONS.JOIN, {
+            this.client?.request(Constants.COMMANDS.JOIN, {
                 roomName: this.room.name,
                 playerName
             });
@@ -186,14 +186,12 @@ export class RoomController extends ViewController {
             await navigator.clipboard.writeText(url.href);
             this.handleNotification({
                 status: Constants.STATUS.INFO,
-                title: "Invite copied",
-                message: "The room link is ready to share."
+                ...Constants.NOTIFICATIONS.INVITE_COPIED
             });
         } catch (_error) {
             this.handleNotification({
                 status: Constants.STATUS.ERROR,
-                title: "Copy failed",
-                message: "Copy the address from your browser instead."
+                ...Constants.NOTIFICATIONS.COPY_FAILED
             });
         }
     }
@@ -201,7 +199,7 @@ export class RoomController extends ViewController {
     /** @type {string} Previously rendered Room lifecycle state for transition detection. */
     #previousState = "";
 
-    /** @type {LocalPlayerController} Local actor hand and action controller. */
+    /** @type {LocalPlayerController} Local actor hand and command controller. */
     #playerController = new LocalPlayerController("#actor-region", false);
 
     /** @type {SuitSelectionController} Pending ace suit-declaration dialog. */
@@ -218,7 +216,7 @@ export class RoomController extends ViewController {
         await this._initializeRoomView();
         await OpponentUtils.load();
         this.#playerController.initialize();
-        this.#playerController.setActionHandler(this.#handlePlayerAction.bind(this));
+        this.#playerController.setCommandHandler(this.#handlePlayerCommand.bind(this));
         this.#playerController.setSortHandler(this.#handleSortChange.bind(this));
         this.#suitController.setSubmitHandler(this.#handleSuitSelection.bind(this));
         DomUtils.require("#table-play-area > [data-is-drag-over]", HTMLElement).addEventListener(
@@ -231,12 +229,12 @@ export class RoomController extends ViewController {
         );
     }
 
-    /** Submits a local actor action and clears temporary sort after drawing. */
-    #handlePlayerAction(action) {
-        if (RoomController.#isCardMove(action)) {
-            this.#sendCardMove(action, {});
+    /** Submits a local actor command and clears temporary sort after drawing. */
+    #handlePlayerCommand(command) {
+        if (RoomController.#isCardMove(command)) {
+            this.#sendCardMove(command, {});
         } else {
-            this.client?.request(action, {});
+            this.client?.request(command, {});
         }
     }
 
@@ -248,20 +246,20 @@ export class RoomController extends ViewController {
 
     /** Submits the selected suit for the pending declaration. */
     #handleSuitSelection(suit) {
-        this.client?.request(Constants.ACTIONS.DECLARE, { suit });
+        this.client?.request(Constants.COMMANDS.DECLARE, { suit });
     }
 
     /** Converts a hand-to-pile card drop into a discard request. */
     #handleCardDrop(event) {
         if (event instanceof CustomEvent && event.detail?.card) {
-            this.#sendCardMove(Constants.ACTIONS.DISCARD, { card: event.detail.card });
+            this.#sendCardMove(Constants.COMMANDS.DISCARD, { card: event.detail.card });
         }
     }
 
     /** Converts an eligible pile-to-hand card drop into a return request. */
     #handleCardReturn(event) {
         if (event instanceof CustomEvent && event.detail?.card && this.room?.state === Constants.ROOM_STATE.WAITING) {
-            this.#sendCardMove(Constants.ACTIONS.RETURN, { card: event.detail.card });
+            this.#sendCardMove(Constants.COMMANDS.RETURN, { card: event.detail.card });
         }
     }
 
@@ -297,7 +295,7 @@ export class RoomController extends ViewController {
         }
 
         const requiresSuitSelection =
-            room.pending?.action === Constants.ACTIONS.DECLARE &&
+            room.pending?.command === Constants.COMMANDS.DECLARE &&
             localPlayer !== null &&
             TurnUtils.isTurnOwner(room.turnOrder?.ownerKey, localPlayer.key);
 
@@ -318,21 +316,21 @@ export class RoomController extends ViewController {
         }
     }
 
-    /** Extracts card identity from a drop event and sends the named movement action. */
-    #sendCardMove(action, data) {
-        if (this.client?.request(action, data)) {
+    /** Extracts card identity from a drop event and sends the named movement command. */
+    #sendCardMove(command, data) {
+        if (this.client?.request(command, data)) {
             this.client.sortKey = Constants.CARD.SORT_OPTIONS[0];
             this.render(this.room);
         }
     }
 
     /** Returns whether card move. */
-    static #isCardMove(action) {
+    static #isCardMove(command) {
         return (
-            action === Constants.ACTIONS.DRAW ||
-            action === Constants.ACTIONS.DISCARD ||
-            action === Constants.ACTIONS.RETURN ||
-            action === Constants.ACTIONS.PASS
+            command === Constants.COMMANDS.DRAW ||
+            command === Constants.COMMANDS.DISCARD ||
+            command === Constants.COMMANDS.RETURN ||
+            command === Constants.COMMANDS.PASS
         );
     }
 

@@ -18,9 +18,7 @@ import { OpponentUtils } from "../ui/utilities/OpponentUtils.js";
 import { TemplateUtils } from "../ui/utilities/TemplateUtils.js";
 
 const INDEX_HTML = readFileSync(new URL("../room.html", import.meta.url), "utf8");
-const OVERLAYS_CSS =
-    readFileSync(new URL("../ui/styles/dialogs.css", import.meta.url), "utf8") +
-    readFileSync(new URL("../ui/styles/overlays.css", import.meta.url), "utf8");
+const OVERLAYS_CSS = readFileSync(new URL("../ui/styles/dialogs.css", import.meta.url), "utf8");
 
 test("browser controller, custom element, and template utility families share their intended APIs", async () => {
     const OriginalHTMLElement = globalThis.HTMLElement;
@@ -190,7 +188,7 @@ test("StateMapper builds immutable response, message, Home, and detailed Game pa
             draw: { items: [{}, {}] }
         },
         winners: ["Alice"],
-        pending: { action: Constants.ACTIONS.DECLARE, actorKey: "alice" },
+        pending: { command: Constants.COMMANDS.DECLARE, actorKey: "alice" },
         declaredSuit: Constants.CARD.SUIT.SPADES
     };
     const room = { toJSON: () => state };

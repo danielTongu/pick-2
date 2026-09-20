@@ -350,7 +350,7 @@ export class Room extends Serializable {
             function drawItemsOperation() {
                 let drawnItems = [];
 
-                if (!this.#resetFinishedRound()) {
+                if (!this.#isFinishedRound()) {
                     const actor = this.turnOrder.get(actorName);
 
                     this.#assertCanAct(actor);
@@ -397,7 +397,7 @@ export class Room extends Serializable {
             function passTurnOperation() {
                 const drawnItems = [];
 
-                if (!this.#resetFinishedRound()) {
+                if (!this.#isFinishedRound()) {
                     const actor = this.turnOrder.get(actorName);
 
                     this.#assertCanAct(actor);
@@ -440,7 +440,7 @@ export class Room extends Serializable {
             function playItemOperation() {
                 const drawnItems = [];
 
-                if (!this.#resetFinishedRound()) {
+                if (!this.#isFinishedRound()) {
                     const actor = this.turnOrder.get(actorName);
                     const item = new Card(value, suit);
 
@@ -514,8 +514,8 @@ export class Room extends Serializable {
             function declareSuitOperation() {
                 let isCompleted = true;
 
-                if (!this.#resetFinishedRound()) {
-                    if (this.pending?.action !== Constants.ACTIONS.DECLARE) {
+                if (!this.#isFinishedRound()) {
+                    if (this.pending?.command !== Constants.COMMANDS.DECLARE) {
                         throw new UserNotification("No suit pending declaration.");
                     }
 
@@ -662,20 +662,12 @@ export class Room extends Serializable {
     }
 
     /**
-     * Resets the room if the previous round is finished.
+     * Returns whether the completed round must remain unchanged until a new round starts.
      *
-     * @returns {boolean} True when reset.
+     * @returns {boolean} True when the current round is finished.
      */
-    #resetFinishedRound() {
-        const shouldReset = this.state === Constants.ROOM_STATE.FINISHED;
-
-        if (shouldReset) {
-            this.#resetRoundState();
-            this.recordActivity();
-            this.notifyStateChange();
-        }
-
-        return shouldReset;
+    #isFinishedRound() {
+        return this.state === Constants.ROOM_STATE.FINISHED;
     }
 
     /**
@@ -719,7 +711,7 @@ export class Room extends Serializable {
             throw new UserNotification("Items cannot move after the room has finished.");
         }
         if (this.pending !== null) {
-            throw new UserNotification("Resolve the pending action first.");
+            throw new UserNotification("Resolve the pending command first.");
         }
     }
 
@@ -779,18 +771,12 @@ export class Room extends Serializable {
      */
     #refillDrawCollection() {
         if (this.collections.play.items.length > 1) {
-            const topItem = this.collections.play.items.pop();
-            const refillItems = this.collections.play.items;
-
-            if (topItem === undefined) {
-                this.collections.play.clear();
-            } else {
-                this.collections.play.clear();
-                this.collections.play.add(topItem);
-            }
+            const topItem = this.collections.play.take();
+            const refillItems = this.collections.play.clear();
 
             this.collections.draw.addMany(refillItems);
             this.collections.draw.shuffle();
+            this.collections.play.add(topItem);
         }
     }
 
@@ -822,7 +808,7 @@ export class Room extends Serializable {
     }
 
     /**
-     * Asserts a actor can perform the requested action.
+     * Asserts an actor can perform the requested command.
      *
      * @param {Actor|null} actor - Acting actor.
      */
@@ -846,7 +832,7 @@ export class Room extends Serializable {
     }
 
     /**
-     * Draws items for a actor.
+     * Draws items for an actor.
      *
      * @param {Actor} actor - Target actor.
      * @param {number} count - Number of items.
@@ -861,7 +847,7 @@ export class Room extends Serializable {
     }
 
     /**
-     * Asserts a actor has a item.
+     * Asserts an actor has an item.
      *
      * @param {Actor} actor - Actor.
      * @param {Card} item - Card to check.
@@ -921,7 +907,7 @@ export class Room extends Serializable {
             if (item.isRoundEndingMove(actor.collection.items.length)) {
                 this.#finishRound();
             } else if (item.isSuitChange()) {
-                this.pending = { action: Constants.ACTIONS.DECLARE, actorKey: actor.key };
+                this.pending = { command: Constants.COMMANDS.DECLARE, actorKey: actor.key };
             } else {
                 const actorCount = this.turnOrder.actors.size;
 

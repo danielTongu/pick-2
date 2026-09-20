@@ -116,21 +116,21 @@ export class Client {
     }
 
     /**
-     * Sends one canonical Room action request.
+     * Sends one canonical Room command request.
      *
-     * @param {string} action - Action name from Constants.ACTIONS.
-     * @param {Object} data - Action-specific data.
+     * @param {string} command - Command name from Constants.COMMANDS.
+     * @param {Object} data - Command-specific data.
      * @returns {boolean} Whether the endpoint accepted the request.
      */
-    request(action, data) {
-        const normalizedAction = ValidationUtils.requiredString(action, "Action");
-        const actionData = ValidationUtils.object(data, "Action data");
+    request(command, data) {
+        const normalizedCommand = ValidationUtils.requiredString(command, "Command");
+        const commandData = ValidationUtils.object(data, "Command data");
 
         return (
             this.#connection?.request({
-                action: normalizedAction,
+                command: normalizedCommand,
                 data: {
-                    ...actionData,
+                    ...commandData,
                     sortKey: this.#sortKey,
                     tabId: this.#tabId
                 }

@@ -40,7 +40,7 @@ export class Card extends Serializable {
         return this.#id;
     }
 
-    /** @returns {string} Stable item key used by Room messages and actions. */
+    /** @returns {string} Stable item key used by Room messages and commands. */
     get key() {
         return this.#id;
     }

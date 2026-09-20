@@ -12,7 +12,7 @@ import { ViewController } from "./ViewController.js";
  */
 export class LocalPlayerController extends ViewController {
     /** @type {Function|null} Optional application callback registered by the owning page. */
-    #actionHandler = null;
+    #commandHandler = null;
 
     /** @type {Function|null} Optional application callback registered by the owning page. */
     #sortHandler = null;
@@ -29,7 +29,7 @@ export class LocalPlayerController extends ViewController {
     /** @type {HTMLSpanElement} Card-hand container and drop target. */
     #handElement;
 
-    /** @type {HTMLButtonElement} Required action control owned by this controller. */
+    /** @type {HTMLButtonElement} Required command control owned by this controller. */
     #drawButton;
 
     /** @type {HTMLSpanElement} Required text output synchronized during rendering. */
@@ -41,10 +41,10 @@ export class LocalPlayerController extends ViewController {
     /** @type {HTMLElement|null} Optional UI output present only in supported room modes. */
     #idleSecondsOutput = null;
 
-    /** @type {HTMLButtonElement} Required action control owned by this controller. */
+    /** @type {HTMLButtonElement} Required command control owned by this controller. */
     #playButton;
 
-    /** @type {HTMLButtonElement} Required action control owned by this controller. */
+    /** @type {HTMLButtonElement} Required command control owned by this controller. */
     #passButton;
 
     /** @type {boolean} Current controller capability or lifecycle flag. */
@@ -89,17 +89,17 @@ export class LocalPlayerController extends ViewController {
     }
 
     /**
-     * Sets the callback invoked for local-player actions.
+     * Sets the callback invoked for local-player commands.
      *
-     * @param {Function} handler - Action callback.
+     * @param {Function} handler - Command callback.
      * @throws {Error} When required markup, callback, or input data violates the controller contract.
      */
-    setActionHandler(handler) {
+    setCommandHandler(handler) {
         if (typeof handler !== "function") {
-            throw new Error("Local player action handler must be a function.");
+            throw new Error("Local player command handler must be a function.");
         }
 
-        this.#actionHandler = handler;
+        this.#commandHandler = handler;
     }
 
     /**
@@ -129,9 +129,9 @@ export class LocalPlayerController extends ViewController {
      * Initializes local-player event bindings.
      */
     initialize() {
-        this.#bindActionButton(this.#drawButton, Constants.ACTIONS.DRAW);
-        this.#bindActionButton(this.#passButton, Constants.ACTIONS.PASS);
-        this.#bindActionButton(this.#playButton, Constants.ACTIONS.START);
+        this.#bindCommandButton(this.#drawButton, Constants.COMMANDS.DRAW);
+        this.#bindCommandButton(this.#passButton, Constants.COMMANDS.PASS);
+        this.#bindCommandButton(this.#playButton, Constants.COMMANDS.START);
 
         this.#sortControl.addEventListener(
             "change",
@@ -179,29 +179,29 @@ export class LocalPlayerController extends ViewController {
     }
 
     /**
-     * Binds one button to one local-player action.
+     * Binds one button to one local-player command.
      *
      * @param {HTMLButtonElement} button - Button element.
-     * @param {string} action - Room action.
+     * @param {string} command - Room command.
      */
-    #bindActionButton(button, action) {
+    #bindCommandButton(button, command) {
         button.addEventListener(
             "click",
             function (event) {
                 event.preventDefault();
-                this.#submitAction(action);
+                this.#submitCommand(command);
             }.bind(this)
         );
     }
 
     /**
-     * Submits a local-player action.
+     * Submits a local-player command.
      *
-     * @param {string} action - Room action.
+     * @param {string} command - Room command.
      */
-    #submitAction(action) {
-        if (this.#actionHandler !== null) {
-            this.#actionHandler(action);
+    #submitCommand(command) {
+        if (this.#commandHandler !== null) {
+            this.#commandHandler(command);
         }
     }
 
@@ -262,7 +262,9 @@ export class LocalPlayerController extends ViewController {
 
     /** Returns whether the local actor may draw in the authoritative Room state. */
     static #isDrawButtonUsable(actor, room) {
-        let isDrawAllowed = room.pending === null && actor.drawAllowance > 0;
+        const isMutableState =
+            room.state === Constants.ROOM_STATE.WAITING || room.state === Constants.ROOM_STATE.ACTIVE;
+        let isDrawAllowed = isMutableState && room.pending === null && actor.drawAllowance > 0;
 
         if (room.state === Constants.ROOM_STATE.ACTIVE) {
             const ownerKey = room.turnOrder?.ownerKey ?? null;

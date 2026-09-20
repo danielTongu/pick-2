@@ -1,5 +1,7 @@
 /* styles for the index page */
 
+/* ----- APP HEADER ----- */
+
 .toggle-switch {
     --button-background: color-mix(in srgb, var(--dark-green) 90%, var(--black));
     --button-border: 1px solid var(--line);
@@ -7,7 +9,17 @@
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 2px;
+    min-height: var(--button-min-height, 44px);
     padding: 4px;
+    border: var(--button-border);
+    border-radius: var(--button-radius, 999px);
+    background: var(--button-background);
+    color: var(--button-color, var(--white));
+    font-weight: var(--button-weight, 600);
+    cursor: pointer;
+    transition:
+        background 0.2s ease,
+        transform var(--button-transform-duration, 0.1s) ease;
 }
 
 .toggle-switch > label {
@@ -53,23 +65,28 @@
     cursor: not-allowed;
 }
 
+/* ----- HOME HERO ----- */
+
 .hero {
     display: grid;
-    gap: 24px;
-    padding: 58px 0 2rem;
+    gap:1rem;
+    padding-top: 5rem;
     border-bottom: 1px solid var(--line);
+    color: var(--ink);
 }
 
-.hero > section:last-child {
+.hero > :last-child {
     display: grid;
     grid-template-columns: 1fr;
     align-items: center;
-    gap: clamp(30px, 6vw, 90px);
 }
 
 .eyebrow,
 .section-kicker {
+    color: var(--gray);
+    font-weight: 800;
     letter-spacing: 0.17em;
+    text-transform: uppercase;
 }
 
 .eyebrow {
@@ -90,8 +107,9 @@
 }
 
 .hero h2 {
-    margin: 0;
-    font-size: clamp(56px, 17vw, 75px);
+    margin: 0 0 1rem;
+    font-family: var(--display-font);
+    font-size: 5rem;
     font-weight: 500;
     line-height: 0.82;
     letter-spacing: -0.066em;
@@ -111,7 +129,7 @@
 .hero p {
     margin: 0;
     color: var(--gray);
-    font-size: 17px;
+    font-size: medium;
     line-height: 1.65;
 }
 
@@ -125,20 +143,20 @@
 }
 
 [data-game-preview] > playing-card {
-    --card-height: clamp(100px, 36cqi, 130px);
+    --card-height: clamp(100px, 44cqi, 171px);
     --card-left: 50%;
     --card-shift-y: 0%;
 
     position: absolute;
-    bottom: calc(var(--card-height) / 7);
+    top: 50%;
     left: var(--card-left);
     pointer-events: none;
-    transform: translate(-50%, var(--card-shift-y)) rotate(var(--card-rotation));
+    transform: translate(-50%, calc(-50% + var(--card-shift-y))) rotate(var(--card-rotation));
     transform-origin: 50% 110%;
 }
 
 [data-game-preview] > playing-card:nth-child(1) {
-    --card-left: 22%;
+    --card-left: 20%;
     --card-shift-y: 14%;
     --card-rotation: -24deg;
 }
@@ -171,11 +189,7 @@
     --card-rotation: 24deg;
 }
 
-@media (min-width: 721px) {
-    [data-game-preview] > playing-card {
-        --card-height: clamp(100px, 40cqi, 170px);
-    }
-}
+/* ----- HOME DIRECTORY ----- */
 
 #home-directory {
     display: grid;
@@ -196,6 +210,7 @@
     --dark-green: color-mix(in srgb, var(--light-green) 9%, var(--black));
     background: var(--dark-green);
     box-shadow: var(--shadow);
+    color: var(--ink);
 }
 
 #list-panel {
@@ -214,27 +229,21 @@
 
 .panel-header h2 {
     margin: 7px 0 0;
-    font-size: 29px;
+    font-family: var(--display-font);
+    font-size: xx-large;
     font-weight: 500;
     line-height: 1.1;
     letter-spacing: -0.035em;
 }
 
-.section-kicker {
-    color: var(--gray);
-}
-
-#list-panel .section-kicker {
-    color: var(--gray);
-}
-
 .step {
     color: var(--gray);
-    font-size: 18px;
+    font-family: var(--display-font);
+    font-size: medium;
     font-style: italic;
 }
 
-/* ----- GAME REGISTRATION FORM  ----- */
+/* ----- GAME REGISTRATION FORM ----- */
 
 #registration-form {
     display: grid;
@@ -257,7 +266,9 @@
 .control-label {
     display: block;
     color: var(--gray);
+    font-weight: 800;
     letter-spacing: 0.11em;
+    text-transform: uppercase;
 }
 
 #field-group input,
@@ -291,7 +302,7 @@ form > footer {
     padding-top: 1rem;
 }
 
-#request-actions {
+#request-commands {
     --button-min-height: 58px;
     --button-padding: 0 9px 0 21px;
     --button-border: 0;
@@ -302,6 +313,7 @@ form > footer {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
     gap: 1rem;
+    font-size: medium;
 }
 
 #request-mode-control {
@@ -319,7 +331,6 @@ form > footer {
     grid-template-columns: 1fr auto;
     align-items: center;
     gap: 16px;
-    box-shadow: 0 10px 25px color-mix(in srgb, var(--black) 14%, transparent);
     transition:
         transform 0.2s,
         box-shadow 0.2s;
@@ -333,8 +344,7 @@ form > footer {
     place-items: center;
     border-radius: 50%;
     background: var(--dark-green);
-    color: var(--white);
-    font-size: 18px;
+    color: var(--light-green);
 }
 
 #enter-button:hover {
@@ -345,6 +355,8 @@ form > footer {
 #enter-button:active {
     transform: translateY(0);
 }
+
+/* ----- ROOM LIST ----- */
 
 #list-panel .panel-header {
     align-items: center;
@@ -357,13 +369,12 @@ form > footer {
 #status-filter {
     height: 40px;
     padding: 0 12px;
-    color: var(--white);
     background: color-mix(in srgb, var(--white) 7%, transparent);
     border-color: color-mix(in srgb, var(--white) 16%, transparent);
 }
 
 #status-filter option {
-    color: var(--ink);
+    color: inherit;
 }
 
 #list-table {
@@ -384,8 +395,11 @@ form > footer {
     display: block;
     margin-bottom: 12px;
     color: var(--light-green);
-    font-size: 26px;
+    font-family: var(--display-font);
+    font-size: x-large;
 }
+
+/* ----- NETWORK CONNECTION ----- */
 
 #network-connection-view {
     --connection-accent: var(--orange);
@@ -397,6 +411,7 @@ form > footer {
     gap: 30px;
     padding: 42px 0;
     border-bottom: 1px solid var(--line);
+    color: var(--ink);
 }
 
 .network-panel-header {
@@ -407,7 +422,7 @@ form > footer {
 
 #network-connection-title {
     font-family: var(--display-font);
-    font-size: clamp(42px, 8vw, 86px);
+    font-size: xxx-large;
     font-weight: 400;
     line-height: 0.92;
     letter-spacing: -0.055em;
@@ -445,7 +460,7 @@ form > footer {
 #network-connection-message {
     margin: 0;
     color: var(--gray);
-    font-size: 17px;
+    font-size: medium;
     line-height: 1.65;
 }
 
@@ -456,10 +471,8 @@ form > footer {
 #network-connection-message[data-detail]:not([data-detail=""])::after {
     display: block;
     margin-top: 8px;
-    color: var(--ink);
     content: attr(data-detail);
     font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 13px;
     overflow-wrap: anywhere;
 }
 
@@ -499,8 +512,6 @@ form > footer {
 }
 
 #network-connection-form > label {
-    color: var(--ink);
-    font-size: 13px;
     font-weight: 750;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -523,13 +534,12 @@ form > footer {
 }
 
 #network-connection-origin::placeholder {
-    color: var(--gray);
+    color: inherit;
 }
 
 #network-connection-help {
     margin: 0;
     color: var(--gray);
-    font-size: 13px;
     line-height: 1.5;
 }
 
@@ -595,16 +605,8 @@ form > footer {
 }
 
 @media (min-width: 721px) {
-    .hero {
-        padding: 2rem 0;
-    }
-
-    .hero > section:last-child {
+    .hero > :last-child {
         grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
-    }
-
-    .hero h2 {
-        font-size: clamp(60px, 8vw, 108px);
     }
 
     #home-directory {

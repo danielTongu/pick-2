@@ -90,7 +90,7 @@ export class NetworkConnectionController extends ViewController {
     /** @type {HTMLInputElement} Required user-input control owned by this controller. */
     #originInput;
 
-    /** @type {HTMLButtonElement} Required action control owned by this controller. */
+    /** @type {HTMLButtonElement} Required command control owned by this controller. */
     #connectButton;
 
     /** @type {HTMLFormElement} Required form used to submit this controller’s workflow. */

@@ -9,7 +9,7 @@ every private implementation detail.
 The document is normative where it uses **MUST**, **MUST NOT**, **SHOULD**, or **MAY**. When behavior changes, update
 this document, the README, the in-page guide, and focused tests in the same change.
 
-Pick 2 has Direct and Hosted modes. Both modes expose the same Home and Room experiences, actions, core rules, response
+Pick 2 has Direct and Hosted modes. Both modes expose the same Home and Room experiences, commands, core rules, response
 envelope, and client data shape. The transport and persistence boundary differs by mode.
 
 ## 2. Product vocabulary
@@ -24,7 +24,7 @@ envelope, and client data shape. The transport and persistence boundary differs 
 - **Bot** is an automated Actor controlled by the host.
 - **TurnOrder** is the Room's turn-order structure. It owns circular player order, direction, and the nullable
   turn-owner cursor. It MUST NOT own room or actor activity timestamps.
-- **Host** is the authoritative coordinator for rooms, peers, actions, notifications, automated turns, and cleanup.
+- **Host** is the authoritative coordinator for rooms, peers, commands, notifications, automated turns, and cleanup.
 
 ## 3. System boundaries
 
@@ -40,7 +40,7 @@ ui/                 Pick2 pages, cards, controllers, state, styles, and utilitie
 server.js           Node Network entry point
 ```
 
-The UI translates user interaction into named actions and renders authoritative snapshots. It MUST NOT implement a
+The UI translates user interaction into named commands and renders authoritative snapshots. It MUST NOT implement a
 second copy of room rules or normalize competing player DTO shapes.
 
 The Host owns orchestration and authority. Core owns identity, collections, turn order, lifecycle, transfers, rules, and
@@ -75,16 +75,16 @@ Player names MUST be unique within a Room. Room capacity applies only to Players
 
 ## 5. Room lifecycle and membership
 
-### 5.1 Actions
+### 5.1 Commands
 
-The public action set is defined by `Constants`:
+The public command set is defined by `Constants`:
 
-| Area                     | Actions                                                 |
+| Area                     | Commands                                                 |
 | ------------------------ | ------------------------------------------------------- |
 | Directory and membership | `list`, `create`, `view`, `join`, `leave`               |
 | Play                     | `start`, `draw`, `discard`, `return`, `pass`, `declare` |
 
-The Host MUST validate the Room and Player context for every action. A client-provided name, tab identifier, or room key
+The Host MUST validate the Room and Player context for every command. A client-provided name, tab identifier, or room key
 MUST NOT grant authority over another participant or Room.
 
 ### 5.2 Membership rules
@@ -131,7 +131,7 @@ Room.
 2. The Room resets round state, shuffles and deals its items, selects the opening play and turn owner, changes to
    `active`, records Room activity, and establishes idle monitoring.
 3. The current human turn owner requests `draw`, `discard`, or `pass`.
-4. The Room validates the action, applies its card and turn rules, updates the acting Player and Room activity, advances
+4. The Room validates the command, applies its card and turn rules, updates the acting Player and Room activity, advances
    the turn when required, and refreshes monitoring.
 5. The Host broadcasts the resulting Room snapshot. If the next turn belongs to a Bot, the Host continues the automated
    turn before returning to normal human interaction.
@@ -165,13 +165,13 @@ Room.
 #### Hosted reconnect
 
 The Hosted client reports connection state separately from Room state. A reconnecting browser MUST re-establish its
-endpoint before issuing Room actions and MUST use a fresh authoritative snapshot rather than assuming that a prior
+endpoint before issuing Room commands and MUST use a fresh authoritative snapshot rather than assuming that a prior
 snapshot is still current. The Host remains the source of truth for membership, turns, activity, and cleanup during the
 disconnect.
 
 ### 5.4 Room states
 
-- **waiting**: no active turn is required; `turnOwnerKey` is null. Seated Players may perform the waiting-state actions
+- **waiting**: no active turn is required; `turnOwnerKey` is null. Seated Players may perform the waiting-state commands
   allowed by the core rules.
 - **active**: ordinary turn order and game legality apply. `pending` may describe a required game-specific decision
   without creating another lifecycle level.
@@ -192,7 +192,7 @@ ownership and create inconsistent state.
 
 ### 6.2 What updates activity
 
-A successful Player action MUST update both the acting Player and the Room. This includes drawing, discarding, returning
+A successful Player command MUST update both the acting Player and the Room. This includes drawing, discarding, returning
 a discard, passing, and declaring a suit. Starting or resetting a round also establishes fresh activity for the relevant
 lifecycle.
 
@@ -200,7 +200,7 @@ Viewer activity MUST update only `Room.lastActiveAt`. A viewer becoming a Player
 `Player.lastActiveAt` and `Room.lastActiveAt`. Joining, leaving a viewer, and moving a Player to viewing state update
 Room activity when the membership change actually occurs.
 
-Failed actions MUST NOT be treated as successful Player activity. Internal state-reset transitions may refresh
+Failed commands MUST NOT be treated as successful Player activity. Internal state-reset transitions may refresh
 timestamps when they establish a new monitoring window; they MUST NOT introduce a separate circle timestamp.
 
 ### 6.3 Who is monitored
@@ -224,7 +224,7 @@ disables automatic idle monitoring; its lifecycle is owned by the browser page.
 ## 7. Game rules and round behavior
 
 Starting creates and shuffles a deck, deals seven cards to each Player, chooses a valid initial discard, and selects the
-first turn owner. The turn owner may draw, discard, or pass only when the action is legal for the current state.
+first turn owner. The turn owner may draw, discard, or pass only when the command is legal for the current state.
 
 While playing, turn order, draw penalties, discard legality, skip/reverse effects, and suit declarations are
 authoritative core rules. A suit-changing ace moves the Room to pending until its owner declares a standard suit.
@@ -233,20 +233,20 @@ While waiting with no turn owner, the waiting-state permissions apply and playin
 finishes when a hand is emptied or the seven of hearts ends the round under its rule. Remaining hand scores determine
 the winner or tied winners.
 
-While waiting, a Player may return any real discard card to their own hand. The `return` action MUST validate
+While waiting, a Player may return any real discard card to their own hand. The `return` command MUST validate
 membership, waiting state, and card presence inside the Room operation queue. It preserves the card's rotation, updates
 hand score and activity, and broadcasts the transfer without consuming draw allowance or applying card effects. Returns
 MUST be rejected in every other state.
 
 Hand sorting is committed with the next draw, discard, return, or pass. Temporary browser sorting is not a server-side
-action for every selection. Drawing resets the temporary client sort to `none` so newly drawn cards are visibly distinct
+command for every selection. Drawing resets the temporary client sort to `none` so newly drawn cards are visibly distinct
 until the Player sorts again.
 
 All scoring MUST use the shared card-score policy in `Constants`; no UI or bot may calculate a competing score.
 
 ## 8. Automated Players
 
-Bots use the same legal action and card rules as human Players. Their strategy MAY use their own cards, public turn
+Bots use the same legal command and card rules as human Players. Their strategy MAY use their own cards, public turn
 order, visible hand counts, card effects, and discard history. It MUST NOT inspect opponents' hidden card identities or
 private hand scores.
 
@@ -259,7 +259,7 @@ the unchanged legality boundary.
 
 ## 9. Client/server contract
 
-Requests contain an action and data object. The client adds the per-tab identifier and current temporary hand sort
+Requests contain a command and data object. The client adds the per-tab identifier and current temporary hand sort
 before sending. Room requests use `data.roomName`; browser navigation uses:
 
 ```text
@@ -422,7 +422,7 @@ ordinary local variables are not APIs and do not require JSDoc. The architecture
 1. Keep timing, protocol, item identities, rules, and scoring in the appropriate core modules.
 2. Use `CardCollection` for every card-storage role and add specialized behavior only when Pick 2 needs it.
 3. Map game state in `StateMapper` and integrate it through `Game`; hosting receives the game explicitly.
-4. Validate Room, Player, Viewer, and ownership context in the Host before dispatching an action.
+4. Validate Room, Player, Viewer, and ownership context in the Host before dispatching a command.
 5. Reuse existing controller, template, validation, notification, sorting, and DOM-state patterns.
 6. Preserve semantic markup, `data-*` state hooks, accessibility relationships, and the repository's CSS cascade
    standards.

@@ -60,7 +60,7 @@ class NetworkConnection {
         this.#connect();
     }
 
-    /** @param {Object} request - Canonical action request. @returns {boolean} Whether sent. */
+    /** @param {Object} request - Canonical command request. @returns {boolean} Whether sent. */
     request(request) {
         const canSend = this.#socket instanceof WebSocket && this.#socket.readyState === WebSocket.OPEN;
 

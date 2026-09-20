@@ -9,14 +9,14 @@ import { ValidationUtils } from "./ValidationUtils.js";
 
 /** Defines Pick2's rules and hosting contract. */
 export class Game {
-    /** Creates the immutable Pick 2 hosting contract and action throttle profile. */
+    /** Creates the immutable Pick 2 hosting contract and command throttle profile. */
     constructor() {
         this.id = "pick2";
         this.constants = Constants;
         this.stateMapper = StateMapper;
         this.RoomType = Room;
-        this.welcomeMessage = "Your hand is below the discard pile.\nGood luck!";
-        this.actions = Object.freeze({
+        this.welcomeMessage = Constants.NOTIFICATIONS.PLAYER_WELCOME.message;
+        this.commands = Object.freeze({
             draw: Object.freeze({ player: 400, room: 100 }),
             discard: Object.freeze({ player: 250, room: 100 }),
             return: Object.freeze({ player: 250, room: 100 }),
@@ -30,30 +30,30 @@ export class Game {
         return new Room(name, actorLimit);
     }
 
-    /** Dispatches one authenticated game action to Room and returns an optional draw notification. */
-    async act(room, playerName, action, data) {
+    /** Dispatches one authenticated game command to Room and returns an optional draw notification. */
+    async execute(room, playerName, command, data) {
         let drawn = [];
         let mocked = true;
 
-        switch (action) {
-            case Constants.ACTIONS.DRAW:
+        switch (command) {
+            case Constants.COMMANDS.DRAW:
                 drawn = await room.drawItems(playerName, data.sortKey);
                 mocked = room.state === Constants.ROOM_STATE.ACTIVE && drawn.length > 1;
                 break;
-            case Constants.ACTIONS.DISCARD: {
+            case Constants.COMMANDS.DISCARD: {
                 const card = Card.from(data.card);
                 drawn = await room.playItem(playerName, card.value, card.suit, data.sortKey);
                 break;
             }
-            case Constants.ACTIONS.RETURN: {
+            case Constants.COMMANDS.RETURN: {
                 const card = Card.from(data.card);
                 await room.returnItem(playerName, card.value, card.suit, data.sortKey);
                 break;
             }
-            case Constants.ACTIONS.PASS:
+            case Constants.COMMANDS.PASS:
                 drawn = await room.passTurn(playerName, data.sortKey);
                 break;
-            case Constants.ACTIONS.DECLARE:
+            case Constants.COMMANDS.DECLARE:
                 await room.declareSuit(
                     Constants.normalizeStandardSuit(ValidationUtils.requiredString(data.suit, "Suit"))
                 );
@@ -62,14 +62,18 @@ export class Game {
 
         if (drawn.length === 0) return null;
         const emoji = mocked ? `\n\n${Constants.EMOJIS.silly.random}` : "";
-        return { status: Constants.STATUS.INFO, title: "Cards Drawn", message: `+${drawn.length} ${emoji}` };
+        return {
+            status: Constants.STATUS.INFO,
+            title: Constants.NOTIFICATIONS.CARDS_DRAWN_TITLE,
+            message: `+${drawn.length} ${emoji}`
+        };
     }
 
     /** Runs the current automated owner after its configured human-like delay. */
     async runAutomatedTurn(room) {
         const turnOwner = room.turnOrder.owner;
         if (!(turnOwner instanceof BotActor) || room.state !== Constants.ROOM_STATE.ACTIVE) return false;
-        if (room.pending?.action === Constants.ACTIONS.DECLARE) {
+        if (room.pending?.command === Constants.COMMANDS.DECLARE) {
             await turnOwner.chooseSuit(room);
             return true;
         }

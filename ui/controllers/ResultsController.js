@@ -246,7 +246,7 @@ export class ResultsController extends ViewController {
             message = "It is a tie.";
         } else if (winners.length === 1) {
             const isLocalActorWinner = winners[0] === actorName;
-            message = isLocalActorWinner ? "You won. 🎉" : "You lost.";
+            message = isLocalActorWinner ? "You won 🎉" : "You lost 😂";
         }
 
         return message;

@@ -1,5 +1,7 @@
 /* Shared table foundations and data presentation. */
 
+/* ----- TABLE CONTAINER ----- */
+
 .table-container {
     overflow-x: auto;
     border-top: var(--table-data-border, 1px solid color-mix(in srgb, var(--white) 12%, transparent));
@@ -10,26 +12,18 @@ table {
     --table-cell-padding: var(--container-spacing);
     --table-border: none;
     --table-data-border: 1px solid color-mix(in srgb, var(--white) 8%, transparent);
-    --table-font-size: 12px;
 
     text-wrap: nowrap;
 
     width: 100%;
     border: var(--table-border);
     border-collapse: collapse;
-    font-size: var(--table-font-size);
 }
+
+/* ----- TABLE STRUCTURE ----- */
 
 thead {
     background: color-mix(in srgb, var(--white) 8%, transparent);
-}
-
-th {
-    padding: var(--table-heading-padding);
-    color: var(--gray);
-    font-weight: 800;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
 }
 
 tr {
@@ -37,6 +31,13 @@ tr {
     transition:
         background-color 0.2s ease,
         color 0.2s ease;
+}
+
+th {
+    padding: var(--table-heading-padding);
+    color: var(--gray);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
 }
 
 td {
@@ -55,9 +56,10 @@ table:has(> tbody:empty)::after {
     caption-side: bottom;
     padding: var(--table-cell-padding);
     color: var(--gray);
-    font-size: small;
     font-style: italic;
 }
+
+/* ----- INTERACTIVE ROWS ----- */
 
 tbody tr[tabindex] {
     cursor: pointer;
@@ -74,6 +76,8 @@ tbody tr:focus-visible {
 tbody tr[data-is-selected="true"] {
     color: var(--cyan);
 }
+
+/* ----- CELL CONTENT ----- */
 
 td:empty::before {
     content: "--";

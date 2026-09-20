@@ -1,6 +1,4 @@
-/* ========================================
-   CONNECTION STATUS
-   ======================================== */
+/* ---------- CONNECTION STATUS ---------- */
 
 #app-header > aside[data-status] {
     display: grid;
@@ -33,15 +31,14 @@
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--red) 15%, transparent);
 }
 
-/* ========================================
-   ROOM HEADER AND CONTROLS
-   ======================================== */
+/* ---------- ROOM HEADER AND CONTROLS ---------- */
 
 #room-view {
     display: grid;
     grid-template-columns: 1fr;
     gap: 24px;
     padding: 24px 0 32px;
+    color: var(--ink);
 }
 
 #room-header {
@@ -62,7 +59,7 @@
     font-weight: 400;
 }
 
-#room-actions {
+#room-commands {
     --button-padding: 0 24px;
     --button-background: var(--red);
 
@@ -70,10 +67,10 @@
     grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
     gap: 8px;
     align-self: center;
+    font-size: larger;
 }
 
-#room-actions button {
-    font-size: 13px;
+#room-commands button {
     white-space: nowrap;
 }
 
@@ -87,9 +84,7 @@
     --button-border: 1px solid var(--dark-green);
 }
 
-/* ========================================
-   GAME REGION
-   ======================================== */
+/* ---------- GAME REGION ---------- */
 
 [data-game-region] {
     --play-area-color: color-mix(in srgb, var(--white) 55%, transparent);
@@ -116,6 +111,10 @@
         minmax(var(--card-row-floor), 0.8fr);
 }
 
+[data-game-region="view"] #actor-region {
+    display: none;
+}
+
 /* player: 3 rows (opponents, table, actor) */
 [data-game-region="act"] {
     --play-area-rows:
@@ -124,9 +123,7 @@
         minmax(calc(var(--card-row-floor) * 5/2), 0.5fr);
 }
 
-/* ========================================
-   OPPONENTS
-   ======================================== */
+/* ---------- OPPONENTS ---------- */
 
 ul#opponent-list {
     container-type: size;
@@ -178,7 +175,7 @@ ul#opponent-list > li::before {
     display: block;
     padding: 0.5rem;
     overflow: hidden;
-    font-size: calc(var(--opponent-height) / 11);
+    font-size: medium;
     font-weight: 700;
     line-height: 1.1;
     text-align: center;
@@ -209,7 +206,7 @@ ul#opponent-list > li::after {
     background: var(--red);
     color: var(--white);
     box-shadow: var(--shadow-black);
-    font-size: calc(var(--opponent-height) / 6);
+    font-size: large;
     font-weight: 800;
     line-height: 1;
     transform: translateX(-50%);
@@ -242,9 +239,7 @@ ul#opponent-list > li > div::after {
     border-radius: 50% 50% 0 0;
 }
 
-/* ========================================
-   PLAY AREA
-   ======================================== */
+/* ---------- PLAY AREA ---------- */
 
 #table-play-area {
     min-height: 0;
@@ -265,7 +260,6 @@ ul#opponent-list > li > div::after {
 
 #table-play-area > .playing-card-area:empty::after {
     content: "Discard Here";
-    font-size: 13px;
     font-weight: 500;
     letter-spacing: 0.04em;
 
@@ -304,9 +298,7 @@ ul#opponent-list > li > div::after {
         background 0.3s ease;
 }
 
-/* ========================================
-   ACTOR REGION
-   ======================================== */
+/* ---------- ACTOR REGION ---------- */
 
 #actor-region {
     display: grid;
@@ -319,9 +311,31 @@ ul#opponent-list > li > div::after {
     overflow: hidden;
 }
 
-/* ========================================
-   PLAYER HAND
-   ======================================== */
+/* ---------- PLAYER SUMMARY ---------- */
+
+#player-summary {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.4rem 1rem;
+    font-size: medium;
+    font-weight: 600;
+}
+
+#player-status {
+    border-right: 1px solid var(--line);
+}
+
+#player-summary > span:last-child {
+    opacity: 0.7;
+}
+
+#player-summary > [data-item-count]::after {
+    content: "card count: " attr(data-item-count);
+}
+
+/* ---------- PLAYER HAND ---------- */
 
 #player-hand {
     container-type: size;
@@ -348,23 +362,7 @@ ul#opponent-list > li > div::after {
     outline-offset: -1px;
 }
 
-/* ========================================
-   PLAYER SUMMARY AND CONTROLS
-   ======================================== */
-
-#player-summary {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.4rem 1rem;
-    font-size: 0.875rem;
-    font-weight: 600;
-}
-
-#player-summary > span:last-child {
-    color: color-mix(in srgb, currentColor 70%, transparent);
-}
+/* ---------- PLAYER IDLE WARNING AND COMMANDS ---------- */
 
 #player-idle-warning {
     margin: 0;
@@ -377,7 +375,7 @@ ul#opponent-list > li > div::after {
     font-weight: 700;
 }
 
-#player-actions {
+#player-commands {
     --button-radius: 0.9rem;
     --button-padding: 1rem;
     --button-border: 3px solid var(--dark-green);
@@ -386,20 +384,10 @@ ul#opponent-list > li > div::after {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
     gap: 1rem;
+    font-size: larger;
 }
 
-#player-status {
-    font-size: small;
-    border-right: 1px solid var(--line);
-}
-
-#player-summary > [data-item-count]::after {
-    content: "card count: " attr(data-item-count);
-}
-
-/* ========================================
-   SORT CONTROL
-   ======================================== */
+/* ---------- SORT CONTROL ---------- */
 
 #sort-control {
     display: grid;
@@ -438,9 +426,7 @@ ul#opponent-list > li > div::after {
     outline: 0;
 }
 
-/* ========================================
-   BUTTON VISIBILITY MATRIX
-   ======================================== */
+/* ---------- BUTTON VISIBILITY MATRIX ---------- */
 
 #room-play-button,
 #turn-pass-button {
@@ -463,9 +449,7 @@ ul#opponent-list > li > div::after {
     cursor: pointer;
 }
 
-/* ========================================
-   STATE-DRIVEN STYLING
-   ======================================== */
+/* ---------- STATE-DRIVEN STYLING ---------- */
 
 [data-game-region="act"][data-state="active"] [data-is-turn-owner="true"] {
     animation: turn-owner-border-strobe 1.2s ease-in-out infinite;
@@ -479,9 +463,7 @@ ul#opponent-list > li > div::after {
     display: none;
 }
 
-/* ========================================
-   DATA-ATTRIBUTE TEXT INJECTION
-   ======================================== */
+/* ---------- DATA-ATTRIBUTE TEXT INJECTION ---------- */
 
 [data-idle-seconds]::before {
     content: attr(data-idle-seconds) " ";
@@ -497,16 +479,19 @@ ul#opponent-list > li > div::after {
 }
 
 [data-state="finished"] > [data-is-winner="true"] #player-status::before {
-    content: "🏆 you won!";
+    content: "🏆 You Won!";
 }
 
 [data-state="finished"] > [data-is-winner="false"] #player-status::before {
     content: "😂 You Lost!";
 }
 
-/* ========================================
-   GAME GUIDE
-   ======================================== */
+/* ---------- GAME GUIDE ---------- */
+
+#game-guide {
+    color: var(--ink);
+    font-size: large;
+}
 
 summary::-webkit-details-marker {
     display: none;
@@ -522,14 +507,20 @@ summary {
     cursor: pointer;
 }
 
+summary > span:first-child {
+    font-size: medium;
+    letter-spacing: -0.02em;
+}
+
 summary::after {
     content: "+";
     color: var(--light-green);
-    font-size: 2rem;
+    font-size: xx-large;
     text-align: right;
 }
 
 #game-guide > summary {
+    grid-template-columns: auto 1fr;
     grid-template-areas: "header aside" "footer aside";
 }
 
@@ -583,13 +574,10 @@ summary + div > article {
     --table-heading-padding: 8px 12px;
     --table-cell-padding: 8px 12px;
     --table-border: 3px solid var(--black);
-    --table-font-size: 13px;
     background: var(--line);
 }
 
-/* ========================================
-   ANIMATION
-   ======================================== */
+/* ---------- ANIMATION ---------- */
 
 @keyframes turn-owner-border-strobe {
     0%,
@@ -602,9 +590,7 @@ summary + div > article {
     }
 }
 
-/* ========================================
-   RESPONSIVE
-   ======================================== */
+/* ---------- RESPONSIVE ---------- */
 
 @media (min-width: 721px) {
     #game-guide details > summary + div {
@@ -612,9 +598,7 @@ summary + div > article {
     }
 }
 
-/* ========================================
-   REDUCED MOTION
-   ======================================== */
+/* ---------- REDUCED MOTION ---------- */
 
 @media (prefers-reduced-motion: reduce) {
     [data-game-region] [data-is-turn-owner="true"] {

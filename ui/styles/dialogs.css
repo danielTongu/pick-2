@@ -17,15 +17,6 @@
     animation: fadeIn 0.25s ease;
 }
 
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
 /* ========================================
    DIALOG BASE  (mobile first)
    ======================================== */
@@ -60,6 +51,7 @@
 
 .dialog-panel > header > h1 {
     margin: 0;
+    font-family: var(--display-font);
     font-size: x-large;
     font-weight: 500;
     text-transform: capitalize;
@@ -71,7 +63,6 @@
 }
 
 .dialog-panel > header > p:last-of-type {
-    font-size: small;
 }
 
 .dialog-panel > section {
@@ -100,33 +91,6 @@
 
 .dialog-panel button:hover {
     filter: brightness(130%);
-}
-
-@keyframes slideUp {
-    from {
-        opacity: 0;
-        transform: translateY(20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
-}
-
-/* desktop refinement */
-@media (min-width: 40rem) {
-    .dialog-overlay {
-        font-size: larger;
-    }
-
-    .dialog-panel > header > h1 {
-        font-size: xxx-large;
-    }
-
-    .dialog-panel-large {
-        width: 100%;
-        max-width: 980px;
-    }
 }
 
 /* ========================================
@@ -158,6 +122,7 @@
     border-radius: 50%;
     background: color-mix(in srgb, var(--accent) 18%, transparent);
     color: var(--accent);
+    font-family: var(--display-font);
     font-size: xx-large;
     font-weight: 700;
 }
@@ -182,6 +147,10 @@
     content: "title not provided";
 }
 
+#alert-message {
+    white-space: pre-line;
+}
+
 #alert-message:empty::before {
     content: "message not provided";
 }
@@ -201,32 +170,11 @@
     aspect-ratio: 1;
     line-height: 1;
     margin: 0 auto;
-    font-size: 5em;
+    font-size: xxx-large;
     font-weight: 800;
 
     border-radius: 999px;
     animation: countdown-box-shadow-strobe 1s ease-in-out infinite;
-}
-
-@keyframes countdown-box-shadow-strobe {
-    0%,
-    100% {
-        box-shadow:
-            inset 0 0 0 2px color-mix(in srgb, var(--white) 8%, transparent),
-            0 0 32px var(--accent);
-    }
-
-    50% {
-        box-shadow:
-            inset 0 0 0 2px color-mix(in srgb, var(--white) 24%, transparent),
-            0 0 64px var(--accent);
-    }
-}
-
-@media (prefers-reduced-motion: reduce) {
-    #countdown-value {
-        animation: none;
-    }
 }
 
 #countdown-ok-button {
@@ -296,15 +244,8 @@
 
 #suit-selection-panel label > span {
     display: block;
-    font-size: 67cqmin;        /* scales to the label, not the viewport */
+    font-size: xxx-large;
     line-height: 1;
-}
-
-/* desktop: 4 across */
-@media (min-width: 37rem) {
-    #suit-selection-panel {
-        grid-template-columns: repeat(4, minmax(7rem, 1fr));
-    }
 }
 
 /* ========================================
@@ -323,12 +264,7 @@
 
 #message-output:has(tbody > tr) > #selected-player-items:not(:has(*))::before {
     content: "Select a player to see their items.";
-    font-size: small;
     font-style: italic;
-}
-
-#player-stats-table {
-    font-size: inherit !important;
 }
 
 #player-stats-table tbody tr[data-is-winner="true"] {
@@ -344,4 +280,78 @@
 
 #selected-player-items > * {
     pointer-events: none;
+}
+
+/* ========================================
+   ANIMATIONS
+   ======================================== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes countdown-box-shadow-strobe {
+    0%,
+    100% {
+        box-shadow:
+            inset 0 0 0 2px color-mix(in srgb, var(--white) 8%, transparent),
+            0 0 32px var(--accent);
+    }
+
+    50% {
+        box-shadow:
+            inset 0 0 0 2px color-mix(in srgb, var(--white) 24%, transparent),
+            0 0 64px var(--accent);
+    }
+}
+
+/* ========================================
+   RESPONSIVE
+   ======================================== */
+
+@media (min-width: 37rem) {
+    #suit-selection-panel {
+        grid-template-columns: repeat(4, minmax(7rem, 1fr));
+    }
+}
+
+@media (min-width: 40rem) {
+    .dialog-overlay {
+        font-size: larger;
+    }
+
+    .dialog-panel > header > h1 {
+        font-size: xxx-large;
+    }
+
+    .dialog-panel-large {
+        width: 100%;
+        max-width: 980px;
+    }
+}
+
+/* ========================================
+   REDUCED MOTION
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    #countdown-value {
+        animation: none;
+    }
 }

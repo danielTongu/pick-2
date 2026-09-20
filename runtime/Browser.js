@@ -133,7 +133,7 @@ class BrowserConnection {
         queueMicrotask(this.#notifyOpen.bind(this));
     }
 
-    /** @param {Object} request - Canonical action request. @returns {boolean} Whether queued. */
+    /** @param {Object} request - Canonical command request. @returns {boolean} Whether queued. */
     request(request) {
         if (!this.#isOpen) {
             return false;

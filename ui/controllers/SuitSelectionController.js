@@ -11,7 +11,7 @@ export class SuitSelectionController extends ViewController {
     /** @type {Function|null} Optional application callback registered by the owning page. */
     #submitHandler = null;
 
-    /** @type {HTMLButtonElement} Required action control owned by this controller. */
+    /** @type {HTMLButtonElement} Required command control owned by this controller. */
     #submitButton;
 
     /** @type {number|null} Active timeout or interval identifier. */

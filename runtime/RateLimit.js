@@ -1,6 +1,6 @@
 "use strict";
 
-/** In-memory throttling service used by Host action boundaries. */
+/** In-memory throttling service used by Host command boundaries. */
 
 import { ValidationUtils } from "../core/ValidationUtils.js";
 import { UserNotification } from "../core/UserNotification.js";

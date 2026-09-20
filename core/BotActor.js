@@ -81,16 +81,16 @@ export class BotActor extends Actor {
      * @returns {Promise<void>}
      */
     async _takeTurn(room) {
-        await this.#performTurnAction(room);
+        await this.#performTurnCommand(room);
     }
 
     /**
-     * Executes the current turn action (pass, play, or draw).
+     * Executes the current turn command (pass, play, or draw).
      *
      * @param {import("./Room.js").Room} room - Room instance.
      * @returns {Promise<void>}
      */
-    async #performTurnAction(room) {
+    async #performTurnCommand(room) {
         if (this.drawAllowance <= 0) {
             await room.passTurn(this.name);
         } else {

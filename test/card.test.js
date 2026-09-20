@@ -66,8 +66,8 @@ test("default game configuration exposes three bot player-limit levels", () => {
     assert.equal(Object.isFrozen(Constants.DEFAULT_ROOMS), true);
 });
 
-test("the Game API uses one-word actions", () => {
-    assert.deepEqual(Constants.ACTIONS, {
+test("the Game API uses one-word commands", () => {
+    assert.deepEqual(Constants.COMMANDS, {
         LIST: "list",
         CREATE: "create",
         VIEW: "view",
@@ -81,7 +81,7 @@ test("the Game API uses one-word actions", () => {
         DECLARE: "declare"
     });
     assert.equal(
-        Object.values(Constants.ACTIONS).every((action) => !action.includes("_")),
+        Object.values(Constants.COMMANDS).every((command) => !command.includes("_")),
         true
     );
 });

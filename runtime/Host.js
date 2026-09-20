@@ -64,7 +64,7 @@ class HostConnection {
         Object.freeze(this);
     }
 
-    /** @param {Object} message - Canonical action request. */
+    /** @param {Object} message - Canonical command request. */
     request(message) {
         return this.#request(message);
     }
@@ -96,7 +96,7 @@ export class EmptyRoomStore {
  * orchestration; each Room owns players and round rules.
  */
 export class Host {
-    /** @type {Object} Game contract supplying rooms, actions, mapping, and automation. */
+    /** @type {Object} Game contract supplying rooms, commands, mapping, and automation. */
     #game;
     // -------------------------------------------------------------------------
     // State
@@ -117,7 +117,7 @@ export class Host {
     /** @type {Set<Object>} Connected peers currently subscribed to Home state. */
     #homePeers = new Set();
 
-    /** @type {RateLimit} Shared action throttle across all connected peers and rooms. */
+    /** @type {RateLimit} Shared command throttle across all connected peers and rooms. */
     #rateLimit = new RateLimit();
 
     /** @type {Map<string,string>} Direct-mode owner tab identifiers keyed by custom room. */
@@ -142,7 +142,7 @@ export class Host {
      * Creates a room Host.
      *
      * @param {HostConfig} config - Explicit Host configuration.
-     * @param {Object} game - Room factory, state mapper, actions, and automation.
+     * @param {Object} game - Room factory, state mapper, commands, and automation.
      */
     constructor(config, game) {
         this.#game = game;
@@ -665,7 +665,11 @@ export class Host {
                         client.peer,
                         room,
                         null,
-                        this.#game.stateMapper.toMessage(Constants.STATUS.WARNING, "Moved to viewers", "You were idle.")
+                        this.#game.stateMapper.toMessage(
+                            Constants.STATUS.WARNING,
+                            Constants.NOTIFICATIONS.MOVED_TO_VIEWING.title,
+                            Constants.NOTIFICATIONS.MOVED_TO_VIEWING.message
+                        )
                     );
 
                     this.#scheduleRoomClosureIfEmpty(roomKey);
@@ -827,7 +831,12 @@ export class Host {
             this.#broadcastHomeState(homeState);
 
             for (const client of viewingClients) {
-                this.#publishInvoluntaryHomeState(client.peer, "Room closed", "No players remain.", homeState);
+                this.#publishInvoluntaryHomeState(
+                    client.peer,
+                    Constants.NOTIFICATIONS.ROOM_CLOSED.title,
+                    Constants.NOTIFICATIONS.ROOM_CLOSED.message,
+                    homeState
+                );
             }
         }
     }
@@ -860,11 +869,11 @@ export class Host {
 
         try {
             const parsed = ValidationUtils.object(request, "Request");
-            const action = ValidationUtils.requiredString(parsed.action, "Action");
-            const data = parsed.data === undefined ? {} : ValidationUtils.object(parsed.data, "Action data");
+            const command = ValidationUtils.requiredString(parsed.command, "Command");
+            const data = parsed.data === undefined ? {} : ValidationUtils.object(parsed.data, "Command data");
 
-            this.#rateLimit.enforceConnection(peer, action, 75);
-            await this.#routeAction(peer, action, data);
+            this.#rateLimit.enforceConnection(peer, command, 75);
+            await this.#routeCommand(peer, command, data);
         } catch (error) {
             if (error instanceof UserNotification) {
                 this.#publishError(peer, error.message);
@@ -876,27 +885,27 @@ export class Host {
     }
 
     /**
-     * Routes an action to its handler.
+     * Routes a command to its handler.
      *
      * @param {Object} peer - Connected transport peer.
-     * @param {string} type - Action type.
-     * @param {Object} data - Action data.
+     * @param {string} type - Command type.
+     * @param {Object} data - Command data.
      * @returns {Promise<void>}
      */
-    async #routeAction(peer, action, data) {
+    async #routeCommand(peer, command, data) {
         const handlers = {
-            [Constants.ACTIONS.LIST]: this.#list,
-            [Constants.ACTIONS.CREATE]: this.#create,
-            [Constants.ACTIONS.VIEW]: this.#view,
-            [Constants.ACTIONS.JOIN]: this.#join,
-            [Constants.ACTIONS.LEAVE]: this.#leave,
-            [Constants.ACTIONS.START]: this.#start
+            [Constants.COMMANDS.LIST]: this.#list,
+            [Constants.COMMANDS.CREATE]: this.#create,
+            [Constants.COMMANDS.VIEW]: this.#view,
+            [Constants.COMMANDS.JOIN]: this.#join,
+            [Constants.COMMANDS.LEAVE]: this.#leave,
+            [Constants.COMMANDS.START]: this.#start
         };
 
-        const handler = handlers[action];
+        const handler = handlers[command];
 
         if (typeof handler !== "function") {
-            await this.#handleGameAction(peer, action, data);
+            await this.#handleGameCommand(peer, command, data);
             return;
         }
 
@@ -970,7 +979,7 @@ export class Host {
      * @param {string} message - Error message.
      */
     #publishError(peer, message) {
-        this.#publishNotification(peer, Constants.STATUS.ERROR, "Error", message);
+        this.#publishNotification(peer, Constants.STATUS.ERROR, Constants.NOTIFICATIONS.ERROR_TITLE, message);
     }
 
     /**
@@ -994,7 +1003,8 @@ export class Host {
      * @param {Object} peer - Viewer peer.
      */
     #publishViewerWelcome(peer) {
-        this.#publishNotification(peer, Constants.STATUS.INFO, "Welcome", "Enjoy the show or join in.");
+        const welcome = Constants.NOTIFICATIONS.VIEWER_WELCOME;
+        this.#publishNotification(peer, Constants.STATUS.INFO, welcome.title, welcome.message);
     }
 
     /**
@@ -1004,11 +1014,12 @@ export class Host {
      * @param {string} playerName - Joined player name.
      */
     #publishPlayerWelcome(peer, playerName) {
-        this.#publishNotification(peer, Constants.STATUS.INFO, `Welcome, ${playerName}!`, this.#game.welcomeMessage);
+        const welcome = Constants.NOTIFICATIONS.PLAYER_WELCOME;
+        this.#publishNotification(peer, Constants.STATUS.INFO, `${welcome.title}, ${playerName}!`, this.#game.welcomeMessage);
     }
 
     // -------------------------------------------------------------------------
-    // Client action handlers and their shared requirements
+    // Client command handlers and their shared requirements
     // -------------------------------------------------------------------------
 
     /**
@@ -1030,7 +1041,7 @@ export class Host {
      * Creates, optionally fills, persists, joins, and publishes a custom room.
      *
      * @param {Object} peer - Connected transport peer.
-     * @param {Object} data - Canonical action payload.
+     * @param {Object} data - Canonical command payload.
      * @returns {Promise<void>}
      */
     async #create(peer, data) {
@@ -1040,7 +1051,7 @@ export class Host {
         const roomKey = this.#normalizeRoomKey(roomName);
         const playerLimit = this.#normalizePlayerLimit(data.playerLimit);
 
-        this.#rateLimit.enforcePlayerThrottle(tabId, Constants.ACTIONS.CREATE, 500);
+        this.#rateLimit.enforcePlayerThrottle(tabId, Constants.COMMANDS.CREATE, 500);
 
         if (this.#clientsByTabId.has(tabId)) {
             throw new UserNotification("Leave the current room before creating another room.");
@@ -1083,7 +1094,7 @@ export class Host {
     /**
      * Normalizes a requested actor limit, falling back to the configured maximum.
      *
-     * @param {*} value - Untrusted actor-limit value from an action payload.
+     * @param {*} value - Untrusted actor-limit value from a command payload.
      * @returns {number} Requested integer actor limit or the configured default.
      */
     #normalizePlayerLimit(value) {
@@ -1096,14 +1107,14 @@ export class Host {
      * Registers a peer as a viewer and publishes its authoritative room snapshot.
      *
      * @param {Object} peer - Connected transport peer.
-     * @param {Object} data - Canonical action payload.
+     * @param {Object} data - Canonical command payload.
      * @returns {Promise<void>}
      */
     async #view(peer, data) {
         const { tabId, roomKey, room, existingClient } = this.#requireRoomContext(
             peer,
             data,
-            Constants.ACTIONS.VIEW,
+            Constants.COMMANDS.VIEW,
             300
         );
 
@@ -1126,7 +1137,7 @@ export class Host {
         const { tabId, roomKey, room, existingClient } = this.#requireRoomContext(
             peer,
             data,
-            Constants.ACTIONS.JOIN,
+            Constants.COMMANDS.JOIN,
             500
         );
         const playerName = ValidationUtils.requiredString(data.playerName, "Player name");
@@ -1170,17 +1181,17 @@ export class Host {
      * Resolves the shared context for viewing or joining a room.
      *
      * @param {Object} peer - Connected transport peer.
-     * @param {Object} data - Action payload containing tab and room identity.
-     * @param {string} action - Room action.
+     * @param {Object} data - Command payload containing tab and room identity.
+     * @param {string} command - Room command.
      * @param {number} throttleMs - Player throttle window.
      * @returns {{tabId:string,roomKey:string,room:Room,existingClient:Object|null}} Room context.
      */
-    #requireRoomContext(peer, data, action, throttleMs) {
+    #requireRoomContext(peer, data, command, throttleMs) {
         const tabId = ValidationUtils.requiredString(data.tabId, "tabId");
         const { roomKey, room } = this.#requireDataRoom(data);
         const existingClient = this.#clientsByTabId.get(tabId) ?? null;
 
-        this.#rateLimit.enforcePlayerThrottle(tabId, action, throttleMs);
+        this.#rateLimit.enforcePlayerThrottle(tabId, command, throttleMs);
 
         if (existingClient !== null && existingClient.peer !== peer) {
             throw new UserNotification("Your connection expired. Rejoin the room.");
@@ -1190,9 +1201,9 @@ export class Host {
     }
 
     /**
-     * Normalizes action room identity and resolves the registered room.
+     * Normalizes command room identity and resolves the registered room.
      *
-     * @param {Object} data - Action data.
+     * @param {Object} data - Command data.
      * @returns {{roomKey:string,room:Room}} Room context.
      */
     #requireDataRoom(data) {
@@ -1216,7 +1227,7 @@ export class Host {
 
     /** Removes the authenticated occupant, applies ownership cleanup, and returns Home state. */
     async #leave(peer, data) {
-        const context = this.#requireThrottledClient(peer, data, Constants.ACTIONS.LEAVE, 300);
+        const context = this.#requireThrottledClient(peer, data, Constants.COMMANDS.LEAVE, 300);
         const room = this.#roomsByKey.get(context.client.roomKey) ?? null;
 
         if (room !== null) {
@@ -1242,7 +1253,7 @@ export class Host {
      * Authenticates a tab-scoped client against the requesting transport peer.
      *
      * @param {Object} peer - Connected transport peer.
-     * @param {Object} data - Canonical action payload.
+     * @param {Object} data - Canonical command payload.
      * @returns {{tabId:string, client:Object}} Client context.
      * @throws {UserNotification} When the requested room or authenticated client context is unavailable.
      */
@@ -1258,18 +1269,18 @@ export class Host {
     }
 
     /**
-     * Authenticates a room client and applies its tab-scoped action throttle.
+     * Authenticates a room client and applies its tab-scoped command throttle.
      *
      * @param {Object} peer - Connected transport peer.
-     * @param {Object} data - Action data.
-     * @param {string} action - Client action.
+     * @param {Object} data - Command data.
+     * @param {string} command - Client command.
      * @param {number} throttleMs - Player throttle window.
      * @returns {{tabId:string,client:Object}} Throttled client context.
      */
-    #requireThrottledClient(peer, data, action, throttleMs) {
+    #requireThrottledClient(peer, data, command, throttleMs) {
         const context = this.#requireClient(peer, data);
 
-        this.#rateLimit.enforcePlayerThrottle(context.tabId, action, throttleMs);
+        this.#rateLimit.enforcePlayerThrottle(context.tabId, command, throttleMs);
 
         return context;
     }
@@ -1278,7 +1289,7 @@ export class Host {
      * Resolves an authenticated seated actor and its current room.
      *
      * @param {Object} peer - Connected transport peer.
-     * @param {Object} data - Canonical action payload.
+     * @param {Object} data - Canonical command payload.
      * @returns {{tabId:string, client:Object, roomKey:string, room:Room, playerName:string}} Player room.
      * @throws {UserNotification} When the requested room or authenticated client context is unavailable.
      */
@@ -1309,19 +1320,19 @@ export class Host {
      * Resolves an authenticated actor context and applies actor- and room-scoped throttles.
      *
      * @param {Object} peer - Connected transport peer.
-     * @param {Object} data - Action data.
-     * @param {string} action - Player action.
+     * @param {Object} data - Command data.
+     * @param {string} command - Player command.
      * @param {number} playerThrottleMs - Player throttle window.
      * @param {number|null} [roomThrottleMs=null] - Optional room throttle window.
      * @returns {{tabId:string,client:Object,roomKey:string,room:Room,playerName:string}} Player room.
      */
-    #requireThrottledPlayerRoom(peer, data, action, playerThrottleMs, roomThrottleMs) {
+    #requireThrottledPlayerRoom(peer, data, command, playerThrottleMs, roomThrottleMs) {
         const context = this.#requirePlayerRoom(peer, data);
 
-        this.#rateLimit.enforcePlayerThrottle(context.tabId, action, playerThrottleMs);
+        this.#rateLimit.enforcePlayerThrottle(context.tabId, command, playerThrottleMs);
 
         if (roomThrottleMs !== null) {
-            this.#rateLimit.enforceRoomThrottle(context.roomKey, action, roomThrottleMs);
+            this.#rateLimit.enforceRoomThrottle(context.roomKey, command, roomThrottleMs);
         }
 
         return context;
@@ -1331,24 +1342,24 @@ export class Host {
      * Starts a round for an authenticated actor and advances any opening bot turns.
      *
      * @param {Object} peer - Connected transport peer.
-     * @param {Object} data - Canonical action payload.
+     * @param {Object} data - Canonical command payload.
      * @returns {Promise<void>}
      */
     async #start(peer, data) {
-        const context = this.#requireThrottledPlayerRoom(peer, data, Constants.ACTIONS.START, 1000, 500);
+        const context = this.#requireThrottledPlayerRoom(peer, data, Constants.COMMANDS.START, 1000, 500);
 
         await context.room.startRound();
         await this.#runAutomatedTurn(context.roomKey);
     }
 
     /** Authenticates and throttles game-specific moves before delegating rules. */
-    async #handleGameAction(peer, action, data) {
-        const limits = this.#game.actions[action];
+    async #handleGameCommand(peer, command, data) {
+        const limits = this.#game.commands[command];
         if (limits === undefined) {
-            throw new UserNotification(`Unknown action: ${action}`);
+            throw new UserNotification(`Unknown command: ${command}`);
         }
-        const context = this.#requireThrottledPlayerRoom(peer, data, action, limits.player, limits.room);
-        const notification = await this.#game.act(context.room, context.playerName, action, data);
+        const context = this.#requireThrottledPlayerRoom(peer, data, command, limits.player, limits.room);
+        const notification = await this.#game.execute(context.room, context.playerName, command, data);
         if (notification !== null) {
             this.#publishNotification(peer, notification.status, notification.title, notification.message);
         }

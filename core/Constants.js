@@ -43,6 +43,43 @@ export class Constants {
     /** @type {Readonly<Record<string, string>>} Top-level response fields. */
     static RESPONSE_KEYS = Object.freeze({ VIEW: "view", MESSAGE: "message", DATA: "data" });
 
+    /** Canonical notification headings and messages shown by the game and room interfaces. */
+    static NOTIFICATIONS = Object.freeze({
+        VIEWER_WELCOME: Object.freeze({
+            title: "Welcome to Pick 2!",
+            message: "You’re viewing the room.\nSelect JOIN to take an open seat and enter the game."
+        }),
+        PLAYER_WELCOME: Object.freeze({
+            title: "Welcome",
+            message:
+                "Use + to add cards to your hand at the bottom.\n\n" +
+                "Tap a card or drag it onto the discard pile to play it.\n\n" +
+                "When at least two players are seated, select START to begin the round yourself.\n\n" +
+                "On your turn, match the top card by value or suit.\n\n" +
+                "Use PASS to end your turn and the SORT control to arrange your hand.\n\n" +
+                "Open the ROOM GUIDE anytime for complete rules and special-card help.\n\n" +
+                "Empty your hand first to win.\n\nGood luck!"
+        }),
+        MOVED_TO_VIEWING: Object.freeze({ title: "Moved to viewing", message: "You were idle." }),
+        ROOM_CLOSED: Object.freeze({ title: "Room closed", message: "No players remain." }),
+        INVITE_COPIED: Object.freeze({
+            title: "Invite copied",
+            message: "Paste the room link wherever you want to share it."
+        }),
+        COPY_FAILED: Object.freeze({
+            title: "Copy failed",
+            message: "Copy the address from your browser instead."
+        }),
+        ROOM_NOT_FOUND: Object.freeze({ title: "Room not found", message: "Check the room name and try again." }),
+        ROOM_ALREADY_EXISTS: Object.freeze({
+            title: "Room already exists",
+            message: "Choose another name or join the existing room."
+        }),
+        CARDS_DRAWN_TITLE: "Cards drawn",
+        INVALID_NAME_TITLE: "Invalid name",
+        ERROR_TITLE: "Error"
+    });
+
     /** Ordered display names for Direct bot opponents.*/
     static DIRECT_OPPONENT_NAMES = Object.freeze(["CM", "XC", "VI"]);
 
@@ -74,8 +111,8 @@ export class Constants {
         });
     }
 
-    /** @type {Readonly<Record<string,string>>} Canonical request action names accepted by Host and Game. */
-    static ACTIONS = Object.freeze({
+    /** @type {Readonly<Record<string,string>>} Canonical request command names accepted by Host and Game. */
+    static COMMANDS = Object.freeze({
         LIST: "list",
         CREATE: "create",
         VIEW: "view",

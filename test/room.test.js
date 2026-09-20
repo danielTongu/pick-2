@@ -336,6 +336,32 @@ test("starting a round deals seven cards and selects an ordinary discard", async
     assert.equal(room.collections.draw.items.length, 39);
 });
 
+test("finished hands remain unchanged until a new round starts", async (t) => {
+    const room = await createPlayingSession(t, ["Alice", "Bob"]);
+    const alice = room.turnOrder.get("Alice");
+    const bob = room.turnOrder.get("Bob");
+
+    alice.collection.add(new Card("3", "clubs", 0));
+    bob.collection.addMany([new Card("4", "diamonds", 0), new Card("6", "hearts", 0)]);
+    room.state = Constants.ROOM_STATE.FINISHED;
+
+    const finishedHands = [alice, bob].map((actor) => actor.collection.items.map((card) => card.id));
+
+    assert.deepEqual(await room.drawItems("Alice"), []);
+    assert.deepEqual(
+        [alice, bob].map((actor) => actor.collection.items.map((card) => card.id)),
+        finishedHands
+    );
+
+    await room.startRound();
+
+    assert.equal(room.state, Constants.ROOM_STATE.ACTIVE);
+    assert.equal(alice.collection.size, Constants.INITIAL_ITEM_COUNT);
+    assert.equal(bob.collection.size, Constants.INITIAL_ITEM_COUNT);
+    assert.equal(room.collections.play.size, 1);
+    assert.equal(room.collections.draw.size, 39);
+});
+
 test("only the turn owner can act and passing advances the turn", async (t) => {
     const room = new Room("Turn Game", 2);
     t.after(() => stopIdleMonitoring(room));
@@ -372,6 +398,26 @@ test("drawing consumes allowances and rejects additional draws", async (t) => {
     await assert.rejects(room.drawItems("Missing"), /Actor does not exist/);
 });
 
+test("drawing recycles every discard except the top card exactly once", async (t) => {
+    const room = await createPlayingSession(t, ["Alice", "Bob"]);
+    const alice = room.turnOrder.get("Alice");
+    const existingDrawCard = new Card("2", "clubs", 0);
+    const recycledCards = [new Card("3", "diamonds", 0), new Card("4", "hearts", 0)];
+    const topDiscard = new Card("5", "spades", 0);
+
+    room.collections.draw.items = [existingDrawCard];
+    room.collections.play.items = [...recycledCards, topDiscard];
+    alice.drawAllowance = 3;
+
+    const drawnCards = await room.drawItems("Alice");
+    const drawnIds = drawnCards.map((card) => card.id);
+
+    assert.deepEqual(room.collections.play.items.map((card) => card.id), [topDiscard.id]);
+    assert.equal(room.collections.draw.size, 0);
+    assert.equal(new Set(drawnIds).size, 3);
+    assert.deepEqual(drawnIds.toSorted(), [existingDrawCard, ...recycledCards].map((card) => card.id).toSorted());
+});
+
 test("special discards apply skip, reverse, draw, suit, and room-ending effects", async (t) => {
     const scenarios = [
         { value: Constants.CARD.VALUE.EIGHT.id, expectedPlayer: "Casey", expectedAllowance: 1 },
@@ -403,7 +449,7 @@ test("special discards apply skip, reverse, draw, suit, and room-ending effects"
     await suitSession.playItem("Alice", Constants.CARD.VALUE.ACE.id, Constants.CARD.SUIT.HEARTS);
     assert.equal(suitSession.state, Constants.ROOM_STATE.ACTIVE);
     assert.deepEqual(suitSession.pending, {
-        action: Constants.ACTIONS.DECLARE,
+        command: Constants.COMMANDS.DECLARE,
         actorKey: "alice"
     });
     assert.equal(await suitSession.declareSuit(Constants.CARD.SUIT.CLUBS), true);

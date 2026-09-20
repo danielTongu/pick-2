@@ -162,7 +162,7 @@ export class HomeController extends ViewController {
     /** Requests the room directory after the selected transport opens. */
     /** Requests the Home directory when the endpoint opens. */
     handleClientOpen() {
-        this.client?.request(Constants.ACTIONS.LIST, {});
+        this.client?.request(Constants.COMMANDS.LIST, {});
     }
 
     /** Renders Home data received from the active endpoint. */
@@ -261,7 +261,7 @@ export class HomeController extends ViewController {
         } catch (error) {
             this.handleNotification({
                 status: Constants.STATUS.WARNING,
-                title: "Invalid name",
+                title: Constants.NOTIFICATIONS.INVALID_NAME_TITLE,
                 message: error.message
             });
             return;
@@ -275,8 +275,7 @@ export class HomeController extends ViewController {
         if (registrationMode === "join" && !isGameListed) {
             this.handleNotification({
                 status: Constants.STATUS.WARNING,
-                title: "Room not found",
-                message: `No room named “${roomName}” is available.`
+                ...Constants.NOTIFICATIONS.ROOM_NOT_FOUND
             });
             return;
         }
@@ -284,13 +283,12 @@ export class HomeController extends ViewController {
         if (registrationMode === "create" && isGameListed) {
             this.handleNotification({
                 status: Constants.STATUS.WARNING,
-                title: "Room already exists",
-                message: `Choose another name or join “${roomName}”.`
+                ...Constants.NOTIFICATIONS.ROOM_ALREADY_EXISTS
             });
             return;
         }
 
-        const action = registrationMode === "join" ? Constants.ACTIONS.JOIN : Constants.ACTIONS.CREATE;
+        const command = registrationMode === "join" ? Constants.COMMANDS.JOIN : Constants.COMMANDS.CREATE;
 
         const data = {
             roomName,
@@ -298,7 +296,7 @@ export class HomeController extends ViewController {
             playerLimit: Number(this.#playerLimitInput.value || Constants.ROOM_PLAYER_LIMIT)
         };
 
-        this.#gameHandler?.(action, data);
+        this.#gameHandler?.(command, data);
     }
 
     /** @returns {boolean} Whether the latest directory contains a room name. */
@@ -326,6 +324,6 @@ export class HomeController extends ViewController {
     /** Opens a selected Direct or Hosted room. */
     #openRoom(room) {
         const roomName = ValidationUtils.requiredString(room.name, "Room name");
-        this.#gameHandler?.(Constants.ACTIONS.VIEW, { roomName });
+        this.#gameHandler?.(Constants.COMMANDS.VIEW, { roomName });
     }
 }

@@ -198,9 +198,9 @@ class HomePage {
     }
 
     /** Persists room intent and navigates to the shared Room page. */
-    #enterRoom(action, data) {
+    #enterRoom(command, data) {
         PageState.setMode(this.#mode);
-        PageState.setIntent({ mode: this.#mode, action, data });
+        PageState.setIntent({ mode: this.#mode, command, data });
         const roomUrl = this.#config.roomUrl();
         roomUrl.searchParams.set("mode", this.#mode);
         roomUrl.searchParams.set("room", data.name);
@@ -234,7 +234,7 @@ class RoomPage {
         const roomName = new URLSearchParams(location.search).get("room")?.trim() ?? "";
 
         if (this.#intent === null && roomName) {
-            this.#intent = { mode: this.#mode, action: Constants.ACTIONS.VIEW, data: { roomName } };
+            this.#intent = { mode: this.#mode, command: Constants.COMMANDS.VIEW, data: { roomName } };
         }
 
         if (this.#intent === null || this.#intent.mode !== this.#mode) this.#isValid = false;
@@ -268,10 +268,10 @@ class RoomPage {
 
     /** Converts a successful create intent into the stable joined-room intent. */
     #handleReady(game) {
-        if (this.#intent.action !== Constants.ACTIONS.CREATE) return;
+        if (this.#intent.command !== Constants.COMMANDS.CREATE) return;
         this.#intent = {
             ...this.#intent,
-            action: Constants.ACTIONS.JOIN,
+            command: Constants.COMMANDS.JOIN,
             data: { roomName: game.name, playerName: this.#intent.data.playerName }
         };
         PageState.setIntent(this.#intent);

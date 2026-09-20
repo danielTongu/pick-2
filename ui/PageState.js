@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * Stores page-to-page play mode and Room action intent for one browser tab.
+ * Stores page-to-page play mode and Room command intent for one browser tab.
  */
 export class PageState {
     /** Returns the storage-key namespace shared by both pages. */
@@ -44,7 +44,7 @@ export class PageState {
         globalThis.sessionStorage?.setItem(this.#MODE_KEY, mode === "hosted" ? "hosted" : "direct");
     }
 
-    /** @param {Object} intent - Room action and data envelope. */
+    /** @param {Object} intent - Room command and data envelope. */
     static setIntent(intent) {
         globalThis.sessionStorage?.setItem(this.#INTENT_KEY, JSON.stringify(intent));
     }

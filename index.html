@@ -61,10 +61,10 @@
                     </label>
                 </aside>
             </header>
-            <article id="home-view" aria-labelledby="hero-title">
+            <section id="home-view" aria-labelledby="hero-title">
                 <header class="hero">
-                    <section class="eyebrow">Private rooms · Instant play</section>
-                    <section>
+                    <div class="eyebrow">Private rooms · Instant play</div>
+                    <div>
                         <aside>
                             <h2 id="hero-title"><span>Your room.</span><em>Your rules.</em></h2>
                             <p>Start a private game, invite your circle, and play Pick 2 in a room designed to keep the game moving.</p>
@@ -72,9 +72,9 @@
                         <aside>
                             <span data-game-preview aria-hidden="true"></span>
                         </aside>
-                    </section>
+                    </div>
                 </header>
-                <section id="home-directory">
+                <article id="home-directory">
                     <aside id="registration">
                         <header class="panel-header">
                             <div>
@@ -100,8 +100,8 @@
                             </div>
                             <footer>
                                 <p id="request-mode-label" class="control-label">I want to</p>
-                                <div id="request-actions">
-                                    <div id="request-mode-control" class="toggle-switch" role="radiogroup" aria-labelledby="request-mode-label">
+                                <div id="request-commands">
+                                    <span id="request-mode-control" class="toggle-switch" role="radiogroup" aria-labelledby="request-mode-label">
                                         <label>
                                             <input id="create-mode-input" name="registration-mode" type="radio" value="create" checked />
                                             <span>Create</span>
@@ -110,7 +110,7 @@
                                             <input id="join-mode-input" name="registration-mode" type="radio" value="join" />
                                             <span>Join</span>
                                         </label>
-                                    </div>
+                                    </span>
                                     <button id="enter-button">Enter room</button>
                                 </div>
                             </footer>
@@ -153,9 +153,9 @@
                             </table>
                         </div>
                     </aside>
-                </section>
-            </article>
-            <article id="network-connection-view" data-status="connecting" aria-labelledby="network-connection-title" hidden>
+                </article>
+            </section>
+            <section id="network-connection-view" data-status="connecting" aria-labelledby="network-connection-title" hidden>
                 <header class="network-panel-header">
                     <span class="section-kicker">Hosted mode</span>
                     <h2 id="network-connection-title"></h2>
@@ -173,10 +173,10 @@
                         <span> will resolve the WebSocket endpoint.</span>
                     </p>
                 </form>
-                <section class="network-connection-status" aria-hidden="true">
+                <aside class="network-connection-status" aria-hidden="true">
                     <i id="network-connection-indicator" aria-hidden="true"></i>
-                </section>
-            </article>
+                </aside>
+            </section>
             <aside id="alert-dialog" class="dialog-overlay" data-status="info" aria-labelledby="alert-title" aria-describedby="alert-message" hidden>
                 <div class="dialog-panel">
                     <header>
