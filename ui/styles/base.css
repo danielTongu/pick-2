@@ -42,9 +42,9 @@ body {
     min-height: 100vh;
     margin: 0;
     background: var(
-        --body-background,
-        radial-gradient(circle at 75% 11%, rgba(47, 108, 89, 0.28), transparent 30rem),
-        var(--black)
+            --body-background,
+            radial-gradient(circle at 75% 11%, rgba(47, 108, 89, 0.28), transparent 30rem),
+            var(--black)
     );
     color: var(--ink);
     font-family: var(--body-font);
@@ -89,9 +89,8 @@ button {
     color: var(--button-color, var(--white));
     font-weight: var(--button-weight, 600);
     cursor: pointer;
-    transition:
-        background 0.2s ease,
-        transform var(--button-transform-duration, 0.1s) ease;
+    transition: background 0.2s ease,
+    transform var(--button-transform-duration, 0.1s) ease;
 }
 
 button:active {
@@ -207,56 +206,57 @@ summary > span:first-child {
 }
 
 #app-footer {
-    min-height: 106px;
     display: grid;
-    grid-template-columns: 1fr;
-    align-items: center;
-    gap: 16px;
+    gap: 1rem;
     padding: 5rem 0;
-    border-top: 1px solid var(--line);
     color: var(--gray);
     text-align: center;
-}
-
-#app-footer-brand strong,
-#app-footer-brand p {
-    display: block;
-    margin: 0;
+    text-transform: capitalize;
+    border-top: 1px solid var(--line);
 }
 
 #app-footer-brand strong {
-    margin-bottom: 3px;
-    color: var(--ink);
-    font-size: 14px;
+    display: block;
+    color: #fff;
+}
+
+#app-footer-brand,
+#app-footer-note {
+    display: grid;
+    gap: 0.25rem;
+}
+
+#copyright-year:before {
+    content:"\00A9 " attr(datetime);
 }
 
 #app-footer-navigation {
     display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: max-content;
-    justify-self: center;
-    gap: 16px;
+    gap: 1rem;
 }
 
 #app-footer-navigation a {
-    font-weight: 700;
+    color: var(--light-green);
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
 }
 
-#app-footer-navigation a:hover {
-    text-decoration: underline;
+#app-footer-navigation a:hover,
+#app-footer-navigation a:focus-visible {
+    background: rgba(255, 255, 255, 0.1);
+    outline: none;
 }
 
-#app-footer-note {
-    justify-self: center;
-    text-align: center;
-}
 
-#app-footer-note span {
-    display: block;
-}
+@media (min-width: 768px) {
+    #app-footer {
+        grid-template-columns: 1fr auto 1fr;
+    }
 
-#app-footer-note span + span {
-    margin-top: 4px;
+    #app-footer-navigation {
+        grid-auto-flow: column;
+    }
 }
 
 .visually-hidden {
@@ -282,17 +282,6 @@ summary > span:first-child {
 
     .brand-copy small {
         display: block;
-    }
-
-    #app-footer {
-        grid-template-columns: 1fr auto 1fr;
-        gap: 24px;
-        text-align: start;
-    }
-
-    #app-footer-note {
-        justify-self: end;
-        text-align: right;
     }
 }
 

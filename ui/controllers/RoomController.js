@@ -48,10 +48,7 @@ export class RoomController extends ViewController {
         DomUtils.require("#room-leave-button", HTMLButtonElement).addEventListener("click", this.#leave.bind(this));
         DomUtils.require("#app-home-link", HTMLAnchorElement).addEventListener("click", this.#leave.bind(this));
         DomUtils.require("#room-join-button", HTMLButtonElement).addEventListener("click", this.#join.bind(this));
-        DomUtils.require("#room-invite-button", HTMLButtonElement).addEventListener(
-            "click",
-            this.#handleInvite.bind(this)
-        );
+        DomUtils.require("#room-invite-button", HTMLButtonElement).addEventListener("click", this.#handleInvite.bind(this));
     }
 
     /** Renders the current authoritative state. */
