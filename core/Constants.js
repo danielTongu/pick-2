@@ -51,14 +51,7 @@ export class Constants {
         }),
         PLAYER_WELCOME: Object.freeze({
             title: "Welcome",
-            message:
-                "Use + to add cards to your hand at the bottom.\n\n" +
-                "Tap a card or drag it onto the discard pile to play it.\n\n" +
-                "When at least two players are seated, select START to begin the round yourself.\n\n" +
-                "On your turn, match the top card by value or suit.\n\n" +
-                "Use PASS to end your turn and the SORT control to arrange your hand.\n\n" +
-                "Open the ROOM GUIDE anytime for complete rules and special-card help.\n\n" +
-                "Empty your hand first to win.\n\nGood luck!"
+            message: "You have a seat in the room.\nOpen HOW TO PLAY below for controls and rules.\n\nGood luck!"
         }),
         MOVED_TO_VIEWING: Object.freeze({ title: "Moved to viewing", message: "You were idle." }),
         ROOM_CLOSED: Object.freeze({ title: "Room closed", message: "No players remain." }),
