@@ -2,8 +2,8 @@
 
 ## 1. Purpose and authority
 
-This document defines the observable behavior, architecture, contracts, and maintenance rules for Pick 2. It is written
-for maintainers and contributors: it explains what the software must do and where a policy belongs without describing
+This document defines the observable behavior, architecture, contracts, and maintenance rules for Pick 2.
+It explains what the software must do and where a policy belongs without describing
 every private implementation detail.
 
 The document is normative where it uses **MUST**, **MUST NOT**, **SHOULD**, or **MAY**. When behavior changes, update
@@ -148,267 +148,96 @@ MUST NOT grant authority over another participant or Room.
 
 ### 5.3 End-to-end flows
 
-The sequences below name every class that owns a step. Utility classes are named where they validate, map, persist, or
-render data; the browser and WebSocket APIs are mentioned only at the boundary where a project class calls them.
+Every scenario below uses the same startup, command, and publication paths. Later subsections describe only what differs;
+they do not restate this pipeline.
 
-#### Shared browser and transport startup
+#### Canonical startup and command pipeline
 
-1. `main.js` reads `document.body.dataset.page` and constructs either `HomeView(roomUrl)` or `RoomView(homeUrl)`.
-2. `main.js` calls `View.start()` on that concrete view. `HomeView.start()` and `RoomView.start()` create their own page
-   controllers and bind their page-specific handlers; the base `View` supplies the shared client creation behavior.
-3. `View.createClient(mode)` chooses only the transport. In direct mode it constructs `BrowserRuntime(new Game())` and
-   uses the runtime's `Endpoint`. In hosted mode it constructs `WebSocketEndpoint` with the URL stored by `ViewState`.
-   Both paths then construct the same `Client`, so controllers do not branch on transport type.
-4. `Client.open()` supplies `EndpointEvents` to the selected endpoint. In direct mode `Endpoint` creates a `Connection`,
-   while `BrowserRuntime` has already connected its in-memory `Host` through a `PeerChannel`. In hosted mode
-   `WebSocketEndpoint` creates a `WebSocketConnection`; the server-side `WebSocketGateway` converts the accepted socket
-   to a `PeerChannel` and passes that channel to `Host.accept()`.
-5. `Host.accept()` creates a `PeerSession` in `SessionRegistry`, registers the peer for Home publication, and sends an
-   initial Home snapshot after the Host is ready.
-6. For every later request, `Client.request()` adds the browser tab identifier and the current sort key. `Connection`
-   clones and forwards the request in direct mode; `WebSocketConnection` serializes it and `WebSocketGateway` parses it
-   in hosted mode. Both arrive at the same `Host` peer receiver.
-7. `Host` waits for readiness, `HostRequest.parse()` normalizes the request, `CommandContext` supplies request/session
-   context, `RateLimit` applies connection-level limits, and `CommandRouter` dispatches the command to its `Host`
-   handler.
-8. For every Room response, `StateMapper` converts the authoritative `Room` to recipient-specific data, `PeerSession`
-   publishes it, the selected transport carries it, and `Client` passes it to `RoomController.handleData()`.
-   `RoomController.render()` then updates the page and its child controllers.
+1. `main.js` chooses `HomeView` or `RoomView` from the page, and the view creates its controller and a `Client`.
+2. `View.createClient(mode)` selects the transport. Direct mode uses `BrowserRuntime`, `Endpoint`, and `Connection`;
+   Hosted mode uses `WebSocketEndpoint`, `WebSocketConnection`, and the server-side `WebSocketGateway`. Both connect
+   the same `Client` to a `Host` through a `PeerChannel`.
+3. `Host.accept()` creates a `PeerSession` in `SessionRegistry` and publishes the initial Home snapshot after startup.
+4. `Client.request()` adds the tab identifier and current sort key. The selected transport delivers the request to
+   `Host`, where `HostRequest`, `CommandContext`, `RateLimit`, and `CommandRouter` validate and dispatch it.
+5. The handler authenticates the session and invokes the relevant `Room` or `Game` operation. Room mutations are queued,
+   update activity and monitoring as required, and call `Room.onAnyChange`.
+6. `Host` uses `StateMapper` to create recipient-specific data and publishes it through `PeerSession`. The transport
+   returns it to `Client`, which sends it to the page controller for a complete render.
 
-#### Loading Home and choosing a Room
+Unless a subsection says otherwise, “send,” “publish,” and “render” refer to steps 4–6 of this pipeline.
 
-1. `HomeView.start()` constructs `HomeController` and `NetworkConnectionController`, initializes both, binds navigation
-   and registration handlers, and calls its connection routine.
-2. `HomeView` obtains the preferred mode from `ViewState`. For Direct it immediately asks `View` for a `Client`. For
-   Hosted it first asks `NetworkConnectionController` to discover and verify the endpoint, stores that URL in
-   `ViewState`, and then asks `View` for the Client.
-3. `HomeView` gives the selected Client to `HomeController` and calls `Client.open()` with controller callbacks. Hosted
-   status and data callbacks keep `NetworkConnectionController` visible until Home data arrives; Direct shows Home
-   immediately.
-4. When the endpoint opens, `Client` calls `HomeController.handleClientOpen()`, which requests `list`.
-5. `Host` routes `list`, obtains its registered rooms, and publishes the Home state through `PeerSession`.
-6. `Client` calls `HomeController.handleData()`. `HomeController` stores the advertised capabilities and uses
-   `RoomRowUtils` to render each available Room.
-7. When the user submits the create form, `HomeController` uses `ValidationUtils` to validate and normalize the entered
-   values before invoking the handler registered by `HomeView`.
-8. When the user creates, joins, or views a Room, `HomeView` stores the selected mode and a complete admission intent in
-   `ViewState`, constructs the Room URL, and asks the browser to navigate to it.
+#### Home and Room admission
 
-#### Creating a Room and entering as its first Player
+`HomeView` reads the preferred mode from `ViewState`. Hosted mode first uses `NetworkConnectionController` to discover
+and verify its endpoint. When the client opens, `HomeController` sends `list`, stores the advertised capabilities, and
+renders the directory through `RoomRowUtils`. Before navigating, it validates form input and `HomeView` stores the mode
+and complete `create`, `view`, or `join` admission intent in `ViewState`.
 
-1. `main.js` constructs `RoomView`; its constructor reads the admission intent from `ViewState`. If the URL names a Room
-   but no saved intent exists, `RoomView` creates a view intent for that Room.
-2. `RoomView.start()` constructs and initializes `RoomController`, creates the shared `Client`, and opens it with that
-   controller's `ClientEvents`. It then gives `RoomController` the Client and admission intent and registers ready/Home
-   callbacks. Finally it constructs and initializes `GuideController` and registers page-hide disconnection. Direct
-   endpoint readiness is queued as a microtask, and Hosted readiness is asynchronous, so these bindings complete before
-   `Client` announces open.
-3. The initial unaccompanied Home snapshot sent by `Host.accept()` may reach `RoomController`; `handleData()` ignores it
-   because the Room is neither leaving nor processing a Home-bound notification.
-4. On transport open, `Client` calls `RoomController.handleClientOpen()`. `RoomController` sends the saved `create`
-   request through `Client.request()`.
-5. The request follows the shared transport path to `Host`. `Host` validates and normalizes the Room and Player data,
-   applies admission throttling, and asks the configured `Game` factory to create a `Room`.
-6. `Host` registers the new `Room` and attaches `Room.onAnyChange` and, when configured, `Room.onActorIdle`.
-   `RoomLifecycle` remains available to `Host` for a later empty-Room timer; registration itself does not start one.
-7. `Host` calls `Room.joinActor()`. `Room` creates the human `Actor`, removes the tab from its viewer set if necessary,
-   records actor and room activity, and notifies its change listener.
-8. When `HostOptions.customBots` is configured as `fill`, `Host` fills the remaining configured seats by calling
-   `Room.joinActor()` with automated membership. `Room` constructs each `BotActor` and adds it through the same Room
-   membership operation.
-9. `SessionRegistry` associates the requesting `PeerSession` and tab with the Room and Player. `Host` then publishes the
-   recipient-specific Room state, sends the Player welcome notification, and broadcasts the changed Home directory.
-10. `Client` sends the state to `RoomController.handleData()`. `RoomController` stores the snapshot and calls
-   `RoomController.render()`; `RoomRowUtils` renders Room metadata and participants, while `LocalPlayerController`
-   renders the local hand and available controls.
-11. `RoomController` invokes its ready handler. `RoomView` changes a successful saved `create` intent to `join` and
-    persists it through `ViewState`, so a reconnect requests the existing seat rather than creating the Room again.
+`RoomView` restores that intent, constructs `RoomController` and `GuideController`, and opens the shared client. An
+unaccompanied initial Home snapshot is ignored on the Room page. On open, `RoomController` sends the saved intent:
 
-#### Viewing an existing Room and then joining it
+- `create`: `Host` validates admission, creates and registers the `Room`, attaches change and optional idle callbacks,
+  joins the first human, and fills remaining seats with Bots when its `customBots` policy is `fill`. `SessionRegistry`
+  records membership; the Host sends Room state and a welcome notification and refreshes the Home directory. After
+  success, `RoomView` persists `join` instead of `create` so reconnect cannot recreate the Room.
+- `view`: `Room.view()` adds the tab as a Viewer and updates Room activity only for a new viewer. `SessionRegistry` then
+  records viewer membership and the Host sends viewer-specific state.
+- `join`: `Host` checks lifecycle, capacity, name uniqueness, and session eligibility. `Room.joinActor()` creates the
+  Actor, removes the tab from the viewer set, and updates activity. `SessionRegistry` upgrades the membership before the
+  Host sends Player-specific state and the welcome notification.
 
-1. `RoomView` and `RoomController` repeat the Room-page startup above, but `RoomController.handleClientOpen()` sends
-   `view` with the Room key.
-2. `Host` resolves the Room and session through `CommandContext`, then calls `Room.view()`.
-3. `Room` registers the tab as a Viewer, updates `Room.lastActiveAt` only when it is new, and invokes `onAnyChange` so
-   `Host` refreshes existing Room sessions before admitting the new one.
-4. `SessionRegistry` records the viewer membership. `Host`, `StateMapper`, `PeerSession`, the selected transport,
-   `Client`, and `RoomController` deliver and render the viewer-specific Room snapshot in that order.
-5. When the Viewer submits a Player name, `RoomController` validates the input and sends `join` through `Client`.
-6. `Host` verifies that the Room exists, membership is open, a seat is available, the name is valid and unique, and the
-   session is allowed to join. It then calls `Room.joinActor()`.
-7. `Room` creates the `Actor`, removes the same tab from its viewer set, updates actor and Room activity, and invokes
-   `Room.onAnyChange`; `Host` first refreshes sessions using their membership as it exists at that instant.
-8. `SessionRegistry` then upgrades the requesting session from Viewer to Player. `Host` publishes that session's
-   Player-specific Room state and sends its welcome notification. Home subscribers are not part of the Room-state
-   publication; their directory is refreshed by explicit Home broadcasts such as Room creation or closure.
-9. `Client` gives the state to `RoomController`; `RoomController.render()` now supplies the local actor to
-   `LocalPlayerController`, which replaces viewer controls with the Player's hand and permitted actions.
+Room publications do not implicitly refresh Home subscribers. Room creation and closure explicitly broadcast the Home
+directory.
 
-#### Starting a round and completing an ordinary turn
+#### Round and command lifecycle
 
-1. The start control invokes the handler bound by `RoomController`, which calls `Client.request("start")`.
-2. The request traverses the selected connection, `HostRequest`, `CommandContext`, `RateLimit`, and `CommandRouter` to
-   the start handler on `Host`.
-3. `Host` authenticates that the requester is a seated Player in the Room, then asks `Room.startRound()` to start.
-4. `Room` checks its state and minimum actor count, resets round-only data, shuffles and deals through its game
-   operations, chooses the opening play and turn owner, changes to `active`, records activity, and refreshes idle
-   monitoring.
-5. `Room` invokes `onAnyChange`; `Host` maps and broadcasts a separate authoritative snapshot for every Room session.
-6. Each `Client` passes its snapshot to `RoomController.render()`. `RoomController` renders the Room, discard pile,
-   actors, and local controls through `RoomRowUtils` and `LocalPlayerController`; the waiting-to-active transition also
-   follows the countdown-dialog flow below.
-7. A draw or pass control in `LocalPlayerController`, a dropped hand card handled by `RoomController`, or a returned
-   discard card handled by `RoomController` reaches `RoomController`'s player-command/card-move handler.
-8. `RoomController` calls `Client.request()` with `draw`, `pass`, `discard`, or `return`, clears any temporary client-side
-   sort state for a card move, and immediately rerenders the pending local presentation.
-9. `Host` authenticates and throttles the actor command, then calls `Game.execute()`.
-10. `Game.execute()` selects the corresponding Room operation: `Room.drawItems()`, `Room.passTurn()`,
-    `Room.playItem()`, `Room.returnItem()`, or `Room.declareSuit()`.
-11. `Room` queues the operation, validates state, turn ownership, pending decisions, card ownership, and game rules;
-    mutates cards and actor state; records actor and Room activity; advances the turn when required; refreshes idle
-    monitoring; and invokes `onAnyChange`.
-12. `Host`, `StateMapper`, `PeerSession`, the selected transport, `Client`, and `RoomController` broadcast and render the
-    resulting state in that order.
-13. If the next owner is a Bot, `Host` continues the automated turn. `Game.runAutomatedTurn()` asks `BotActor` to choose
-    and take its action, the same `Room` operations apply it, and the same publication chain repeats until a human input
-    or pending decision is required.
+For `start`, `Host` verifies seated membership and calls `Room.startRound()`. The Room checks its state and minimum actor
+count, resets round data, deals, selects the opening play and turn owner, changes to `active`, and publishes. A local
+Player's `waiting`-to-`active` render triggers the countdown described in [Dialog transitions](#dialog-transitions).
 
-#### Finishing a round and allowing the next transaction
+For `draw`, `pass`, `discard`, `return`, or `declare`, `Game.execute()` selects the corresponding Room operation. The
+Room validates lifecycle, turn and pending-decision ownership, card ownership, and game rules before mutating. If the
+next owner is a Bot, `Host` continues `Game.runAutomatedTurn()` through the same operations and publication pipeline
+until human input or a pending decision is required.
 
-1. When a Room operation detects the round-ending condition, `Room` marks the winning and losing actors, changes its
-   state to `finished`, stops active-turn monitoring, records the mutation, and invokes `onAnyChange`.
-2. `Host`, `StateMapper`, `PeerSession`, the transport, and `Client` deliver the finished snapshot to
-   `RoomController`; `RoomController` renders the finished board before evaluating dialog transitions.
-3. `RoomController` compares its previous state with the new state. A transition into `finished` for a Player invokes
-   `ResultsController.show()` as described below. The Room remains `finished`; neither `Host` nor `RoomController`
-   immediately resets it.
-4. The finished-state controls remain available for a free card transaction. When an actor next requests a game
-   command, the request reaches `Game.execute()` through the normal command path.
-5. `Game.execute()` sees `Room.state === finished` and first awaits `Room.resumeWaiting()`. `Room` changes from
-   `finished` to `waiting`, clears completed-round control metadata (`pending`, declared suit, and turn owner), and
-   preserves actors, hands, deck, and discard pile for the requested free transaction. `Room.resumeWaiting()` invokes
-   `onAnyChange`, so `Host` publishes this waiting snapshot and `RoomController` hides the results dialog.
-6. `Game.execute()` then invokes the requested Room operation. Waiting-state play rules no longer restrict the free
-   transaction. The operation performs a second `onAnyChange` publication through `Host` → `StateMapper` →
-   `PeerSession` → transport → `Client` → `RoomController`, now containing the transaction result.
-7. If no actor sends a command, step 5 never runs, so the Room state and final result data stay `finished`.
+When a round ends, the Room records winners and losers, changes to `finished`, stops turn monitoring, and publishes. It
+remains finished until the next authenticated game command. `Game.execute()` then calls `Room.resumeWaiting()`, which
+clears completed-round control metadata while preserving players and collections, publishes the waiting state, and
+applies the requested free transaction. With no later command, the final state remains observable.
 
-#### Dialog display and dismissal flows
+#### Dialog transitions
 
-##### Alert dialog
+All dialogs inherit display and dismissal behavior from `ViewController`; their controllers own content and cleanup.
 
-1. `Host` produces a user notification for a rejected request, warning, welcome, idle action, or Room closure and sends
-   it through `PeerSession`; client-side validation and invite-copy outcomes may instead originate in `HomeController` or
-   `RoomController` without a Host round trip.
-2. For a notification-only response, `Client` calls `HomeController.handleNotification()` or
-   `RoomController.handleNotification()`. For a combined Home-state and notification response, `Client` passes both to
-   `RoomController.handleData()` so navigation and the notice remain one transition.
-3. The receiving controller calls `NotificationUtils.normalize()` and passes the normalized notification to its own
-   `AlertController`.
-4. `AlertController.show()` writes the status, icon, title, and message into `#alert-dialog`, then uses inherited
-   `ViewController.show()` behavior to display it.
-5. `AlertController` has already used `ViewController.bindDismissButton()` to bind `#alert-ok-button`; clicking it calls
-   the inherited hide behavior and closes the dialog.
-6. If `RoomController` receives an admission failure or Room-closure notification before it has a usable Room snapshot,
-   it invokes the Home callback instead of displaying the alert in place. `RoomView` stores the notice with `ViewState`,
-   clears the Room intent, disconnects the `Client`, and navigates Home. `HomeView` takes the saved notice from
-   `ViewState`, passes it to `HomeController`, and `HomeController` follows steps 3–5 to display the alert there.
-
-##### Round countdown dialog
-
-1. After every Room snapshot, `RoomController.render()` compares its stored previous state with the incoming state.
-2. Only a local Player transition from `waiting` to `active` calls `CountdownController.show()`; a Viewer does not see
-   it, and a direct `finished`-to-`active` transition does not satisfy this condition.
-3. `CountdownController.show()` normalizes the configured countdown duration, cancels any older timer, renders the
-   remaining value, uses `ViewController.show()` to display the dialog, and starts its interval.
-4. `CountdownController` rerenders once per second. At zero it calls `hide()`, which stops the interval and uses the
-   inherited hide behavior. Its bound OK button can invoke the same `hide()` path early.
-
-##### Suit-selection dialog
-
-1. `Room.playItem()` recognizes a suit-changing card and stores a pending `declare` decision with its owning actor,
-   leaving the Room `active`.
-2. `Room.onAnyChange`, `Host`, and `StateMapper` include that pending decision in each permitted snapshot; the normal
-   publication chain delivers it to `RoomController`.
-3. `RoomController.render()` shows `SuitSelectionController` only when the pending command is `declare` and the local
-   Player owns that decision. Every other snapshot causes it to call `SuitSelectionController.hide()`.
-4. `SuitSelectionController.show()` renders and displays the dialog through `ViewController`. A temporary-dismiss
-   control hides it and schedules it to reappear after the configured countdown period while the decision remains local.
-5. On submission, `SuitSelectionController` reads the checked suit, hides itself, and invokes the handler registered by
-   `RoomController`.
-6. `RoomController` sends `declare` through `Client`; `Host` authenticates it, `Game.execute()` calls
-   `Room.declareSuit()`, and `Room` verifies the pending owner, applies the suit, clears `Room.pending`, and publishes.
-7. The next snapshot reaches `RoomController.render()` with no pending declaration, so it keeps
-   `SuitSelectionController` hidden. `SuitSelectionController.hide()` also clears any scheduled redisplay timer.
-
-##### Results dialog
-
-1. The finished snapshot reaches `RoomController.render()` through the finish flow above.
-2. If a local Player exists, the previous state was not `finished`, and the new state is `finished`, `RoomController`
-   calls `ResultsController.show(room)` exactly once for that transition. Viewers do not satisfy the local-Player check.
-3. `ResultsController` orders actors with the local Player first, derives the win/loss message and statistics, renders
-   the actor rows, and invokes inherited `ViewController.show()` to display the dialog.
-4. Selecting an actor row by pointer or keyboard asks `ResultsController` to render that actor's cards in the results
-   detail area.
-5. `ViewController.bindDismissButton()` connects the results-dismiss control to `ResultsController.hide()`.
-   `ResultsController.hide()` clears its actor list, statistics, and cards before invoking the inherited hide behavior.
-6. Another snapshot that is still `finished` does not reopen the dialog because `RoomController` has already recorded
-   `finished` as its previous state. A later actor command changes the Room to `waiting` as described above, and
-   `RoomController.render()` keeps the results dialog hidden for the non-finished state.
+| Dialog | Opens when | Closes or updates when |
+| --- | --- | --- |
+| Alert | A controller receives a normalized server or client notification. | Its dismiss button hides it. Admission failures and Room-closure notices are saved in `ViewState`, carried Home, and displayed there. |
+| Countdown | A local Player renders a `waiting`-to-`active` transition. | Its timer reaches zero or the Player dismisses it. Viewers and other transitions do not open it. |
+| Suit selection | The local Player owns a pending `declare` decision. | Submission sends `declare`; any snapshot without that local pending decision hides it. Temporary dismissal schedules redisplay while it remains pending. |
+| Results | A local Player first renders a transition into `finished`. | Dismissal clears its rendered details. Later finished snapshots do not reopen it; a non-finished snapshot keeps it hidden. |
 
 #### Idle Player and empty-Room cleanup
 
-1. Each `Room` mutation calls its idle-monitor refresh. `Room` selects only the eligible human Player defined by the
-   activity policy and arms that Actor's idle timer; state or turn-owner changes transfer or cancel monitoring.
-2. When the timer expires, `Room` invokes `Room.onActorIdle`. `Host` installed that callback when it registered the Room,
-   so `Host` identifies the Player session and asks the Room to move the Player to viewing state.
-3. `Room` updates membership and Room activity, refreshes monitoring, and invokes `onAnyChange`. `Host` publishes the new
-   snapshot and sends the affected client an idle warning through `PeerSession`.
-4. `Client` routes the snapshot to `RoomController.render()` and the warning to `RoomController.handleNotification()`;
-   the latter displays it through `NotificationUtils` and `AlertController`.
-5. If no Players remain, `Host` asks `RoomLifecycle` to retain the empty Room for its grace interval and schedule an
-   empty-Room check.
-6. If a Player joins before that check, `Host` cancels the Room's timer in `RoomLifecycle`, so the Room remains
-   registered.
-7. If the timer expires, `RoomLifecycle` invokes the callback registered by `Host`. `Host` checks the Room again and,
-   only if it is still empty, detaches the Room callbacks, unregisters and removes the Room, broadcasts the changed Home
-   directory, and sends affected Room sessions Home state plus a `Room closed` notification.
-8. `Client` passes that response to `RoomController`; `RoomController` invokes its Home callback, and `RoomView` stores
-   the warning in `ViewState`, disconnects, and navigates Home. `HomeView`, `HomeController`, and `AlertController` then
-   display the warning by the alert flow above.
+The monitored human Players are defined in [Who is monitored](#63-who-is-monitored). When an idle timer expires, `Host`
+moves that Player to viewing state, publishes the Room, and sends the affected client a warning. If no Players remain,
+`RoomLifecycle` schedules an empty-Room check for the grace interval; a later join cancels it.
 
-#### Leaving and returning Home
+When the check expires, `Host` verifies that the Room is still empty, detaches its callbacks, unregisters it, refreshes
+the Home directory, and sends affected Room sessions a single response containing Home state and a `Room closed`
+notification. `RoomView` saves the warning, disconnects, and returns Home, where the alert flow displays it.
 
-1. A Player or Viewer activates the leave control bound by `RoomController`.
-2. `RoomController` requests `leave` through `Client` and invokes the Home callback; `RoomView` clears the saved intent,
-   disconnects the client, and navigates Home.
-3. Independently, the request follows the normal transport and routing chain to `Host`. `Host` resolves the session and
-   calls the appropriate Room departure operation.
-4. `Room` removes the Viewer or Player, recycles a departing Player's hand when applicable, updates Room activity,
-   refreshes idle monitoring, and invokes `onAnyChange`.
-5. `SessionRegistry` removes the Room membership. `Host` continues an eligible Bot turn or applies empty-Room cleanup,
-   then publishes the updated Room to remaining Room sessions. It broadcasts Home state if cleanup closes the Room.
-6. A transport closure follows the server half of the same flow: `Connection` or `WebSocketGateway` informs `Host`, and
-   `Host` removes that peer's membership through `SessionRegistry` and `Room` before applying Bot/cleanup behavior.
-7. On the new page, `main.js`, `HomeView`, `Client`, and `HomeController` execute the Home-loading flow and render the
-   current directory.
+#### Departure and hosted reconnect
 
-#### Hosted reconnect
+On `leave`, `RoomController` clears the admission intent, disconnects, and navigates Home while the canonical pipeline
+removes the Viewer or Player. `Room` recycles a departing Player's hand when applicable and refreshes activity and idle
+monitoring; `SessionRegistry` removes membership; `Host` applies Bot continuation or empty-Room cleanup and publishes to
+remaining sessions. A transport closure performs the same server-side membership cleanup.
 
-1. `WebSocketConnection` detects closure, reports connection status through `EndpointEvents`, and schedules its bounded
-   reconnect attempts. `Client` forwards status to `NetworkConnectionController`, which updates the connection display
-   without changing authoritative Room state.
-2. When a new socket opens, `WebSocketGateway` creates a new `PeerChannel` and calls `Host.accept()`; `Host` creates the
-   replacement `PeerSession`.
-3. `WebSocketConnection` reports open to `Client`, and `Client` again calls `RoomController.handleClientOpen()` (or
-   `HomeController.handleClientOpen()` on Home).
-4. `HomeController` requests a fresh `list`. `RoomController` resends its saved admission intent; after an initial create,
-   `RoomView` has persisted that intent as `join`, and `RoomController` also avoids repeating `create` on a later open.
-5. `Client` reuses the tab identifier kept for the browser tab. `Host` and `SessionRegistry` use it to replace stale peer
-   ownership and restore the permitted Room membership rather than trusting the browser's old snapshot.
-6. `Host`, `StateMapper`, and `PeerSession` publish fresh authoritative state through the new connection. `Client` passes
-   it to the page controller, which completely rerenders from that snapshot; normal command handling resumes only over
-   the re-established endpoint.
+On a Hosted connection loss, `WebSocketConnection` reports status and performs bounded reconnect attempts without
+changing authoritative Room state. A new socket produces a replacement `PeerSession`; the controller sends `list` or
+its saved admission intent again using the same tab identifier. `Host` and `SessionRegistry` replace stale peer ownership
+and publish a fresh authoritative snapshot, which the controller renders completely before normal handling resumes.
 
 ### 5.4 Room states
 

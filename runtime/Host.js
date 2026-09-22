@@ -13,20 +13,6 @@ import { RateLimit } from "./RateLimit.js";
 import { RoomLifecycle } from "./RoomLifecycle.js";
 import { HostPeer, PeerSession, RoomSession, SessionRegistry } from "./Session.js";
 
-
-/** Immutable lifecycle and capability configuration for one Host. */
-export class HostOptions {
-    /** @param {{mode:string, customBots:string|number, trackIdle:boolean}} values - Explicit Host policies. */
-    constructor(values) {
-        this.mode = values.mode;
-        this.customBots = values.customBots;
-        this.trackIdle = values.trackIdle;
-        Object.freeze(this);
-    }
-}
-
-
-
 /**
  * Transport-neutral host for the selected game.
  *
@@ -64,16 +50,14 @@ export class Host {
     /**
      * Creates a room Host.
      *
-     * @param {HostOptions} config - Explicit Host policies.
+     * @param {string} mode - Runtime mode.
+     * @param {string|number} customBots - Custom-Room bot policy.
+     * @param {boolean} trackIdle - Whether to monitor idle Players.
      * @param {import("../core/Game.js").Game} game - Room factory, state mapper, commands, and automation.
      */
-    constructor(config, game) {
+    constructor(mode, customBots, trackIdle, game) {
         this.#game = game;
-        if (!(config instanceof HostOptions)) {
-            throw new Error("Host requires a HostOptions instance.");
-        }
-
-        this.#profile = Host.#normalizeProfile(config);
+        this.#profile = Host.#normalizeProfile(mode, customBots, trackIdle);
         this.#commandRouter = new CommandRouter(
             {
                 [Constants.COMMANDS.LIST]: this.#list,
@@ -88,9 +72,9 @@ export class Host {
         this.#ready = this.#initializeRooms();
     }
 
-    /** @returns {Object} Normalized Host profile. */
-    static #normalizeProfile(config) {
-        const mode = config.mode === "direct" ? "direct" : "hosted";
+    /** @param {string} mode - Runtime mode. @param {string|number} customBots - Bot policy. @param {boolean} trackIdle - Idle policy. @returns {Object} Normalized Host profile. */
+    static #normalizeProfile(mode, customBots, trackIdle) {
+        mode = mode === "direct" ? "direct" : "hosted";
 
         return Object.freeze({
             mode,
@@ -99,11 +83,11 @@ export class Host {
                 join: true,
                 view: true,
                 invite: mode === "hosted",
-                botFill: config.customBots === "fill",
+                botFill: customBots === "fill",
                 restart: true
             }),
-            customBots: config.customBots === "fill" ? "fill" : 0,
-            trackIdle: config.trackIdle === true
+            customBots: customBots === "fill" ? "fill" : 0,
+            trackIdle: trackIdle === true
         });
     }
 

@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import WebSocket, { WebSocketServer } from "ws";
 
-import { Host, HostOptions } from "./Host.js";
+import { Host } from "./Host.js";
 import { PeerChannel } from "./Transport.js";
 
 /** Node-only HTTP and WebSocket boundary around the shared Host. */
@@ -33,7 +33,7 @@ export class WebSocketGateway {
      */
     constructor(port, game) {
         const resolvedPort = WebSocketGateway.#resolvePort(port);
-        this.#host = new Host(new HostOptions({ mode: "hosted", customBots: 0, trackIdle: true }), game);
+        this.#host = new Host("hosted", 0, true, game);
         this.#httpServer = http.createServer(WebSocketGateway.#createApp());
         this.#webSocketServer = new WebSocketServer({ server: this.#httpServer });
         this.#webSocketServer.on("connection", this.#connect.bind(this));

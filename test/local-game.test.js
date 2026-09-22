@@ -8,7 +8,7 @@ import test from "node:test";
 import { Constants } from "../core/Constants.js";
 import { Client } from "../runtime/Client.js";
 import { ClientEvents } from "../runtime/Client.js";
-import { Host, HostOptions } from "../runtime/Host.js";
+import { Host } from "../runtime/Host.js";
 import { PeerChannel } from "../runtime/Transport.js";
 
 function createPeer(host, tabId = "test-tab") {
@@ -39,14 +39,7 @@ function latestGame(responses) {
 
 for (const mode of ["direct", "hosted"]) {
     test(`${mode} returns use authenticated membership and broadcast the updated hand`, async (t) => {
-        const host = new Host(
-            new HostOptions({
-                mode,
-                customBots: 0,
-                trackIdle: false
-            }),
-            new Game()
-        );
+        const host = new Host(mode, 0, false, new Game());
         t.after(() => host.shutdown());
         const owner = createPeer(host, "owner");
         const viewer = createPeer(host, "viewer");
@@ -93,14 +86,7 @@ function readJavaScriptSources(directory) {
 }
 
 test("Host seeds configured bot players and leaves every remaining seat open", async () => {
-    const host = new Host(
-        new HostOptions({
-            mode: "direct",
-            customBots: 0,
-            trackIdle: false
-        }),
-        new Game()
-    );
+    const host = new Host("direct", 0, false, new Game());
     const peer = createPeer(host);
     const home = (await peer.request(Constants.COMMANDS.LIST)).findLast(
         (response) => response.view === Constants.VIEWS.HOME
@@ -125,10 +111,7 @@ test("Host seeds configured bot players and leaves every remaining seat open", a
 });
 
 test("a custom local game fills its open seats with bots immediately", async () => {
-    const host = new Host(
-        new HostOptions({ mode: "direct", customBots: "fill", trackIdle: false }),
-        new Game()
-    );
+    const host = new Host("direct", "fill", false, new Game());
     const peer = createPeer(host);
     const responses = await peer.request(Constants.COMMANDS.CREATE, {
         roomName: "Local Game",
@@ -148,14 +131,7 @@ test("a custom local game fills its open seats with bots immediately", async () 
 });
 
 test("the shared Host rejects every join while a room is playing", async () => {
-    const host = new Host(
-        new HostOptions({
-            mode: "hosted",
-            customBots: 0,
-            trackIdle: false
-        }),
-        new Game()
-    );
+    const host = new Host("hosted", 0, false, new Game());
     const owner = createPeer(host, "owner");
     const guest = createPeer(host, "guest");
     const lateGuest = createPeer(host, "late");
@@ -183,14 +159,7 @@ test("the shared Host rejects every join while a room is playing", async () => {
 });
 
 test("a player can leave a hosted room while it is playing", async () => {
-    const host = new Host(
-        new HostOptions({
-            mode: "hosted",
-            customBots: 0,
-            trackIdle: false
-        }),
-        new Game()
-    );
+    const host = new Host("hosted", 0, false, new Game());
     const owner = createPeer(host, "owner");
     const guest = createPeer(host, "guest");
 
@@ -219,10 +188,7 @@ test("a player can leave a hosted room while it is playing", async () => {
 });
 
 test("Host retains a custom room in memory after its creator leaves", async () => {
-    const host = new Host(
-        new HostOptions({ mode: "direct", customBots: "fill", trackIdle: false }),
-        new Game()
-    );
+    const host = new Host("direct", "fill", false, new Game());
     const peer = createPeer(host, "owner");
 
     await peer.request(Constants.COMMANDS.CREATE, {
