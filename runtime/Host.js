@@ -91,7 +91,7 @@ export class Host {
         });
     }
 
-    /** Stops idle monitoring when the active profile does not use it. */
+    /** @param {Room} room - Room whose Players should no longer be monitored. */
     static #stopIdleMonitoring(room) {
         for (const player of room.actors.values()) {
             player.stopIdleMonitoring();
@@ -145,7 +145,13 @@ export class Host {
         }
     }
 
-    /** Adds a fixed number of bot players through the shared Room admission API. */
+    /**
+     * Adds a fixed number of bot players through the shared Room admission API.
+     *
+     * @param {Room} room - Room receiving the Bots.
+     * @param {number} count - Maximum number of Bots to add.
+     * @param {string|null} humanName - Human name that Bot names must not duplicate.
+     */
     async #addBotActors(room, count, humanName) {
         let index = 0;
 
@@ -193,7 +199,12 @@ export class Host {
         return room;
     }
 
-    /** Broadcasts authoritative room state and enforces the active idle profile. */
+    /**
+     * Broadcasts authoritative room state and enforces the active idle profile.
+     *
+     * @param {string} roomKey - Normalized room lookup key.
+     * @param {Room} room - Room that changed.
+     */
     #handleRoomChange(roomKey, room) {
         this.#broadcastRoomState(roomKey);
 
@@ -202,7 +213,12 @@ export class Host {
         }
     }
 
-    /** Moves an idle actor to viewing state through the serialized Host lifecycle. */
+    /**
+     * Moves an idle actor to viewing state through the serialized Host lifecycle.
+     *
+     * @param {string} roomKey - Normalized room lookup key.
+     * @param {string} actorName - Idle Actor name.
+     */
     #handlePlayerIdle(roomKey, actorName) {
         void this.#moveIdlePlayerToView(roomKey, actorName);
     }
@@ -356,7 +372,7 @@ export class Host {
         this.#publishViewState(peer, Constants.VIEWS.HOME, homeState);
     }
 
-    /** Builds and publishes the latest Home directory snapshot to one peer. */
+    /** @param {PeerSession} peer - Peer receiving the latest Home directory snapshot. */
     #publishCurrentHomeState(peer) {
         this.#publishHomeState(peer, this.#createHomeState());
     }
@@ -562,7 +578,7 @@ export class Host {
         }
     }
 
-    /** Completes a scheduled closure only if the room remains empty. */
+    /** @param {string} roomKey - Normalized key of the Room scheduled for closure. */
     #closeRoomAfterIdle(roomKey) {
         this.#closeRoomIfNoPlayersRemain(roomKey);
     }
@@ -642,7 +658,12 @@ export class Host {
     // Request routing
     // -------------------------------------------------------------------------
 
-    /** Processes one request from a connected peer. */
+    /**
+     * Processes one request from a connected peer.
+     *
+     * @param {PeerSession} peer - Peer that sent the request.
+     * @param {Object|string|null} rawRequest - Untrusted request payload.
+     */
     async #receive(peer, rawRequest) {
         await this.#ready;
 
@@ -1075,7 +1096,7 @@ export class Host {
         await this.#continueAutomatedTurn(context.roomKey);
     }
 
-    /** Advances automated play while the selected game has an automated move. */
+    /** @param {string} roomKey - Normalized key of the Room advancing automated play. */
     async #runAutomatedTurn(roomKey) {
         const room = this.#roomsByKey.get(roomKey) ?? null;
         if (room !== null && (await this.#game.runAutomatedTurn(room))) {

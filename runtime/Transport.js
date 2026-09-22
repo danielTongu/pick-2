@@ -158,7 +158,8 @@ export class Connection {
         }
     }
 
-    /** @param {number} [_code] - Optional transport close code. @param {string} [_reason] - Optional close reason. */
+    /** @param {number} [_code] - Optional transport close code.
+     *  @param {string} [_reason] - Optional close reason. */
     close(_code, _reason) {
         if (!this.isOpen) return;
         this.isOpen = false;

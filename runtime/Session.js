@@ -89,7 +89,7 @@ export class RoomSession {
         return this.playerName !== null;
     }
 
-    /** @returns {boolean} Whether this session belongs to the supplied room. */
+    /** @param {string} roomKey - Normalized Room key to compare. @returns {boolean} Whether this session belongs to the supplied Room. */
     belongsTo(roomKey) {
         return this.roomKey === roomKey;
     }
