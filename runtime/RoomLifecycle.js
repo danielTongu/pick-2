@@ -3,15 +3,24 @@
 /** Owns deferred room-lifecycle work and its timer resources. */
 export class RoomLifecycle {
 
-    /** @type {Map<string, number|NodeJS.Timeout>} Pending timers keyed by normalized room identity. */
+    /**
+     * @type {Map<string, number|NodeJS.Timeout>} Pending timers keyed by normalized room identity.
+     */
     #timers = new Map();
 
-    /** @param {string} roomKey - Normalized room key. @returns {boolean} Whether lifecycle work is pending. */
+    /**
+     * @param {string} roomKey - Normalized room key.
+     * @returns {boolean} Whether lifecycle work is pending.
+     */
     hasPending(roomKey) {
         return this.#timers.has(roomKey);
     }
 
-    /** @param {string} roomKey - Normalized room key. @param {number} delayMs - Delay in milliseconds. @param {function(string): void} callback - Deferred room callback. */
+    /**
+     * @param {string} roomKey - Normalized room key.
+     * @param {number} delayMs - Delay in milliseconds.
+     * @param {function(string): void} callback - Deferred room callback.
+     */
     schedule(roomKey, delayMs, callback) {
         this.cancel(roomKey);
         const timeoutId = globalThis.setTimeout(this.#run.bind(this, roomKey, callback), delayMs);
@@ -19,7 +28,9 @@ export class RoomLifecycle {
         this.#timers.set(roomKey, timeoutId);
     }
 
-    /** @param {string} roomKey - Normalized room key. */
+    /**
+     * @param {string} roomKey - Normalized room key.
+     */
     cancel(roomKey) {
         const timeoutId = this.#timers.get(roomKey);
         if (timeoutId !== undefined) {
@@ -34,7 +45,10 @@ export class RoomLifecycle {
         this.#timers.clear();
     }
 
-    /** @param {string} roomKey - Normalized room key. @param {function(string): void} callback - Deferred callback. */
+    /**
+     * @param {string} roomKey - Normalized room key.
+     * @param {function(string): void} callback - Deferred callback.
+     */
     #run(roomKey, callback) {
         this.#timers.delete(roomKey);
         callback(roomKey);

@@ -9,7 +9,9 @@ import { UserNotification } from "../core/UserNotification.js";
  * Lightweight in-memory request throttle.
  */
 export class RateLimit {
-    /** @type {Map<string, number>} Most recent accepted request timestamp for each scoped key. */
+    /**
+     * @type {Map<string, number>} Most recent accepted request timestamp for each scoped key.
+     */
     #lastRequestAtByKey = new Map();
 
     /**

@@ -4,24 +4,42 @@ import { Constants } from "../../core/Constants.js";
 
 /** Creates the shared opponent actor view. */
 export class OpponentUtils extends TemplateUtils {
-    /** @type {HTMLTemplateElement|null} Lazily loaded and validated component template. */
+    /**
+     * @type {HTMLTemplateElement|null} Lazily loaded and validated component template.
+     */
     static template = null;
 
-    /** @type {string} Template path resolved relative to the owning module. */
+    /**
+     * @type {string} Template path resolved relative to the owning module.
+     */
     static templateFile = "opponent.html";
 
-    /** @type {string} Required template element identifier. */
+    /**
+     * @type {string} Required template element identifier.
+     */
     static templateId = "opponent-template";
 
-    /** @type {string} Module URL used as the template-resolution base. */
+    /**
+     * @type {string} Module URL used as the template-resolution base.
+     */
     static componentUrl = import.meta.url;
 
-    /** Creates and initializes the element. */
+    /**
+     * Creates and initializes an opponent element.
+     * @param {Object} actor - Opponent actor snapshot.
+     * @param {string|null} turnOwnerKey - Current turn owner key.
+     * @param {string} pieceName - Name for the actor's items.
+     * @returns {HTMLElement} Opponent element.
+     */
     static create(actor, turnOwnerKey, pieceName) {
         return super.create({ ...actor, turnOwnerKey, pieceName });
     }
 
-    /** Applies actor identity, state, turn ownership, and hidden item count to an opponent element. */
+    /**
+     * Applies actor identity, state, turn ownership, and hidden item count to an opponent element.
+     * @param {HTMLElement} element - Opponent element.
+     * @param {Object} actor - Opponent actor snapshot.
+     */
     static updateElement(element, actor) {
         super.updateElement(element, actor);
         const count = Number(actor.itemCount);

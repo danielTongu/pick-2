@@ -10,22 +10,37 @@ import { ValidationUtils } from "../core/ValidationUtils.js";
  * Controllers own destination selection, game legality, and requests to the room host.
  */
 export class PlayingCard extends HTMLElement {
-    /** @type {HTMLElement|null} Destination that enables card interaction. */
+    /**
+     * @type {HTMLElement|null} Destination that enables card interaction.
+     */
     #destination = null;
 
-    /** @type {string} Registered custom-element tag name. */
+    /**
+     * @type {string} Registered custom-element tag name.
+     */
     static elementName = "playing-card";
 
-    /** @type {string[]} Attributes that trigger accessibility synchronization. */
+    /**
+     * @type {string[]} Attributes that trigger accessibility synchronization.
+     */
     static observedAttributes = ["data-is-face-up", "data-value", "data-suit"];
 
-    /** @type {PlayingCard|null} Sole card currently owning document-level drag state. */
+    /**
+     * @type {PlayingCard|null} Sole card currently owning document-level drag state.
+     */
     static #activeCard = null;
 
-    /** @type {number} Pointer travel required before a press becomes a drag. */
+    /**
+     * @type {number} Pointer travel required before a press becomes a drag.
+     */
     static #dragThreshold = 6;
 
-    /** Creates and initializes a playing card. */
+    /**
+     * Creates and initializes a playing card.
+     * @param {Card|Object} card - Card data to display.
+     * @param {HTMLElement|null} destination - Optional interaction target.
+     * @returns {PlayingCard} Created element.
+     */
     static create(card, destination = null) {
         const element = document.createElement(this.elementName);
 
@@ -38,37 +53,58 @@ export class PlayingCard extends HTMLElement {
         return element;
     }
 
-    /** @type {HTMLElement|null} Pointer and keyboard interaction surface. */
+    /**
+     * @type {HTMLElement|null} Pointer and keyboard interaction surface.
+     */
     #dragHandle = null;
 
-    /** @type {boolean} Whether internal card markup has been created. */
+    /**
+     * @type {boolean} Whether internal card markup has been created.
+     */
     #isInitialized = false;
 
-    /** @type {boolean} Whether element and document listeners are currently attached. */
+    /**
+     * @type {boolean} Whether element and document listeners are currently attached.
+     */
     #areEventsBound = false;
 
-    /** @type {number|null} Timeout that clears post-drag click suppression. */
+    /**
+     * @type {number|null} Timeout that clears post-drag click suppression.
+     */
     #dragResetTimeoutId = null;
 
-    /** @type {Function} Stable bound click listener. */
+    /**
+     * @type {Function} Stable bound click listener.
+     */
     #onClick;
 
-    /** @type {Function} Stable bound keyboard listener. */
+    /**
+     * @type {Function} Stable bound keyboard listener.
+     */
     #onKeyDown;
 
-    /** @type {Function} Stable bound pointer-start listener. */
+    /**
+     * @type {Function} Stable bound pointer-start listener.
+     */
     #onPointerDown;
 
-    /** @type {Function} Stable bound pointer-move listener. */
+    /**
+     * @type {Function} Stable bound pointer-move listener.
+     */
     #onPointerMove;
 
-    /** @type {Function} Stable bound pointer-release listener. */
+    /**
+     * @type {Function} Stable bound pointer-release listener.
+     */
     #onPointerUp;
 
-    /** @type {Function} Stable bound pointer-cancellation listener. */
+    /**
+     * @type {Function} Stable bound pointer-cancellation listener.
+     */
     #onPointerCancel;
 
-    /** @type {{
+    /**
+     * @type {{
      *     clone:HTMLElement|null,
      *     pointerId:number|null,
      *     startX:number,
@@ -99,12 +135,16 @@ export class PlayingCard extends HTMLElement {
         this.#onPointerCancel = this.#handlePointerCancel.bind(this);
     }
 
-    /** @returns {HTMLElement|null} Interaction destination. */
+    /**
+     * @returns {HTMLElement|null} Interaction destination.
+     */
     get destination() {
         return this.#destination;
     }
 
-    /** @param {HTMLElement|null} value - Interaction destination. */
+    /**
+     * @param {HTMLElement|null} value - Interaction destination.
+     */
     set destination(value) {
         if (value !== null && !(value instanceof HTMLElement)) {
             throw new Error("PlayingCard destination must be an element.");
@@ -113,7 +153,9 @@ export class PlayingCard extends HTMLElement {
         this.#destination = value;
     }
 
-    /** @returns {boolean} Whether this card accepts player interaction. */
+    /**
+     * @returns {boolean} Whether this card accepts player interaction.
+     */
     get isInteractive() {
         return this.destination !== null;
     }
@@ -145,7 +187,12 @@ export class PlayingCard extends HTMLElement {
         this.#resetDrag(false);
     }
 
-    /** Keeps attribute-driven state, interaction, and accessibility synchronized. */
+    /**
+     * Keeps attribute-driven state, interaction, and accessibility synchronized.
+     * @param {string} name - Changed attribute name.
+     * @param {string|null} oldValue - Previous attribute value.
+     * @param {string|null} newValue - Current attribute value.
+     */
     attributeChangedCallback(name, oldValue, newValue) {
         if (oldValue === newValue) {
             return;
@@ -154,33 +201,45 @@ export class PlayingCard extends HTMLElement {
         this.#updateAccessibility();
     }
 
-    /** @returns {string} Card value, or an empty string for a suit-only card. */
+    /**
+     * @returns {string} Card value, or an empty string for a suit-only card.
+     */
     get value() {
         return this.dataset.value ?? "";
     }
 
-    /** @returns {string} Card suit. */
+    /**
+     * @returns {string} Card suit.
+     */
     get suit() {
         return this.dataset.suit ?? "";
     }
 
-    /** @returns {number|null} Derived rank, or null for a suit-only card. */
+    /**
+     * @returns {number|null} Derived rank, or null for a suit-only card.
+     */
     get rank() {
         return this.value ? Constants.getCardValue(this.value).rank : null;
     }
 
-    /** @returns {number|null} Supplied game score (natural rank by default), or null for a suit-only card. */
+    /**
+     * @returns {number|null} Supplied game score (natural rank by default), or null for a suit-only card.
+     */
     get score() {
         return this.value ? Number(this.dataset.score ?? this.rank) : null;
     }
 
-    /** @returns {number|null} Explicit rotation in degrees, or null to use CSS. */
+    /**
+     * @returns {number|null} Explicit rotation in degrees, or null to use CSS.
+     */
     get rotation() {
         const rotation = this.style.getPropertyValue("--card-rotation");
         return rotation ? Number.parseFloat(rotation) : null;
     }
 
-    /** @param {number|null|undefined} rotation - Finite degrees, or null/undefined to use CSS. */
+    /**
+     * @param {number|null|undefined} rotation - Finite degrees, or null/undefined to use CSS.
+     */
     set rotation(rotation) {
         if (rotation === undefined || rotation === null) {
             this.style.removeProperty("--card-rotation");
@@ -190,17 +249,23 @@ export class PlayingCard extends HTMLElement {
         }
     }
 
-    /** @returns {boolean} Whether a drag is currently active. */
+    /**
+     * @returns {boolean} Whether a drag is currently active.
+     */
     get isDragging() {
         return this.#dragState.clone !== null;
     }
 
-    /** @returns {boolean} Whether the card face is visible. */
+    /**
+     * @returns {boolean} Whether the card face is visible.
+     */
     get isFaceUp() {
         return this.dataset.isFaceUp !== "false";
     }
 
-    /** @param {boolean} isFaceUp - Whether the card face is visible. */
+    /**
+     * @param {boolean} isFaceUp - Whether the card face is visible.
+     */
     set isFaceUp(isFaceUp) {
         this.dataset.isFaceUp = String(ValidationUtils.boolean(isFaceUp, "PlayingCard.isFaceUp"));
     }

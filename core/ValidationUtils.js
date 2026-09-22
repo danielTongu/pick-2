@@ -9,10 +9,14 @@ export class ValidationUtils {
     /** Names must contain words separated only by spaces, apostrophes, or hyphens. */
     static namePattern = /^[\p{L}\p{N}]+(?:[ '\u2019-][\p{L}\p{N}]+)*$/u;
 
-    /** @type {number} Maximum accepted actor display-name length. */
+    /**
+     * @type {number} Maximum accepted actor display-name length.
+     */
     static actorNameMaxLength = 24;
 
-    /** @type {number} Maximum accepted room display-name length. */
+    /**
+     * @type {number} Maximum accepted room display-name length.
+     */
     static roomNameMaxLength = 48;
 
     /**

@@ -25,12 +25,26 @@ export class Game {
         });
     }
 
-    /** Creates a game-specific room through the configured Room type. */
+    /**
+
+     * Creates a game-specific room through the configured Room type.
+     * @param {string} name - Room name.
+     * @param {number} actorLimit - Maximum seated actors.
+     * @returns {Room} New game Room.
+     */
     createRoom(name, actorLimit) {
         return new Room(name, actorLimit);
     }
 
-    /** Dispatches one authenticated game command to Room and returns an optional draw notification. */
+    /**
+
+     * Dispatches one authenticated game command to Room and returns an optional draw notification.
+     * @param {Room} room - Target Room.
+     * @param {string} playerName - Authenticated Player name.
+     * @param {string} command - Canonical game command.
+     * @param {Object} data - Command payload.
+     * @returns {Promise<Object|null>} Draw notification, if any.
+     */
     async execute(room, playerName, command, data) {
         let drawn = [];
         let mocked = true;
@@ -73,7 +87,12 @@ export class Game {
         };
     }
 
-    /** Runs the current automated owner after its configured human-like delay. */
+    /**
+
+     * Runs the current automated owner after its configured human-like delay.
+     * @param {Room} room - Room whose Bot may own the turn.
+     * @returns {Promise<boolean>} Whether a Bot acted.
+     */
     async runAutomatedTurn(room) {
         const turnOwner = room.turnOrder.owner;
         if (!(turnOwner instanceof BotActor) || room.state !== Constants.ROOM_STATE.ACTIVE) return false;

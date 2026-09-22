@@ -7,10 +7,14 @@ import { DomUtils } from "../utilities/DomUtils.js";
  */
 export class ViewController {
 
-    /** @type {HTMLElement} Required UI element owned by this controller. */
+    /**
+     * @type {HTMLElement} Required UI element owned by this controller.
+     */
     root;
 
-    /** @type {import("../../runtime/Client.js").Client|null} Client assigned by the owning page lifecycle. */
+    /**
+     * @type {import("../../runtime/Client.js").Client|null} Client assigned by the owning page lifecycle.
+     */
     client;
 
     /**

@@ -7,32 +7,49 @@ import { ViewController } from "./ViewController.js";
 
 /** Performs one bounded WebSocket availability probe and settles exactly once. */
 class NetworkProbe {
-    /** @type {string} Candidate WebSocket URL under test. */
+    /**
+     * @type {string} Candidate WebSocket URL under test.
+     */
     #networkUrl;
 
-    /** @type {WebSocket|null} Probe socket closed when the check settles. */
+    /**
+     * @type {WebSocket|null} Probe socket closed when the check settles.
+     */
     #socket = null;
 
-    /** @type {number|null} Availability timeout identifier. */
+    /**
+     * @type {number|null} Availability timeout identifier.
+     */
     #timer = null;
 
-    /** @type {Function|null} Promise resolver retained until the probe settles. */
+    /**
+     * @type {Function|null} Promise resolver retained until the probe settles.
+     */
     #resolve = null;
 
-    /** @type {boolean} Guards the probe against duplicate event completion. */
+    /**
+     * @type {boolean} Guards the probe against duplicate event completion.
+     */
     #isSettled = false;
 
-    /** @param {string} networkUrl - WebSocket URL to probe. */
+    /**
+     * @param {string} networkUrl - WebSocket URL to probe.
+     */
     constructor(networkUrl) {
         this.#networkUrl = networkUrl;
     }
 
-    /** @returns {Promise<boolean>} Whether the endpoint accepted a connection. */
+    /**
+     * @returns {Promise<boolean>} Whether the endpoint accepted a connection.
+     */
     check() {
         return new Promise(this.#start.bind(this));
     }
 
-    /** Starts the timeout and attempts to construct the probe socket. */
+    /**
+     * Starts the timeout and attempts to construct the probe socket.
+     * @param {function(boolean): void} resolve - Probe promise resolver.
+     */
     #start(resolve) {
         this.#resolve = resolve;
         this.#timer = globalThis.setTimeout(this.#handleTimeout.bind(this), Constants.NETWORK_CONNECTION_TIMEOUT_MS);
@@ -61,7 +78,10 @@ class NetworkProbe {
         this.#finish(false);
     }
 
-    /** Clears probe resources and resolves the availability result exactly once. */
+    /**
+     * Clears probe resources and resolves the availability result exactly once.
+     * @param {boolean} isAvailable - Whether the socket opened.
+     */
     #finish(isAvailable) {
         if (this.#isSettled) {
             return;
@@ -81,34 +101,54 @@ class NetworkProbe {
 
 /** Controls the embedded Network-mode connection view. */
 export class NetworkConnectionController extends ViewController {
-    /** @type {HTMLElement} Required UI element owned by this controller. */
+    /**
+     * @type {HTMLElement} Required UI element owned by this controller.
+     */
     #connectionStatus;
 
-    /** @type {HTMLElement} Required UI element owned by this controller. */
+    /**
+     * @type {HTMLElement} Required UI element owned by this controller.
+     */
     #messageOutput;
 
-    /** @type {HTMLInputElement} Required user-input control owned by this controller. */
+    /**
+     * @type {HTMLInputElement} Required user-input control owned by this controller.
+     */
     #originInput;
 
-    /** @type {HTMLButtonElement} Required command control owned by this controller. */
+    /**
+     * @type {HTMLButtonElement} Required command control owned by this controller.
+     */
     #connectButton;
 
-    /** @type {HTMLFormElement} Required form used to submit this controller’s workflow. */
+    /**
+     * @type {HTMLFormElement} Required form used to submit this controller’s workflow.
+     */
     #form;
 
-    /** @type {string|null} Optional normalized URL or selected identity. */
+    /**
+     * @type {string|null} Optional normalized URL or selected identity.
+     */
     #configuredUrl = null;
 
-    /** @type {string|null} Optional normalized URL or selected identity. */
+    /**
+     * @type {string|null} Optional normalized URL or selected identity.
+     */
     #currentHostUrl = null;
 
-    /** @type {string} Current normalized display or configuration value. */
+    /**
+     * @type {string} Current normalized display or configuration value.
+     */
     #configurationError = "";
 
-    /** @type {Function|null} Optional application callback registered by the owning page. */
+    /**
+     * @type {Function|null} Optional application callback registered by the owning page.
+     */
     #connectedHandler = null;
 
-    /** @type {number} Mutable counter used by this controller’s current workflow. */
+    /**
+     * @type {number} Mutable counter used by this controller’s current workflow.
+     */
     #attempt = 0;
 
     /** Resolves the hosted-connection view, form controls, and status output. */
@@ -126,7 +166,10 @@ export class NetworkConnectionController extends ViewController {
         this.#form.addEventListener("submit", this.#handleSubmit.bind(this));
     }
 
-    /** Connects to the address entered by the user. */
+    /**
+     * Connects to the address entered by the user.
+     * @param {SubmitEvent} event - Connection form submission.
+     */
     #handleSubmit(event) {
         event.preventDefault();
         const origin = this.#originInput.value.trim();
@@ -143,19 +186,22 @@ export class NetworkConnectionController extends ViewController {
         }
     }
 
-    /** @param {Function} handler - Verified-host callback. */
-    /** @param {Function} handler - Callback invoked after a successful probe. */
+    /**
+     * @param {Function} handler - Callback invoked after a successful probe.
+     */
     setConnectedHandler(handler) {
         this.#connectedHandler = handler;
     }
 
-    /** Cancels the active connection attempt. */
     /** Cancels the connection view and returns control to Home. */
     cancel() {
         this.#attempt += 1;
     }
 
-    /** @param {string|null} preferredUrl - Optional single host to retry. @returns {Promise<boolean>} Whether a host is available. */
+    /**
+     * @param {string|null} preferredUrl - Optional single host to retry.
+     * @returns {Promise<boolean>} Whether a host is available.
+     */
     async connect(preferredUrl) {
         const attempt = ++this.#attempt;
         this.#resolveHosts();
@@ -188,7 +234,9 @@ export class NetworkConnectionController extends ViewController {
         return false;
     }
 
-    /** @param {string} networkUrl - WebSocket URL to check. */
+    /**
+     * @param {string} networkUrl - WebSocket URL to check.
+     */
     static #check(networkUrl) {
         return new NetworkProbe(networkUrl).check();
     }
@@ -215,13 +263,12 @@ export class NetworkConnectionController extends ViewController {
     }
 
     /**
-     * Renders one connection state.
+     * Renders connection status and diagnostic text.
      *
      * @param {"connecting"|"reconnecting"|"connected"|"disconnected"|"error"|"unconfigured"} status - State to render.
      * @param {string} origin - Configured server address.
      * @param {string} detail - Optional error detail.
      */
-    /** Renders connection status and diagnostic text. @param {string} status @param {string} origin @param {string} detail */
     render(status, origin, detail) {
         const statusLabel = {
             connecting: "connecting",

@@ -50,7 +50,13 @@ export class CardSortUtils {
         return compare;
     }
 
-    /** Orders by natural rank, then suit for deterministic ties. */
+    /**
+
+     * Orders by natural rank, then suit for deterministic ties.
+     * @param {Object} left - First card.
+     * @param {Object} right - Second card.
+     * @returns {number} Comparator result.
+     */
     static #compareRank(left, right) {
         return (
             CardSortUtils.#rank(left) - CardSortUtils.#rank(right) ||
@@ -58,12 +64,24 @@ export class CardSortUtils {
         );
     }
 
-    /** Orders by Pick 2 score, preserving stable order for ties. */
+    /**
+
+     * Orders by Pick 2 score, preserving stable order for ties.
+     * @param {Object} left - First card.
+     * @param {Object} right - Second card.
+     * @returns {number} Comparator result.
+     */
     static #compareScore(left, right) {
         return CardSortUtils.#calculateCardScore(left) - CardSortUtils.#calculateCardScore(right);
     }
 
-    /** Orders lexically by suit, then by natural rank. */
+    /**
+
+     * Orders lexically by suit, then by natural rank.
+     * @param {Object} left - First card.
+     * @param {Object} right - Second card.
+     * @returns {number} Comparator result.
+     */
     static #compareSuit(left, right) {
         return (
             String(left.suit).localeCompare(String(right.suit)) ||
@@ -71,7 +89,13 @@ export class CardSortUtils {
         );
     }
 
-    /** Orders by natural value rank, then suit for deterministic ties. */
+    /**
+
+     * Orders by natural value rank, then suit for deterministic ties.
+     * @param {Object} left - First card.
+     * @param {Object} right - Second card.
+     * @returns {number} Comparator result.
+     */
     static #compareValue(left, right) {
         return (
             CardSortUtils.#rank(left) - CardSortUtils.#rank(right) ||

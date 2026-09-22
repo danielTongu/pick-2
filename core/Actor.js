@@ -7,13 +7,19 @@ import { CardCollection } from "./CardCollection.js";
 
 /** Owns one seated actor’s identity, hand, round state, activity, and idle timer. */
 export class Actor extends Serializable {
-    /** @type {Function|null} Callback invoked with this actor after its idle window expires. */
+    /**
+     * @type {Function|null} Callback invoked with this actor after its idle window expires.
+     */
     #idleHandler = null;
 
-    /** @type {*|null} Active idle timeout identifier. */
+    /**
+     * @type {*|null} Active idle timeout identifier.
+     */
     #idleTimeoutId = null;
 
-    /** @type {Object|null} Game-owned fields restored for each round. */
+    /**
+     * @type {Object|null} Game-owned fields restored for each round.
+     */
     #initialState = null;
 
     /**

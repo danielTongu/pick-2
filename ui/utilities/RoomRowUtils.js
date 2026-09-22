@@ -6,19 +6,29 @@ import { TemplateUtils } from "./TemplateUtils.js";
 
 /** Creates a shared room metadata row. */
 export class RoomRowUtils extends TemplateUtils {
-    /** @type {HTMLTemplateElement|null} Lazily loaded and validated component template. */
+    /**
+     * @type {HTMLTemplateElement|null} Lazily loaded and validated component template.
+     */
     static template = null;
 
-    /** @type {string} Template path resolved relative to the owning module. */
+    /**
+     * @type {string} Template path resolved relative to the owning module.
+     */
     static templateFile = "room-row.html";
 
-    /** @type {string} Required template element identifier. */
+    /**
+     * @type {string} Required template element identifier.
+     */
     static templateId = "room-row-template";
 
-    /** @type {string} Module URL used as the template-resolution base. */
+    /**
+     * @type {string} Module URL used as the template-resolution base.
+     */
     static componentUrl = import.meta.url;
 
-    /** @type {boolean} Whether cloned roots must satisfy the declared contract. */
+    /**
+     * @type {boolean} Whether cloned roots must satisfy the declared contract.
+     */
     static isTemplateRootValidationEnabled = false;
 
     /**
@@ -43,12 +53,22 @@ export class RoomRowUtils extends TemplateUtils {
         RoomRowUtils.#setCell(element, "[data-created-at]", "createdAt", data.createdAt);
     }
 
-    /** Sets a table-cell dataset value. */
+    /**
+     * Sets a table-cell dataset value.
+     * @param {HTMLTableRowElement} row - Room row.
+     * @param {string} selector - Cell selector.
+     * @param {string} name - Dataset key.
+     * @param {string} value - Cell value.
+     */
     static #setCell(row, selector, name, value) {
         DomUtils.requireChild(row, selector, HTMLTableCellElement).dataset[name] = value;
     }
 
-    /** Normalizes room row data. */
+    /**
+     * Normalizes room row data.
+     * @param {Object} room - Room snapshot.
+     * @returns {Object} Display-ready row data.
+     */
     static #normalizeRoom(room) {
         const source = ValidationUtils.object(room, "Room");
 
@@ -65,13 +85,22 @@ export class RoomRowUtils extends TemplateUtils {
         };
     }
 
-    /** Returns readable text for an optional room value. */
+    /**
+     * Returns readable text for an optional room value.
+     * @param {*} value - Optional room value.
+     * @returns {string} Display text.
+     */
     static #displayText(value) {
         const text = ValidationUtils.optionalString(value === null || value === undefined ? "" : String(value), "");
         return text || "--";
     }
 
-    /** Returns a count or a placeholder when the value is absent. */
+    /**
+     * Returns a count or a placeholder when the value is absent.
+     * @param {number|null|undefined} value - Optional count.
+     * @param {string} label - Validation label.
+     * @returns {string} Display count.
+     */
     static #displayCount(value, label) {
         return value === null || value === undefined ? "--" : String(ValidationUtils.nonNegativeNumber(value, label));
     }

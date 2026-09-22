@@ -4,17 +4,26 @@ import { HomeView, RoomView } from "./ui/View.js";
 import { Constants } from "./core/Constants.js";
 
 
-/** Reports an application-level failure without replacing user-facing notifications. */
+/**
+ * Reports an application-level failure without replacing user-facing notifications.
+ * @param {*} error - Application failure.
+ */
 function reportError(error) {
     console.error("Application error:", error);
 }
 
-/** Reports uncaught browser errors through the shared application logger. */
+/**
+ * Reports uncaught browser errors through the shared application logger.
+ * @param {ErrorEvent} event - Browser error event.
+ */
 function handleWindowError(event) {
     reportError(event.error ?? event.message);
 }
 
-/** Reports unhandled promise rejections through the shared application logger. */
+/**
+ * Reports unhandled promise rejections through the shared application logger.
+ * @param {PromiseRejectionEvent} event - Rejection event.
+ */
 function handleUnhandledRejection(event) {
     reportError(event.reason);
 }

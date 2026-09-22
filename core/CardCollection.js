@@ -7,7 +7,11 @@ import { Card } from "./Card.js";
 
 /** Stores normalized cards for a deck, hand, or play pile. */
 export class CardCollection extends Serializable {
-    /** Creates the canonical 54-card Pick 2 deck in deterministic or shuffled order. */
+    /**
+     * Creates the canonical 54-card Pick 2 deck in deterministic or shuffled order.
+     * @param {boolean} [isShuffled] - Whether to randomize the deck.
+     * @returns {CardCollection} New deck.
+     */
     static createDeck(isShuffled = true) {
         ValidationUtils.boolean(isShuffled, "Deck shuffle flag");
         const cards = [];
@@ -25,7 +29,11 @@ export class CardCollection extends Serializable {
         return isShuffled ? deck.shuffle() : deck;
     }
 
-    /** Creates card storage and normalizes every initial card. */
+    /**
+
+     * Creates card storage and normalizes every initial card.
+     * @param {Array<Card|Object>} [cards] - Initial cards.
+     */
     constructor(cards = []) {
         super();
         ValidationUtils.array(cards, "CardCollection cards");
@@ -33,26 +41,40 @@ export class CardCollection extends Serializable {
         this.addMany(cards);
     }
 
-    /** @returns {number} Number of cards currently held. */
+    /**
+     * @returns {number} Number of cards currently held.
+     */
     get size() {
         return this.items.length;
     }
 
-    /** @returns {number} Sum of finite item scores. */
+    /**
+     * @returns {number} Sum of finite item scores.
+     */
     get score() {
         return this.items.reduce(function totalScore(total, item) {
             return total + (Number.isFinite(item.score) ? item.score : 0);
         }, 0);
     }
 
-    /** Appends one normalized item and returns it. */
+    /**
+
+     * Appends one normalized item and returns it.
+     * @param {Card|Object} item - Card to append.
+     * @returns {Card} Stored card.
+     */
     add(item) {
         const value = Card.from(item);
         this.items.push(value);
         return value;
     }
 
-    /** Appends normalized items in supplied order. */
+    /**
+
+     * Appends normalized items in supplied order.
+     * @param {Array<Card|Object>} items - Cards to append.
+     * @returns {Card[]} Stored cards.
+     */
     addMany(items) {
         ValidationUtils.array(items, "CardCollection cards");
         const added = [];
@@ -62,14 +84,24 @@ export class CardCollection extends Serializable {
         return added;
     }
 
-    /** Prepends one normalized item and returns it. */
+    /**
+
+     * Prepends one normalized item and returns it.
+     * @param {Card|Object} item - Card to prepend.
+     * @returns {Card} Stored card.
+     */
     addFirst(item) {
         const value = Card.from(item);
         this.items.unshift(value);
         return value;
     }
 
-    /** Prepends normalized items while preserving supplied order. */
+    /**
+
+     * Prepends normalized items while preserving supplied order.
+     * @param {Array<Card|Object>} items - Cards to prepend.
+     * @returns {Card[]} Stored cards.
+     */
     addManyFirst(items) {
         ValidationUtils.array(items, "CardCollection cards");
         const added = [];
@@ -84,7 +116,12 @@ export class CardCollection extends Serializable {
         return this.items.pop() ?? null;
     }
 
-    /** Removes up to the requested number of items from the end. */
+    /**
+
+     * Removes up to the requested number of items from the end.
+     * @param {number} count - Maximum cards to remove.
+     * @returns {Card[]} Removed cards.
+     */
     takeMany(count) {
         ValidationUtils.nonNegativeInteger(count, "Take count");
         const taken = [];
@@ -99,12 +136,22 @@ export class CardCollection extends Serializable {
         return this.items[this.items.length - 1] ?? null;
     }
 
-    /** Returns whether the collection contains an item identity. */
+    /**
+
+     * Returns whether the collection contains an item identity.
+     * @param {Card|Object|string} item - Card identity to find.
+     * @returns {boolean} Whether it is present.
+     */
     has(item) {
         return this.#findIndex(item) >= 0;
     }
 
-    /** Removes the matching item identity, or returns null when absent. */
+    /**
+
+     * Removes the matching item identity, or returns null when absent.
+     * @param {Card|Object|string} item - Card identity to remove.
+     * @returns {Card|null} Removed card.
+     */
     remove(item) {
         const index = this.#findIndex(item);
         return index < 0 ? null : this.items.splice(index, 1)[0];
@@ -117,7 +164,12 @@ export class CardCollection extends Serializable {
         return removed;
     }
 
-    /** Sorts this collection in place and returns it. */
+    /**
+
+     * Sorts this collection in place and returns it.
+     * @param {function(Card, Card): number} compare - Card comparator.
+     * @returns {CardCollection} This collection.
+     */
     sort(compare) {
         if (typeof compare !== "function") {
             throw new Error("Sort compare must be a function.");
@@ -159,7 +211,12 @@ export class CardCollection extends Serializable {
         };
     }
 
-    /** Returns the index of a card with the same canonical identity, or -1 when absent. */
+    /**
+
+     * Returns the index of a card with the same canonical identity, or -1 when absent.
+     * @param {Card|Object|string} item - Card identity to find.
+     * @returns {number} Matching index or -1.
+     */
     #findIndex(item) {
         const target = typeof item === "string" ? item : Card.from(item).id;
         return this.items.findIndex(function matches(entry) {

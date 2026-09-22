@@ -24,21 +24,31 @@ export class EndpointEvents {
 
 /** Default in-process endpoint connecting Client to a browser-owned Host. */
 export class Endpoint {
-    /** @type {import("./Host.js").Host|null} In-process authoritative Host. */
+    /**
+     * @type {import("./Host.js").Host|null} In-process authoritative Host.
+     */
     host;
 
-    /** @param {import("./Host.js").Host|null} [host=null] - In-process authoritative Host. */
+    /**
+     * @param {import("./Host.js").Host|null} [host=null] - In-process authoritative Host.
+     */
     constructor(host = null) {
         this.host = host;
     }
 
-    /** @param {EndpointEvents} events - Client lifecycle callbacks. @returns {Connection} Open connection. */
+    /**
+     * @param {EndpointEvents} events - Client lifecycle callbacks.
+     * @returns {Connection} Open connection.
+     */
     open(events) {
         if (!(events instanceof EndpointEvents)) throw new Error("Endpoint.open requires EndpointEvents.");
         return this.createConnection(events);
     }
 
-    /** @param {EndpointEvents} events - Client lifecycle callbacks. @returns {Connection} Direct connection. */
+    /**
+     * @param {EndpointEvents} events - Client lifecycle callbacks.
+     * @returns {Connection} Direct connection.
+     */
     createConnection(events) {
         return new Connection(this.host, events);
     }
@@ -67,10 +77,14 @@ export class PeerChannel {
 
 /** Browser-only WebSocket endpoint. */
 export class WebSocketEndpoint extends Endpoint {
-    /** @type {string} Validated WebSocket endpoint URL. */
+    /**
+     * @type {string} Validated WebSocket endpoint URL.
+     */
     #url;
 
-    /** @param {string} url - WebSocket endpoint URL. */
+    /**
+     * @param {string} url - WebSocket endpoint URL.
+     */
     constructor(url) {
         super();
         this.#url = ValidationUtils.requiredString(url, "WebSocket URL");
@@ -91,16 +105,24 @@ export class WebSocketEndpoint extends Endpoint {
 
 /** Default in-process Client connection. */
 export class Connection {
-    /** @type {import("./Host.js").Host|null} In-process authoritative Host. */
+    /**
+     * @type {import("./Host.js").Host|null} In-process authoritative Host.
+     */
     host;
 
-    /** @type {EndpointEvents} Client lifecycle callbacks. */
+    /**
+     * @type {EndpointEvents} Client lifecycle callbacks.
+     */
     events;
 
-    /** @type {boolean} Whether the connection accepts requests and responses. */
+    /**
+     * @type {boolean} Whether the connection accepts requests and responses.
+     */
     isOpen;
 
-    /** @type {import("./Session.js").HostPeer|null} Direct Host peer. */
+    /**
+     * @type {import("./Session.js").HostPeer|null} Direct Host peer.
+     */
     peer;
 
     /**
@@ -127,39 +149,52 @@ export class Connection {
         }
     }
 
-    /** @returns {PeerChannel} Host publication channel used by this connection. */
+    /**
+     * @returns {PeerChannel} Host publication channel used by this connection.
+     */
     createChannel() {
         return new PeerChannel(this.receive.bind(this), this.close.bind(this));
     }
 
-    /** @param {Object} request - Canonical command request. @returns {boolean} Whether queued. */
+    /**
+     * @param {Object} request - Canonical command request.
+     * @returns {boolean} Whether queued.
+     */
     request(request) {
         if (!this.isOpen) return false;
         queueMicrotask(this.deliver.bind(this, structuredClone(request)));
         return true;
     }
 
-    /** @param {Object} request - Cloned command request. */
+    /**
+     * @param {Object} request - Cloned command request.
+     */
     deliver(request) {
         if (this.isOpen) {
             void this.peer?.receive(request);
         }
     }
 
-    /** @param {Object} response - Canonical Host response. */
+    /**
+     * @param {Object} response - Canonical Host response.
+     */
     receive(response) {
         if (this.isOpen) queueMicrotask(this.deliverResponse.bind(this, structuredClone(response)));
     }
 
-    /** @param {Object} response - Cloned Host response. */
+    /**
+     * @param {Object} response - Cloned Host response.
+     */
     deliverResponse(response) {
         if (this.isOpen) {
             this.events.receive?.(response);
         }
     }
 
-    /** @param {number} [_code] - Optional transport close code.
-     *  @param {string} [_reason] - Optional close reason. */
+    /**
+     * @param {number} [_code] - Optional transport close code.
+     * @param {string} [_reason] - Optional close reason.
+     */
     close(_code, _reason) {
         if (!this.isOpen) return;
         this.isOpen = false;
@@ -181,16 +216,24 @@ export class Connection {
 
 /** One reconnecting browser WebSocket connection. */
 class WebSocketConnection extends Connection {
-    /** @type {string} Validated WebSocket endpoint URL. */
+    /**
+     * @type {string} Validated WebSocket endpoint URL.
+     */
     #url;
 
-    /** @type {WebSocket|null} Current socket, including sockets still connecting. */
+    /**
+     * @type {WebSocket|null} Current socket, including sockets still connecting.
+     */
     #socket = null;
 
-    /** @type {number|null} Pending reconnect timeout identifier. */
+    /**
+     * @type {number|null} Pending reconnect timeout identifier.
+     */
     #reconnectTimer = null;
 
-    /** @type {number} Consecutive reconnect attempts used for exponential backoff. */
+    /**
+     * @type {number} Consecutive reconnect attempts used for exponential backoff.
+     */
     #reconnectAttempts = 0;
 
     /**
@@ -203,7 +246,10 @@ class WebSocketConnection extends Connection {
         this.#connect();
     }
 
-    /** @param {Object} request - Canonical command request. @returns {boolean} Whether sent. */
+    /**
+     * @param {Object} request - Canonical command request.
+     * @returns {boolean} Whether sent.
+     */
     request(request) {
         const canSend = this.#socket instanceof WebSocket && this.#socket.readyState === WebSocket.OPEN;
 
@@ -214,7 +260,10 @@ class WebSocketConnection extends Connection {
         return canSend;
     }
 
-    /** @param {number} [code] - Optional WebSocket close code. @param {string} [reason] - Optional close reason. */
+    /**
+     * @param {number} [code] - Optional WebSocket close code.
+     * @param {string} [reason] - Optional close reason.
+     */
     close(code, reason) {
         if (!this.isOpen) return;
         this.isOpen = false;
@@ -241,7 +290,9 @@ class WebSocketConnection extends Connection {
         socket.addEventListener("error", this.#handleError.bind(this, socket));
     }
 
-    /** @param {WebSocket} socket - Socket that emitted the open event. */
+    /**
+     * @param {WebSocket} socket - Socket that emitted the open event.
+     */
     #handleOpen(socket) {
         if (this.#socket !== socket || !this.isOpen) {
             return;
@@ -253,14 +304,19 @@ class WebSocketConnection extends Connection {
         this.events.open?.();
     }
 
-    /** @param {WebSocket} socket - Socket that received data. @param {MessageEvent} event - Message event. */
+    /**
+     * @param {WebSocket} socket - Socket that received data.
+     * @param {MessageEvent} event - Message event.
+     */
     #handleMessage(socket, event) {
         if (this.#socket === socket && this.isOpen) {
             this.events.receive?.(event.data);
         }
     }
 
-    /** @param {WebSocket} socket - Socket that emitted the close event. */
+    /**
+     * @param {WebSocket} socket - Socket that emitted the close event.
+     */
     #handleClose(socket) {
         if (this.#socket !== socket) {
             return;
@@ -272,7 +328,9 @@ class WebSocketConnection extends Connection {
         this.#scheduleReconnect();
     }
 
-    /** @param {WebSocket} socket - Socket that emitted the error event. */
+    /**
+     * @param {WebSocket} socket - Socket that emitted the error event.
+     */
     #handleError(socket) {
         if (this.#socket === socket) {
             this.events.status?.("error", "Connection error");

@@ -11,16 +11,24 @@ import {DomUtils} from "./utilities/DomUtils.js";
 /** Provides shared controller, client, mode, and navigation state for an application view. */
 export class View {
 
-    /** @type {typeof Client|null} Active client owned by this view. */
+    /**
+     * @type {typeof Client|null} Active client owned by this view.
+     */
     client = null;
 
-    /** @type {"direct"|"hosted"} Active transport mode. */
+    /**
+     * @type {"direct"|"hosted"} Active transport mode.
+     */
     mode = ViewState.getMode();
 
-    /** @type {typeof Game} Game constructor used by the in-browser runtime. */
+    /**
+     * @type {typeof Game} Game constructor used by the in-browser runtime.
+     */
     Game = Game;
 
-    /** @type {URL} Destination used when leaving this view. */
+    /**
+     * @type {URL} Destination used when leaving this view.
+     */
     url;
 
     /**
@@ -69,37 +77,51 @@ export class View {
 
 /** Persists transport, navigation, and notification state for one browser tab. */
 export class ViewState {
-    /** @returns {string} Session key for the selected transport mode. */
+    /**
+     * @returns {string} Session key for the selected transport mode.
+     */
     static get #MODE_KEY() {
         return `${this.#namespace()}.mode`;
     }
 
-    /** @returns {string} Session key for pending Room navigation intent. */
+    /**
+     * @returns {string} Session key for pending Room navigation intent.
+     */
     static get #INTENT_KEY() {
         return `${this.#namespace()}.gameIntent`;
     }
 
-    /** @returns {string} Session key for a notification carried across navigation. */
+    /**
+     * @returns {string} Session key for a notification carried across navigation.
+     */
     static get #NOTICE_KEY() {
         return `${this.#namespace()}.notice`;
     }
 
-    /** @returns {string} Session key for the verified Hosted WebSocket URL. */
+    /**
+     * @returns {string} Session key for the verified Hosted WebSocket URL.
+     */
     static get #HOSTED_URL_KEY() {
         return `${this.#namespace()}.hostedUrl`;
     }
 
-    /** @returns {string} Storage namespace selected by the document's game identifier. */
+    /**
+     * @returns {string} Storage namespace selected by the document's game identifier.
+     */
     static #namespace() {
         return globalThis.document?.body?.dataset.game ?? "game";
     }
 
-    /** @returns {"direct"|"hosted"} Selected mode, defaulting to Direct. */
+    /**
+     * @returns {"direct"|"hosted"} Selected mode, defaulting to Direct.
+     */
     static getMode() {
         return this.getModePreference() ?? "direct";
     }
 
-    /** @returns {"direct"|"hosted"|null} URL-selected or session-selected mode, if valid. */
+    /**
+     * @returns {"direct"|"hosted"|null} URL-selected or session-selected mode, if valid.
+     */
     static getModePreference() {
         const queryMode = new URLSearchParams(globalThis.location?.search ?? "").get("mode");
         const savedMode = globalThis.sessionStorage?.getItem(this.#MODE_KEY);
@@ -108,17 +130,23 @@ export class ViewState {
         return requestedMode === "hosted" || requestedMode === "direct" ? requestedMode : null;
     }
 
-    /** @param {"direct"|"hosted"} mode - Transport mode to persist. */
+    /**
+     * @param {"direct"|"hosted"} mode - Transport mode to persist.
+     */
     static setMode(mode) {
         globalThis.sessionStorage?.setItem(this.#MODE_KEY, mode === "hosted" ? "hosted" : "direct");
     }
 
-    /** @param {{mode:"direct"|"hosted", command:string, data:Record<string, *>}} intent - Room command and navigation data to persist. */
+    /**
+     * @param {{mode:"direct"|"hosted", command:string, data:Record<string, *>}} intent - Room command and navigation data to persist.
+     */
     static setIntent(intent) {
         globalThis.sessionStorage?.setItem(this.#INTENT_KEY, JSON.stringify(intent));
     }
 
-    /** @returns {{mode:"direct"|"hosted", command:string, data:Record<string, *>}|null} Parsed Room intent, or null when absent or malformed. */
+    /**
+     * @returns {{mode:"direct"|"hosted", command:string, data:Record<string, *>}|null} Parsed Room intent, or null when absent or malformed.
+     */
     static getIntent() {
         try {
             const value = JSON.parse(globalThis.sessionStorage?.getItem(this.#INTENT_KEY) ?? "null");
@@ -133,14 +161,18 @@ export class ViewState {
         globalThis.sessionStorage?.removeItem(this.#INTENT_KEY);
     }
 
-    /** @param {Record<string, *>} notice - Notification to show after navigation. */
+    /**
+     * @param {Record<string, *>} notice - Notification to show after navigation.
+     */
     static setNotice(notice) {
         if (typeof notice === "object" && notice !== null) {
             globalThis.sessionStorage?.setItem(this.#NOTICE_KEY, JSON.stringify(notice));
         }
     }
 
-    /** @returns {Record<string, *>|null} Pending notification, removed from storage before parsing. */
+    /**
+     * @returns {Record<string, *>|null} Pending notification, removed from storage before parsing.
+     */
     static takeNotice() {
         const storage = globalThis.sessionStorage;
         const serialized = storage?.getItem(this.#NOTICE_KEY) ?? "null";
@@ -154,7 +186,9 @@ export class ViewState {
         }
     }
 
-    /** @param {string} url - Verified Hosted WebSocket URL to persist. */
+    /**
+     * @param {string} url - Verified Hosted WebSocket URL to persist.
+     */
     static setHostedUrl(url) {
         globalThis.sessionStorage?.setItem(this.#HOSTED_URL_KEY, url);
     }
@@ -164,7 +198,9 @@ export class ViewState {
         globalThis.sessionStorage?.removeItem(this.#HOSTED_URL_KEY);
     }
 
-    /** @returns {string|null} Trimmed configured server origin, when supplied. */
+    /**
+     * @returns {string|null} Trimmed configured server origin, when supplied.
+     */
     static getConfiguredServerOrigin() {
         const origin = globalThis.document
             ?.querySelector('meta[name="game-server-origin"]')
@@ -207,7 +243,9 @@ export class ViewState {
         return url.href;
     }
 
-    /** @returns {string|null} WebSocket URL for the host serving this page. */
+    /**
+     * @returns {string|null} WebSocket URL for the host serving this page.
+     */
     static getCurrentHostUrl() {
         const origin = globalThis.location?.origin;
 
@@ -249,22 +287,34 @@ export class ViewState {
 /** Coordinates Home controllers, transport selection, and Room navigation. */
 export class HomeView extends View {
 
-    /** @type {import("./controllers/HomeController.js").HomeController|null} Home interaction controller after startup. */
+    /**
+     * @type {import("./controllers/HomeController.js").HomeController|null} Home interaction controller after startup.
+     */
     #controller = null;
 
-    /** @type {HTMLElement} Root Home view hidden during hosted connection setup. */
+    /**
+     * @type {HTMLElement} Root Home view hidden during hosted connection setup.
+     */
     #homeView = DomUtils.require("#home-view", HTMLElement);
 
-    /** @type {import("./controllers/NetworkConnectionController.js").NetworkConnectionController|null} Hosted endpoint discovery UI. */
+    /**
+     * @type {import("./controllers/NetworkConnectionController.js").NetworkConnectionController|null} Hosted endpoint discovery UI.
+     */
     #networkController = null;
 
-    /** @type {"direct"|"hosted"|null} Persisted or URL-selected startup mode. */
+    /**
+     * @type {"direct"|"hosted"|null} Persisted or URL-selected startup mode.
+     */
     #preferredMode = ViewState.getModePreference();
 
-    /** @type {Record<string, *>|null} One-time notification restored after navigation. */
+    /**
+     * @type {Record<string, *>|null} One-time notification restored after navigation.
+     */
     #notice = ViewState.takeNotice();
 
-    /** @param {URL} url - Room destination used after a create, join, or view command. */
+    /**
+     * @param {URL} url - Room destination used after a create, join, or view command.
+     */
     constructor(url) {
         super(url);
     }
@@ -299,7 +349,9 @@ export class HomeView extends View {
         }
     }
 
-    /** @param {"direct"|"hosted"} mode - Mode to write to the current URL without navigation. */
+    /**
+     * @param {"direct"|"hosted"} mode - Mode to write to the current URL without navigation.
+     */
     #updateModeUrl(mode) {
         const url = new URL(location.href);
         url.searchParams.set("mode", mode);
@@ -378,7 +430,9 @@ export class HomeView extends View {
         this.#connect("direct");
     }
 
-    /** @param {boolean} fallbackToDirect - Whether failed discovery selects Direct mode. */
+    /**
+     * @param {boolean} fallbackToDirect - Whether failed discovery selects Direct mode.
+     */
     #selectHosted(fallbackToDirect) {
         this.disconnect();
         this.mode = "hosted";
@@ -398,13 +452,17 @@ export class HomeView extends View {
         if (fallbackToDirect && !isAvailable && this.mode === "hosted") this.#selectDirect();
     }
 
-    /** @param {"direct"|"hosted"} mode - User-selected transport mode. */
+    /**
+     * @param {"direct"|"hosted"} mode - User-selected transport mode.
+     */
     #handleMode(mode) {
         if (mode === "hosted") this.#selectHosted(false);
         else this.#selectDirect();
     }
 
-    /** @param {string} networkUrl - Verified Hosted WebSocket URL. */
+    /**
+     * @param {string} networkUrl - Verified Hosted WebSocket URL.
+     */
     #handleHostedConnected(networkUrl) {
         ViewState.setHostedUrl(networkUrl);
         this.#connect("hosted");
@@ -430,16 +488,24 @@ export class HomeView extends View {
 /** Coordinates Room admission, controllers, transport, and Home navigation. */
 export class RoomView extends View {
 
-    /** @type {import("./controllers/RoomController.js").RoomController|null} Room interaction controller after startup. */
+    /**
+     * @type {import("./controllers/RoomController.js").RoomController|null} Room interaction controller after startup.
+     */
     #controller = null;
 
-    /** @type {import("./controllers/GuideController.js").GuideController|null} Game-guide controller after startup. */
+    /**
+     * @type {import("./controllers/GuideController.js").GuideController|null} Game-guide controller after startup.
+     */
     #guideController = null;
 
-    /** @type {{mode:"direct"|"hosted", command:string, data:Record<string, *>}|null} Create, join, or view intent carried from Home. */
+    /**
+     * @type {{mode:"direct"|"hosted", command:string, data:Record<string, *>}|null} Create, join, or view intent carried from Home.
+     */
     #intent = ViewState.getIntent();
 
-    /** @type {boolean} Whether mode and intent are enough to enter Room. */
+    /**
+     * @type {boolean} Whether mode and intent are enough to enter Room.
+     */
     #isValid = true;
 
     /**
@@ -488,7 +554,9 @@ export class RoomView extends View {
         window.addEventListener("pagehide", this.disconnect.bind(this), {once: true});
     }
 
-    /** @returns {string} Home URL carrying the active transport mode. */
+    /**
+     * @returns {string} Home URL carrying the active transport mode.
+     */
     #homeUrl() {
         const homeUrl = new URL(this.url);
         homeUrl.searchParams.set("mode", this.mode);

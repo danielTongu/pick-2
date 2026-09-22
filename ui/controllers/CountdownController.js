@@ -9,10 +9,14 @@ import { ViewController } from "./ViewController.js";
  * Controls the singleton countdown overlay.
  */
 export class CountdownController extends ViewController {
-    /** @type {number|null} Active timeout or interval identifier. */
+    /**
+     * @type {number|null} Active timeout or interval identifier.
+     */
     #countdownIntervalId = null;
 
-    /** @type {HTMLElement} Required UI element owned by this controller. */
+    /**
+     * @type {HTMLElement} Required UI element owned by this controller.
+     */
     #remainingSecondsOutput;
 
     /**

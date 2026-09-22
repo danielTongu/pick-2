@@ -7,28 +7,44 @@ import { DomUtils } from "./DomUtils.js";
  * Base class for HTML template-backed UI fragments.
  */
 export class TemplateUtils {
-    /** @type {HTMLTemplateElement|null} Lazily loaded and validated component template. */
+    /**
+     * @type {HTMLTemplateElement|null} Lazily loaded and validated component template.
+     */
     static template = null;
 
-    /** @type {string} Required template element identifier. */
+    /**
+     * @type {string} Required template element identifier.
+     */
     static templateId = "";
 
-    /** @type {string} Template path resolved relative to the owning module. */
+    /**
+     * @type {string} Template path resolved relative to the owning module.
+     */
     static templateFile = "index.html";
 
-    /** @type {string} Module URL used as the template-resolution base. */
+    /**
+     * @type {string} Module URL used as the template-resolution base.
+     */
     static componentUrl = "";
 
-    /** @type {boolean} Whether cloned roots must satisfy the declared contract. */
+    /**
+     * @type {boolean} Whether cloned roots must satisfy the declared contract.
+     */
     static isTemplateRootValidationEnabled = true;
 
-    /** @type {string} Required cloned-root identifier, or empty when unrestricted. */
+    /**
+     * @type {string} Required cloned-root identifier, or empty when unrestricted.
+     */
     static rootId = "";
 
-    /** @type {string} Required cloned-root tag name, or empty when unrestricted. */
+    /**
+     * @type {string} Required cloned-root tag name, or empty when unrestricted.
+     */
     static rootTagName = "";
 
-    /** @type {string} Required cloned-root class, or empty when unrestricted. */
+    /**
+     * @type {string} Required cloned-root class, or empty when unrestricted.
+     */
     static rootClassName = "";
 
     /**

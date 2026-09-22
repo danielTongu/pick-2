@@ -20,31 +20,47 @@ import { HostPeer, PeerSession, RoomSession, SessionRegistry } from "./Session.j
  * orchestration; each Room owns players and round rules.
  */
 export class Host {
-    /** @type {import("../core/Game.js").Game} Game contract supplying rules and mapping. */
+    /**
+     * @type {import("../core/Game.js").Game} Game contract supplying rules and mapping.
+     */
     #game;
     // -------------------------------------------------------------------------
     // State
     // -------------------------------------------------------------------------
 
-    /** @type {Map<string, Room>} Registered rooms keyed by normalized room identity. */
+    /**
+     * @type {Map<string, Room>} Registered rooms keyed by normalized room identity.
+     */
     #roomsByKey = new Map();
 
-    /** @type {RoomLifecycle} Deferred empty-room lifecycle work. */
+    /**
+     * @type {RoomLifecycle} Deferred empty-room lifecycle work.
+     */
     #roomLifecycle = new RoomLifecycle();
 
-    /** @type {SessionRegistry} Connected peers and authenticated room sessions. */
+    /**
+     * @type {SessionRegistry} Connected peers and authenticated room sessions.
+     */
     #sessions = new SessionRegistry();
 
-    /** @type {RateLimit} Shared command throttle across all connected peers and rooms. */
+    /**
+     * @type {RateLimit} Shared command throttle across all connected peers and rooms.
+     */
     #rateLimit = new RateLimit();
 
-    /** @type {{mode:string, capabilities:Object, customBots:string|number, trackIdle:boolean}} Runtime profile. */
+    /**
+     * @type {{mode:string, capabilities:Object, customBots:string|number, trackIdle:boolean}} Runtime profile.
+     */
     #profile;
 
-    /** @type {Promise<void>} Initialization barrier for default rooms and bot players. */
+    /**
+     * @type {Promise<void>} Initialization barrier for default rooms and bot players.
+     */
     #ready;
 
-    /** @type {CommandRouter} Runtime and game-command dispatcher. */
+    /**
+     * @type {CommandRouter} Runtime and game-command dispatcher.
+     */
     #commandRouter;
 
     /**
@@ -72,7 +88,12 @@ export class Host {
         this.#ready = this.#initializeRooms();
     }
 
-    /** @param {string} mode - Runtime mode. @param {string|number} customBots - Bot policy. @param {boolean} trackIdle - Idle policy. @returns {Object} Normalized Host profile. */
+    /**
+     * @param {string} mode - Runtime mode.
+     * @param {string|number} customBots - Bot policy.
+     * @param {boolean} trackIdle - Idle policy.
+     * @returns {Object} Normalized Host profile.
+     */
     static #normalizeProfile(mode, customBots, trackIdle) {
         mode = mode === "direct" ? "direct" : "hosted";
 
@@ -91,7 +112,9 @@ export class Host {
         });
     }
 
-    /** @param {Room} room - Room whose Players should no longer be monitored. */
+    /**
+     * @param {Room} room - Room whose Players should no longer be monitored.
+     */
     static #stopIdleMonitoring(room) {
         for (const player of room.actors.values()) {
             player.stopIdleMonitoring();
@@ -353,7 +376,9 @@ export class Host {
         });
     }
 
-    /** @returns {Object} Shared mode metadata. */
+    /**
+     * @returns {Object} Shared mode metadata.
+     */
     #getModeData() {
         return Object.freeze({
             mode: this.#profile.mode,
@@ -372,7 +397,9 @@ export class Host {
         this.#publishViewState(peer, Constants.VIEWS.HOME, homeState);
     }
 
-    /** @param {PeerSession} peer - Peer receiving the latest Home directory snapshot. */
+    /**
+     * @param {PeerSession} peer - Peer receiving the latest Home directory snapshot.
+     */
     #publishCurrentHomeState(peer) {
         this.#publishHomeState(peer, this.#createHomeState());
     }
@@ -578,7 +605,9 @@ export class Host {
         }
     }
 
-    /** @param {string} roomKey - Normalized key of the Room scheduled for closure. */
+    /**
+     * @param {string} roomKey - Normalized key of the Room scheduled for closure.
+     */
     #closeRoomAfterIdle(roomKey) {
         this.#closeRoomIfNoPlayersRemain(roomKey);
     }
@@ -891,7 +920,10 @@ export class Host {
         }
     }
 
-    /** @param {CommandContext} context - Validated join command. @returns {Promise<void>} */
+    /**
+     * @param {CommandContext} context - Validated join command.
+     * @returns {Promise<void>}
+     */
     async #join(context) {
         this.#requireRoomContext(context, 500);
         const { data, peer, tabId, roomKey, room, session } = context;
@@ -971,7 +1003,10 @@ export class Host {
         }
     }
 
-    /** @param {CommandContext} context - Validated leave command. @returns {Promise<void>} */
+    /**
+     * @param {CommandContext} context - Validated leave command.
+     * @returns {Promise<void>}
+     */
     async #leave(context) {
         this.#requireThrottledClient(context, 300);
         const room = this.#roomsByKey.get(context.session.roomKey) ?? null;
@@ -1077,7 +1112,10 @@ export class Host {
         await this.#runAutomatedTurn(context.roomKey);
     }
 
-    /** @param {CommandContext} context - Validated game command. @returns {Promise<void>} */
+    /**
+     * @param {CommandContext} context - Validated game command.
+     * @returns {Promise<void>}
+     */
     async #handleGameCommand(context) {
         const limits = this.#game.commands[context.command];
         if (limits === undefined) {
@@ -1096,7 +1134,9 @@ export class Host {
         await this.#continueAutomatedTurn(context.roomKey);
     }
 
-    /** @param {string} roomKey - Normalized key of the Room advancing automated play. */
+    /**
+     * @param {string} roomKey - Normalized key of the Room advancing automated play.
+     */
     async #runAutomatedTurn(roomKey) {
         const room = this.#roomsByKey.get(roomKey) ?? null;
         if (room !== null && (await this.#game.runAutomatedTurn(room))) {

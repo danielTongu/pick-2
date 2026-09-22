@@ -8,13 +8,19 @@ import { ViewController } from "./ViewController.js";
  * Controls the singleton suit-selection overlay.
  */
 export class SuitSelectionController extends ViewController {
-    /** @type {Function|null} Optional application callback registered by the owning page. */
+    /**
+     * @type {Function|null} Optional application callback registered by the owning page.
+     */
     #submitHandler = null;
 
-    /** @type {HTMLButtonElement} Required command control owned by this controller. */
+    /**
+     * @type {HTMLButtonElement} Required command control owned by this controller.
+     */
     #submitButton;
 
-    /** @type {number|null} Active timeout or interval identifier. */
+    /**
+     * @type {number|null} Active timeout or interval identifier.
+     */
     #timeoutId = null;
 
     /**

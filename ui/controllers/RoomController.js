@@ -17,28 +17,44 @@ import { PlayingCard } from "../PlayingCard.js";
 
 /** Controls the complete Pick2 Room. */
 export class RoomController extends ViewController {
-    /** @type {Object|null} Latest authoritative Room transport snapshot. */
+    /**
+     * @type {Object|null} Latest authoritative Room transport snapshot.
+     */
     room = null;
 
-    /** @type {Object} Current transport and room-command capabilities. */
+    /**
+     * @type {Object} Current transport and room-command capabilities.
+     */
     capabilities = {};
 
-    /** @type {Object|null} Pending create, join, or view request. */
+    /**
+     * @type {Object|null} Pending create, join, or view request.
+     */
     #intent = null;
 
-    /** @type {Function|null} Navigation callback invoked when Room returns Home. */
+    /**
+     * @type {Function|null} Navigation callback invoked when Room returns Home.
+     */
     #homeHandler = null;
 
-    /** @type {Function|null} Callback invoked after the first authoritative Room snapshot. */
+    /**
+     * @type {Function|null} Callback invoked after the first authoritative Room snapshot.
+     */
     #readyHandler = null;
 
-    /** @type {boolean} Whether the client-open intent has already been submitted. */
+    /**
+     * @type {boolean} Whether the client-open intent has already been submitted.
+     */
     #hasOpened = false;
 
-    /** @type {boolean} Whether a leave request is suppressing further Room work. */
+    /**
+     * @type {boolean} Whether a leave request is suppressing further Room work.
+     */
     #isLeaving = false;
 
-    /** @type {AlertController} Room-level notification overlay. */
+    /**
+     * @type {AlertController} Room-level notification overlay.
+     */
     #alertController = new AlertController("#alert-dialog");
 
     /** Initializes required state and event bindings. */
@@ -50,7 +66,10 @@ export class RoomController extends ViewController {
         DomUtils.require("#room-invite-button", HTMLButtonElement).addEventListener("click", this.#handleInvite.bind(this));
     }
 
-    /** Renders the current authoritative state. */
+    /**
+     * Renders the current authoritative state.
+     * @param {Object|null} room - Room snapshot.
+     */
     _renderRoom(room) {
         if (room === null) return;
         this.room = room;
@@ -63,27 +82,42 @@ export class RoomController extends ViewController {
         super("#room-view");
     }
 
-    /** Sets client. */
+    /**
+     * Sets the active endpoint client.
+     * @param {import("../../runtime/Client.js").Client} client - Endpoint client.
+     */
     setClient(client) {
         this.client = client;
     }
 
-    /** Sets intent. */
+    /**
+     * Sets the create, join, or view intent.
+     * @param {Object|null} intent - Room request to submit on connection.
+     */
     setIntent(intent) {
         this.#intent = intent;
     }
 
-    /** Sets home handler. */
+    /**
+     * Sets the Home navigation callback.
+     * @param {Function} handler - Home navigation callback.
+     */
     setHomeHandler(handler) {
         this.#homeHandler = handler;
     }
 
-    /** Sets ready handler. */
+    /**
+     * Sets the first-room-snapshot callback.
+     * @param {Function} handler - Ready callback.
+     */
     setReadyHandler(handler) {
         this.#readyHandler = handler;
     }
 
-    /** Prevents duplicate exits and submits the authenticated leave command. */
+    /**
+     * Prevents duplicate exits and submits the authenticated leave command.
+     * @param {Event} event - Leave-button or link event.
+     */
     #leave(event) {
         event.preventDefault();
         this.#isLeaving = true;
@@ -118,7 +152,12 @@ export class RoomController extends ViewController {
         this.client?.request(command, this.#intent.data);
     }
 
-    /** Routes Home transitions or stores and renders an authoritative Room snapshot. */
+    /**
+     * Routes Home transitions or stores and renders an authoritative Room snapshot.
+     * @param {string} view - Destination view name.
+     * @param {Object} data - Authoritative view data.
+     * @param {Object|null} message - Optional Home transition message.
+     */
     handleData(view, data, message = null) {
         if (view === Constants.VIEWS.ROOM) {
             this.capabilities = ValidationUtils.object(data.capabilities, "Capabilities");
@@ -129,7 +168,10 @@ export class RoomController extends ViewController {
         }
     }
 
-    /** Normalizes and presents a Room notification. */
+    /**
+     * Normalizes and presents a Room notification.
+     * @param {Object} message - Notification payload.
+     */
     handleNotification(message) {
         if (this.room === null && !this.#isLeaving) {
             this.#homeHandler?.(message);
@@ -139,19 +181,29 @@ export class RoomController extends ViewController {
         this.#alertController.show(NotificationUtils.normalize(message));
     }
 
-    /** Reflects endpoint status and label in the shared application header. */
+    /**
+     * Reflects endpoint status and label in the shared application header.
+     * @param {string} status - Connection status.
+     * @param {string} label - Status display label.
+     */
     handleConnectionStatus(status, label) {
         const root = DomUtils.require("#app-header > aside[data-status]", HTMLElement);
         root.dataset.status = status;
         DomUtils.require("#connection-status-label", HTMLElement).textContent = label;
     }
 
-    /** Renders room information. */
+    /**
+     * Renders room information.
+     * @param {Object} room - Room snapshot.
+     */
     renderRoomInformation(room) {
         DomUtils.require("#info-table-body", HTMLTableSectionElement).replaceChildren(RoomRowUtils.create(room));
     }
 
-    /** Renders game commands. */
+    /**
+     * Renders game commands.
+     * @param {string|null} localPlayer - Local actor name, if joined.
+     */
     renderGameCommands(localPlayer) {
         DomUtils.require("#room-leave-button", HTMLButtonElement).hidden = false;
         DomUtils.require("#room-join-button", HTMLButtonElement).hidden =
@@ -195,19 +247,29 @@ export class RoomController extends ViewController {
         }
     }
 
-    /** @type {string} Previously rendered Room lifecycle state for transition detection. */
+    /**
+     * @type {string} Previously rendered Room lifecycle state for transition detection.
+     */
     #previousState = "";
 
-    /** @type {LocalPlayerController} Local actor hand and command controller. */
+    /**
+     * @type {LocalPlayerController} Local actor hand and command controller.
+     */
     #playerController = new LocalPlayerController("#actor-region", false);
 
-    /** @type {SuitSelectionController} Pending ace suit-declaration dialog. */
+    /**
+     * @type {SuitSelectionController} Pending ace suit-declaration dialog.
+     */
     #suitController = new SuitSelectionController("#suit-selection-dialog");
 
-    /** @type {CountdownController} Round-transition countdown overlay. */
+    /**
+     * @type {CountdownController} Round-transition countdown overlay.
+     */
     #countdownController = new CountdownController("#countdown-dialog");
 
-    /** @type {ResultsController} Finished-round results dialog. */
+    /**
+     * @type {ResultsController} Finished-round results dialog.
+     */
     #resultsController = new ResultsController("#results-dialog");
 
     /** Initializes required state and event bindings. */
@@ -228,7 +290,10 @@ export class RoomController extends ViewController {
         );
     }
 
-    /** Submits a local actor command and clears temporary sort after drawing. */
+    /**
+     * Submits a local actor command and clears temporary sort after drawing.
+     * @param {string} command - Room command.
+     */
     #handlePlayerCommand(command) {
         if (RoomController.#isCardMove(command)) {
             this.#sendCardMove(command, {});
@@ -237,25 +302,37 @@ export class RoomController extends ViewController {
         }
     }
 
-    /** Stores and immediately rerenders the local hand’s presentation order. */
+    /**
+     * Stores and immediately rerenders the local hand’s presentation order.
+     * @param {string} sortKey - Selected hand sort order.
+     */
     #handleSortChange(sortKey) {
         this.client.sortKey = ValidationUtils.requiredString(sortKey, "Sort key");
         this.render(this.room);
     }
 
-    /** Submits the selected suit for the pending declaration. */
+    /**
+     * Submits the selected suit for the pending declaration.
+     * @param {string} suit - Declared suit.
+     */
     #handleSuitSelection(suit) {
         this.client?.request(Constants.COMMANDS.DECLARE, { suit });
     }
 
-    /** Converts a hand-to-pile card drop into a discard request. */
+    /**
+     * Converts a hand-to-pile card drop into a discard request.
+     * @param {Event} event - Card-drop event.
+     */
     #handleCardDrop(event) {
         if (event instanceof CustomEvent && event.detail?.card) {
             this.#sendCardMove(Constants.COMMANDS.DISCARD, { card: event.detail.card });
         }
     }
 
-    /** Converts an eligible pile-to-hand card drop into a return request. */
+    /**
+     * Converts an eligible pile-to-hand card drop into a return request.
+     * @param {Event} event - Card-drop event.
+     */
     #handleCardReturn(event) {
         const allowsFreeTransactions =
             this.room?.state === Constants.ROOM_STATE.WAITING ||
@@ -266,7 +343,10 @@ export class RoomController extends ViewController {
         }
     }
 
-    /** Renders the current authoritative state. */
+    /**
+     * Renders the current authoritative state.
+     * @param {Object|null} room - Room snapshot.
+     */
     render(room) {
         if (room === null) {
             return;
@@ -319,7 +399,11 @@ export class RoomController extends ViewController {
         }
     }
 
-    /** Extracts card identity from a drop event and sends the named movement command. */
+    /**
+     * Sends the named card movement command and restores the default sort order.
+     * @param {string} command - Card movement command.
+     * @param {Object} data - Command payload.
+     */
     #sendCardMove(command, data) {
         if (this.client?.request(command, data)) {
             this.client.sortKey = Constants.CARD.SORT_OPTIONS[0];
@@ -327,7 +411,11 @@ export class RoomController extends ViewController {
         }
     }
 
-    /** Returns whether card move. */
+    /**
+     * Returns whether a command moves cards.
+     * @param {string} command - Room command.
+     * @returns {boolean} Whether the command moves cards.
+     */
     static #isCardMove(command) {
         return (
             command === Constants.COMMANDS.DRAW ||
@@ -337,7 +425,10 @@ export class RoomController extends ViewController {
         );
     }
 
-    /** Renders players. */
+    /**
+     * Renders remote players.
+     * @param {Object} room - Room snapshot.
+     */
     #renderPlayers(room) {
         const container = DomUtils.require("#opponent-list", HTMLUListElement);
         const localName = room.localActorName ?? null;
@@ -362,7 +453,11 @@ export class RoomController extends ViewController {
         }
     }
 
-    /** Renders discard pile. */
+    /**
+     * Renders the discard pile.
+     * @param {Object} room - Room snapshot.
+     * @param {Object|null} localPlayer - Local actor snapshot, if joined.
+     */
     #renderDiscardPile(room, localPlayer) {
         const cards = Array.isArray(room.collections?.play?.items) ? room.collections.play.items : [];
         const allowsFreeTransactions =
@@ -381,7 +476,11 @@ export class RoomController extends ViewController {
         DomUtils.require("#table-play-area > [data-is-drag-over]", HTMLElement).replaceChildren(...elements);
     }
 
-    /** Renders local player. */
+    /**
+     * Renders the local player.
+     * @param {Object|null} player - Local actor snapshot, if joined.
+     * @param {Object} room - Room snapshot.
+     */
     #renderLocalPlayer(player, room) {
         if (player === null) {
             this.#playerController.hide();
@@ -392,12 +491,20 @@ export class RoomController extends ViewController {
         this.#playerController.show(player, room, this.client.sortKey);
     }
 
-    /** Returns the authoritative actors array or an empty fallback. */
+    /**
+     * Returns the authoritative actors array or an empty fallback.
+     * @param {Object} room - Room snapshot.
+     * @returns {Object[]} Actor snapshots.
+     */
     static #getPlayers(room) {
         return Array.isArray(room?.turnOrder?.actors) ? room.turnOrder.actors : [];
     }
 
-    /** Resolves the local actor snapshot by the Room’s canonical local name. */
+    /**
+     * Resolves the local actor snapshot by the Room’s canonical local name.
+     * @param {Object} room - Room snapshot.
+     * @returns {Object|null} Local actor snapshot, if joined.
+     */
     static #getLocalPlayer(room) {
         const playerName = room?.localActorName ?? null;
 

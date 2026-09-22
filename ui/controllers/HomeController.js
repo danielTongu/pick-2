@@ -11,12 +11,21 @@ import { ViewController } from "./ViewController.js";
 import { Card } from "../../core/Card.js";
 import { PlayingCard } from "../PlayingCard.js";
 
-/** Orders preview cards by Pick2 score. */
+/**
+ * Orders preview cards by Pick2 score.
+ * @param {Card} left - First card.
+ * @param {Card} right - Second card.
+ * @returns {number} Score difference.
+ */
 function compareCardScores(left, right) {
     return left.score - right.score;
 }
 
-/** Creates one static preview card. */
+/**
+ * Creates one static preview card.
+ * @param {Card} card - Card to display.
+ * @returns {PlayingCard} Preview element.
+ */
 function createFanCard(card) {
     const element = PlayingCard.create(card);
     element.rotation = null;
@@ -44,40 +53,64 @@ function renderSpecialCardFan() {
 
 /** Controls the shared Direct/Hosted home directory. */
 export class HomeController extends ViewController {
-    /** @type {Object|null} Latest authoritative transport snapshot. */
+    /**
+     * @type {Object|null} Latest authoritative transport snapshot.
+     */
     #home = null;
 
-    /** @type {Object} Current immutable UI capability or state record. */
+    /**
+     * @type {Object} Current immutable UI capability or state record.
+     */
     #capabilities = {};
 
-    /** @type {Function|null} Optional application callback registered by the owning page. */
+    /**
+     * @type {Function|null} Optional application callback registered by the owning page.
+     */
     #modeHandler = null;
 
-    /** @type {Function|null} Optional application callback registered by the owning page. */
+    /**
+     * @type {Function|null} Optional application callback registered by the owning page.
+     */
     #gameHandler = null;
 
-    /** @type {AlertController} Notification dialog owned by this page controller. */
+    /**
+     * @type {AlertController} Notification dialog owned by this page controller.
+     */
     #alertController = new AlertController("#alert-dialog");
 
-    /** @type {HTMLTableSectionElement} Required table body replaced from authoritative state. */
+    /**
+     * @type {HTMLTableSectionElement} Required table body replaced from authoritative state.
+     */
     #gameTableBody;
 
-    /** @type {HTMLInputElement} Required user-input control owned by this controller. */
+    /**
+     * @type {HTMLInputElement} Required user-input control owned by this controller.
+     */
     #playerNameInput;
 
-    /** @type {HTMLInputElement} Required user-input control owned by this controller. */
+    /**
+     * @type {HTMLInputElement} Required user-input control owned by this controller.
+     */
     #roomNameInput;
 
-    /** @type {HTMLInputElement} Required user-input control owned by this controller. */
+    /**
+     * @type {HTMLInputElement} Required user-input control owned by this controller.
+     */
     #playerLimitInput;
 
-    /** @type {HTMLElement} Required UI element owned by this controller. */
+    /**
+     * @type {HTMLElement} Required UI element owned by this controller.
+     */
     #connectionStatus;
 
-    /** @type {HTMLInputElement} Required user-input control owned by this controller. */
+    /**
+     * @type {HTMLInputElement} Required user-input control owned by this controller.
+     */
     #directModeInput;
 
-    /** @type {HTMLInputElement} Required user-input control owned by this controller. */
+    /**
+     * @type {HTMLInputElement} Required user-input control owned by this controller.
+     */
     #hostedModeInput;
 
     /** Creates the shared Home controller. */
@@ -92,22 +125,27 @@ export class HomeController extends ViewController {
         this.#hostedModeInput = DomUtils.require("#hosted-mode-input", HTMLInputElement);
     }
 
-    /** @param {import("../../runtime/Client.js").Client} client - Active endpoint client. */
+    /**
+     * @param {import("../../runtime/Client.js").Client} client - Active endpoint client.
+     */
     setClient(client) {
         this.client = client;
     }
 
-    /** @param {Function} handler - Mode-selection callback. */
+    /**
+     * @param {Function} handler - Mode-selection callback.
+     */
     setModeHandler(handler) {
         this.#modeHandler = handler;
     }
 
-    /** @param {Function} handler - Room-navigation callback. */
+    /**
+     * @param {Function} handler - Room-navigation callback.
+     */
     setGameHandler(handler) {
         this.#gameHandler = handler;
     }
 
-    /** Loads the room-row template and binds Home events. */
     /** Binds Home forms, filters, and mode controls. */
     async initialize() {
         renderSpecialCardFan();
@@ -127,7 +165,10 @@ export class HomeController extends ViewController {
         }
     }
 
-    /** Validates the registration form and submits the selected create, join, or view intent. */
+    /**
+     * Validates the registration form and submits the selected create, join, or view intent.
+     * @param {SubmitEvent} event - Registration submission.
+     */
     #handleRegistrationSubmit(event) {
         event.preventDefault();
         this.#submitRegistration();
@@ -138,7 +179,10 @@ export class HomeController extends ViewController {
         this.render(this.#home);
     }
 
-    /** Switches mode when a mode radio becomes selected. */
+    /**
+     * Switches mode when a mode radio becomes selected.
+     * @param {Event} event - Mode-input change.
+     */
     #handleModeChange(event) {
         const input = event.currentTarget;
 
@@ -147,8 +191,10 @@ export class HomeController extends ViewController {
         }
     }
 
-    /** @param {string} mode - Active play mode. */
-    /** Selects Direct or Hosted mode and refreshes endpoint capabilities. @param {string} mode */
+    /**
+     * Selects Direct or Hosted mode and refreshes endpoint capabilities.
+     * @param {string} mode - Active play mode.
+     */
     selectMode(mode) {
         const isHosted = mode === "hosted";
         this.#directModeInput.checked = !isHosted;
@@ -159,14 +205,16 @@ export class HomeController extends ViewController {
         this.#renderConnectionStatus();
     }
 
-    /** Requests the room directory after the selected transport opens. */
     /** Requests the Home directory when the endpoint opens. */
     handleClientOpen() {
         this.client?.request(Constants.COMMANDS.LIST, {});
     }
 
-    /** Renders Home data received from the active endpoint. */
-    /** Renders Home data received from the endpoint. @param {string} view @param {Object} home */
+    /**
+     * Renders Home data received from the endpoint.
+     * @param {string} view
+     * @param {Object} home
+     */
     handleData(view, home) {
         if (view === Constants.VIEWS.HOME) {
             this.#capabilities = ValidationUtils.object(home.capabilities, "Capabilities");
@@ -174,21 +222,27 @@ export class HomeController extends ViewController {
         }
     }
 
-    /** Shows a user notification. */
-    /** Displays a server notification in the shared alert overlay. @param {Object} message */
+    /**
+     * Displays a server notification in the shared alert overlay.
+     * @param {Object} message
+     */
     handleNotification(message) {
         this.#alertController.show(NotificationUtils.normalize(message));
     }
 
-    /** Updates the shared connection badge. */
-    /** Updates connection controls for the current endpoint status. @param {string} status */
+    /**
+     * Updates connection controls for the current endpoint status.
+     * @param {string} status
+     */
     handleConnectionStatus(status) {
         this.#connectionStatus.dataset.status = status;
         this.#renderConnectionStatus();
     }
 
-    /** Stores and renders Home state. */
-    /** Renders the current Room directory. @param {Object} home - Home data. */
+    /**
+     * Renders the current Room directory.
+     * @param {Object} home - Home data.
+     */
     render(home) {
         this.#home = home;
         this.#gameTableBody.replaceChildren();
@@ -299,7 +353,10 @@ export class HomeController extends ViewController {
         this.#gameHandler?.(command, data);
     }
 
-    /** @returns {boolean} Whether the latest directory contains a room name. */
+    /**
+     * @param {string} roomName - Room name to find.
+     * @returns {boolean} Whether the latest directory contains the room name.
+     */
     #isGameListed(roomName) {
         const gameKey = Actor.normalizeKey(roomName);
         const rooms = Array.isArray(this.#home?.rooms) ? this.#home.rooms : [];
@@ -313,7 +370,11 @@ export class HomeController extends ViewController {
         return false;
     }
 
-    /** Opens a room from a keyboard-activated directory row. */
+    /**
+     * Opens a room from a keyboard-activated directory row.
+     * @param {Object} room - Selected directory room.
+     * @param {KeyboardEvent} event - Row key event.
+     */
     #handleRoomKeyDown(room, event) {
         if (event.key === "Enter") {
             event.preventDefault();
@@ -321,7 +382,10 @@ export class HomeController extends ViewController {
         }
     }
 
-    /** Opens a selected Direct or Hosted room. */
+    /**
+     * Opens a selected Direct or Hosted room.
+     * @param {Object} room - Selected directory room.
+     */
     #openRoom(room) {
         const roomName = ValidationUtils.requiredString(room.name, "Room name");
         this.#gameHandler?.(Constants.COMMANDS.VIEW, { roomName });

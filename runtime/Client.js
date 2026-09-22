@@ -25,28 +25,44 @@ export class ClientEvents {
 
 /** Browser-facing API over any endpoint that implements open(). */
 export class Client {
-    /** @type {string} Card ordering requested for room snapshots. */
+    /**
+     * @type {string} Card ordering requested for room snapshots.
+     */
     #sortKey = Constants.CARD.SORT_OPTIONS[0];
 
-    /** @type {Endpoint} Transport endpoint used to create the active connection. */
+    /**
+     * @type {Endpoint} Transport endpoint used to create the active connection.
+     */
     #endpoint;
 
-    /** @type {Connection|null} Active endpoint connection handle. */
+    /**
+     * @type {Connection|null} Active endpoint connection handle.
+     */
     #connection = null;
 
-    /** @type {import("../ui/controllers/ViewController.js").ViewController|null} Active page controller. */
+    /**
+     * @type {import("../ui/controllers/ViewController.js").ViewController|null} Active page controller.
+     */
     #controller = null;
 
-    /** @type {(function(string, string): void)|null} Optional endpoint-status observer. */
+    /**
+     * @type {(function(string, string): void)|null} Optional endpoint-status observer.
+     */
     #onStatus = null;
 
-    /** @type {(function(string|null, Object): void)|null} Optional view-data observer. */
+    /**
+     * @type {(function(string|null, Object): void)|null} Optional view-data observer.
+     */
     #onData = null;
 
-    /** @type {string} Session-stable identifier included with every request. */
+    /**
+     * @type {string} Session-stable identifier included with every request.
+     */
     #tabId = Client.#getTabId();
 
-    /** @param {Endpoint} endpoint - Direct or WebSocket endpoint. */
+    /**
+     * @param {Endpoint} endpoint - Direct or WebSocket endpoint.
+     */
     constructor(endpoint) {
         const source = ValidationUtils.object(endpoint, "Endpoint");
 
@@ -57,12 +73,16 @@ export class Client {
         this.#endpoint = source;
     }
 
-    /** @returns {string} Current card sort key. */
+    /**
+     * @returns {string} Current card sort key.
+     */
     get sortKey() {
         return this.#sortKey;
     }
 
-    /** @param {string} value - Card sort key. */
+    /**
+     * @param {string} value - Card sort key.
+     */
     set sortKey(value) {
         this.#sortKey = ValidationUtils.requiredString(value, "Sort key");
     }
@@ -124,12 +144,17 @@ export class Client {
         );
     }
 
-    /** @param {Object} message - Normalized user notification. */
+    /**
+     * @param {Object} message - Normalized user notification.
+     */
     showAlert(message) {
         this.#controller?.handleNotification?.(message);
     }
 
-    /** @param {string} status - Connection status. @param {string} label - Display label. */
+    /**
+     * @param {string} status - Connection status.
+     * @param {string} label - Display label.
+     */
     #handleStatus(status, label) {
         this.#controller?.handleConnectionStatus?.(status, label);
         this.#onStatus?.(status, label);
@@ -145,7 +170,9 @@ export class Client {
         this.#controller?.handleClientClose?.();
     }
 
-    /** @param {Object|string} raw - Raw endpoint response. */
+    /**
+     * @param {Object|string} raw - Raw endpoint response.
+     */
     #receive(raw) {
         const response = Client.#parseResponse(raw);
 
@@ -164,7 +191,10 @@ export class Client {
         }
     }
 
-    /** @param {Object|string} raw - Raw endpoint response. @returns {{view:string|null,message:Object|null,data:Object|null}|null} Canonical response, or null. */
+    /**
+     * @param {Object|string} raw - Raw endpoint response.
+     * @returns {{view:string|null,message:Object|null,data:Object|null}|null} Canonical response, or null.
+     */
     static #parseResponse(raw) {
         try {
             const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
@@ -194,7 +224,9 @@ export class Client {
         }
     }
 
-    /** @returns {string} Existing session identifier, or a newly generated and persisted identifier. */
+    /**
+     * @returns {string} Existing session identifier, or a newly generated and persisted identifier.
+     */
     static #getTabId() {
         const storage = globalThis.sessionStorage;
         let tabId = storage?.getItem("game.tabId") ?? "";

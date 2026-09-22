@@ -6,43 +6,54 @@ import express from "express";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import WebSocket, { WebSocketServer } from "ws";
+import {fileURLToPath} from "node:url";
+import WebSocket, {WebSocketServer} from "ws";
 
-import { Host } from "./Host.js";
-import { PeerChannel } from "./Transport.js";
+import {Host} from "./Host.js";
+import {PeerChannel} from "./Transport.js";
 
 /** Node-only HTTP and WebSocket boundary around the shared Host. */
 export class WebSocketGateway {
-    /** @type {Host} Authoritative Pick 2 host. */
+    /**
+     * @type {Host} Authoritative Pick 2 host.
+     */
     #host;
 
-    /** @type {import("node:http").Server} HTTP server serving assets and upgrades. */
+    /**
+     * @type {import("node:http").Server} HTTP server serving assets and upgrades.
+     */
     #httpServer;
 
-    /** @type {WebSocketServer} WebSocket server carrying Host requests and responses. */
+    /**
+     * @type {WebSocketServer} WebSocket server carrying Host requests and responses.
+     */
     #webSocketServer;
 
-    /** @type {NodeJS.Timeout|null} Interval that prunes throttles and pings clients. */
+    /**
+     * @type {NodeJS.Timeout|null} Interval that prunes throttles and pings clients.
+     */
     #maintenanceInterval = null;
 
     /**
      * Creates and starts the Node HTTP/WebSocket runtime.
      * @param {number|string} port - HTTP/WebSocket listening port.
-    * @param {import("../core/Game.js").Game} game - Hosted game contract.
+     * @param {import("../core/Game.js").Game} game - Hosted game contract.
      */
     constructor(port, game) {
         const resolvedPort = WebSocketGateway.#resolvePort(port);
         this.#host = new Host("hosted", 0, true, game);
         this.#httpServer = http.createServer(WebSocketGateway.#createApp());
-        this.#webSocketServer = new WebSocketServer({ server: this.#httpServer });
+        this.#webSocketServer = new WebSocketServer({server: this.#httpServer});
         this.#webSocketServer.on("connection", this.#connect.bind(this));
         this.#httpServer.on("close", this.#stopMaintenance.bind(this));
         this.#startMaintenance();
         this.#httpServer.listen(resolvedPort, "0.0.0.0", this.#reportStarted.bind(this, resolvedPort));
     }
 
-    /** Stops network infrastructure and the shared Host. @returns {Promise<void>} */
+    /**
+     * Stops network infrastructure and the shared Host.
+     * @returns {Promise<void>}
+     */
     async shutdown() {
         this.#stopMaintenance();
 
@@ -56,7 +67,10 @@ export class WebSocketGateway {
         this.#httpServer.removeAllListeners();
     }
 
-    /** @param {number|string} port - Requested port. @returns {number} Configured HTTP port. */
+    /**
+     * @param {number|string} port - Requested port.
+     * @returns {number} Configured HTTP port.
+     */
     static #resolvePort(port) {
         const parsed = Number.parseInt(String(port), 10);
         return Number.isNaN(parsed) ? 8080 : parsed;
@@ -76,17 +90,26 @@ export class WebSocketGateway {
         return app;
     }
 
-    /** @param {string} file - Absolute asset path. @param {import("express").Request} _request - HTTP request. @param {import("express").Response} response - HTTP response. */
+    /**
+     * @param {string} file - Absolute asset path.
+     * @param {import("express").Request} _request - HTTP request.
+     * @param {import("express").Response} response - HTTP response.
+     */
     static #serveFile(file, _request, response) {
         response.sendFile(file);
     }
 
-    /** @param {import("express").Request} _request - HTTP request. @param {import("express").Response} response - HTTP response. */
+    /**
+     * @param {import("express").Request} _request - HTTP request.
+     * @param {import("express").Response} response - HTTP response.
+     */
     static #serveHealth(_request, response) {
         response.status(200).send("OK");
     }
 
-    /** @param {number} port - Active listening port. */
+    /**
+     * @param {number} port - Active listening port.
+     */
     #reportStarted(port) {
         console.log(`WebSocket gateway listening on http://localhost:${port}`);
 
@@ -95,7 +118,9 @@ export class WebSocketGateway {
         }
     }
 
-    /** @param {WebSocket} socket - Accepted WebSocket connection. */
+    /**
+     * @param {WebSocket} socket - Accepted WebSocket connection.
+     */
     #connect(socket) {
         const peer = this.#host.accept(
             new PeerChannel(WebSocketGateway.#publish.bind(null, socket), WebSocketGateway.#terminate.bind(null, socket))
@@ -106,33 +131,45 @@ export class WebSocketGateway {
         socket.on("error", WebSocketGateway.#ignoreSocketError);
     }
 
-    /** @param {WebSocket} socket - Destination socket. @param {Object} response - Canonical Host response. */
+    /**
+     * @param {WebSocket} socket - Destination socket.
+     * @param {Object} response - Canonical Host response.
+     */
     static #publish(socket, response) {
         if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify(response));
         }
     }
 
-    /** @param {WebSocket} socket - Socket to close. @param {number} [code] - Close code. @param {string} [reason] - Close reason. */
+    /**
+     * @param {WebSocket} socket - Socket to close.
+     * @param {number} [code] - Close code.
+     * @param {string} [reason] - Close reason.
+     */
     static #terminate(socket, code, reason) {
         if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
             socket.close(code, reason);
         }
     }
 
-    /** @param {import("./Session.js").HostPeer} peer - Host connection handle. @param {WebSocket.RawData} message - Inbound frame. */
+    /**
+     * @param {import("./Session.js").HostPeer} peer - Host connection handle.
+     * @param {WebSocket.RawData} message - Inbound frame.
+     */
     static #receive(peer, message) {
         let request = null;
 
         try {
             request = JSON.parse(String(message));
-        } catch (_error) {}
+        } catch (_error) {
+        }
 
         void peer.receive(request);
     }
 
     /** Absorbs socket errors because close events own connection cleanup. */
-    static #ignoreSocketError() {}
+    static #ignoreSocketError() {
+    }
 
     /** Starts the unreferenced maintenance interval used by the Node host. */
     #startMaintenance() {
@@ -159,7 +196,10 @@ export class WebSocketGateway {
         }
     }
 
-    /** @param {number} port - Active listening port. @returns {string[]} Unique IPv4 LAN URLs. */
+    /**
+     * @param {number} port - Active listening port.
+     * @returns {string[]} Unique IPv4 LAN URLs.
+     */
     static #getLanUrls(port) {
         const urls = [];
 
@@ -174,17 +214,28 @@ export class WebSocketGateway {
         return Array.from(new Set(urls));
     }
 
-    /** @param {import("node:http").Server|WebSocketServer} server - Server to close. @returns {Promise<void>} */
+    /**
+     * @param {import("node:http").Server|WebSocketServer} server - Server to close.
+     * @returns {Promise<void>}
+     */
     static #close(server) {
         return new Promise(WebSocketGateway.#closeServer.bind(null, server));
     }
 
-    /** @param {import("node:http").Server|WebSocketServer} server - Server to close. @param {function(): void} resolve - Promise resolver. @param {function(Error): void} reject - Promise rejecter. */
+    /**
+     * @param {import("node:http").Server|WebSocketServer} server - Server to close.
+     * @param {function(): void} resolve - Promise resolver.
+     * @param {function(Error): void} reject - Promise rejecter.
+     */
     static #closeServer(server, resolve, reject) {
         server.close(WebSocketGateway.#finishClose.bind(null, resolve, reject));
     }
 
-    /** @param {function(): void} resolve - Promise resolver. @param {function(Error): void} reject - Promise rejecter. @param {Error|undefined} error - Close result. */
+    /**
+     * @param {function(): void} resolve - Promise resolver.
+     * @param {function(Error): void} reject - Promise rejecter.
+     * @param {Error|undefined} error - Close result.
+     */
     static #finishClose(resolve, reject, error) {
         if (error instanceof Error && error.code !== "ERR_SERVER_NOT_RUNNING") {
             reject(error);

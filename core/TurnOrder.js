@@ -17,12 +17,16 @@ export class TurnOrder extends Serializable {
         this.direction = 1;
     }
 
-    /** @returns {number} Seated actor count. */
+    /**
+     * @returns {number} Seated actor count.
+     */
     get size() {
         return this.actors.size;
     }
 
-    /** @returns {Actor|null} Current turn owner. */
+    /**
+     * @returns {Actor|null} Current turn owner.
+     */
     get owner() {
         return this.ownerKey === null ? null : (this.actors.get(this.ownerKey) ?? null);
     }
@@ -32,12 +36,23 @@ export class TurnOrder extends Serializable {
         return this.actors.size === 0;
     }
 
-    /** Returns whether an actor identity belongs to the order. */
+    /**
+
+     * Returns whether an actor identity belongs to the order.
+     * @param {string} nameOrKey - Actor name or normalized key.
+     * @returns {boolean} Whether the Actor is seated.
+     */
     has(nameOrKey) {
         return this.actors.has(Actor.normalizeKey(nameOrKey));
     }
 
-    /** Resolves an actor identity or raises a user-facing absence error. */
+    /**
+
+     * Resolves an actor identity or raises a user-facing absence error.
+     * @param {string} nameOrKey - Actor name or normalized key.
+     * @returns {Actor} Matching Actor.
+     * @throws {UserNotification} When the Actor is absent.
+     */
     get(nameOrKey) {
         const actor = this.actors.get(Actor.normalizeKey(nameOrKey)) ?? null;
         if (actor === null) {
@@ -46,7 +61,12 @@ export class TurnOrder extends Serializable {
         return actor;
     }
 
-    /** Appends a unique actor to the circle. */
+    /**
+
+     * Appends a unique actor to the circle.
+     * @param {Actor} actor - Actor to seat.
+     * @returns {Actor} Added Actor.
+     */
     add(actor) {
         ValidationUtils.instanceOf(actor, Actor, "Actor");
         if (this.actors.has(actor.key)) {
@@ -57,7 +77,12 @@ export class TurnOrder extends Serializable {
         return actor;
     }
 
-    /** Removes an actor while preserving a valid owner cursor. */
+    /**
+
+     * Removes an actor while preserving a valid owner cursor.
+     * @param {string} nameOrKey - Actor name or normalized key.
+     * @returns {Actor} Removed Actor.
+     */
     remove(nameOrKey) {
         const actor = this.get(nameOrKey);
         const index = this.order.indexOf(actor.key);
@@ -75,7 +100,12 @@ export class TurnOrder extends Serializable {
         return actor;
     }
 
-    /** Assigns or clears the turn owner and synchronizes actor states. */
+    /**
+
+     * Assigns or clears the turn owner and synchronizes actor states.
+     * @param {string|null} nameOrKey - Actor identity, or null to clear ownership.
+     * @returns {Actor|null} Current owner.
+     */
     setOwner(nameOrKey) {
         if (nameOrKey === null) {
             this.ownerKey = null;
@@ -94,7 +124,12 @@ export class TurnOrder extends Serializable {
         return this.owner;
     }
 
-    /** Moves the owner cursor by signed logical steps. */
+    /**
+
+     * Moves the owner cursor by signed logical steps.
+     * @param {number} [steps] - Signed logical positions to advance.
+     * @returns {Actor|null} New owner.
+     */
     move(steps = 1) {
         const actor = this.relative(steps);
         if (actor !== null) {
@@ -103,7 +138,12 @@ export class TurnOrder extends Serializable {
         return actor;
     }
 
-    /** Reads an actor relative to the owner without moving the cursor. */
+    /**
+
+     * Reads an actor relative to the owner without moving the cursor.
+     * @param {number} [steps] - Signed logical offset.
+     * @returns {Actor|null} Relative Actor.
+     */
     relative(steps = 1) {
         ValidationUtils.integer(steps, "Steps");
         if (this.ownerKey === null || this.order.length === 0) {

@@ -64,7 +64,12 @@ export class GuideController {
         }
     }
 
-    /** Builds card records for one value and an explicit suit list. */
+    /**
+     * Builds card records for one value and an explicit suit list.
+     * @param {string} value - Card value.
+     * @param {string[]} suits - Suits to pair with the value.
+     * @returns {Object[]} Card records.
+     */
     static #createCards(value, suits) {
         const cards = [];
 

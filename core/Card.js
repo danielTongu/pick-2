@@ -5,10 +5,14 @@ import { Serializable } from "./Serializable.js";
 
 /** Immutable validated card identity shared by rules, collections, bots, and snapshots.*/
 export class Card extends Serializable {
-    /** @type {string} Stable card identity. */
+    /**
+     * @type {string} Stable card identity.
+     */
     #id;
 
-    /** @type {number} Card score. */
+    /**
+     * @type {number} Card score.
+     */
     #score;
 
     /**
@@ -35,32 +39,51 @@ export class Card extends Serializable {
         Object.freeze(this); // Prevent further mutation.
     }
 
-    /** @returns {string} Stable card identity. */
+    /**
+     * @returns {string} Stable card identity.
+     */
     get id() {
         return this.#id;
     }
 
-    /** @returns {string} Stable item key used by Room messages and commands. */
+    /**
+     * @returns {string} Stable item key used by Room messages and commands.
+     */
     get key() {
         return this.#id;
     }
 
-    /** @returns {number} Pick2 score. */
+    /**
+     * @returns {number} Pick2 score.
+     */
     get score() {
         return this.#score;
     }
 
-    /** Returns whether another card has the same identity. */
+    /**
+
+     * Returns whether another card has the same identity.
+     * @param {*} source - Candidate card to compare.
+     * @returns {boolean} Whether the identities match.
+     */
     equals(source) {
         return source instanceof Card && source.id === this.id;
     }
 
-    /** @returns {string} Stable card identity. */
+    /**
+     * @returns {string} Stable card identity.
+     */
     toString() {
         return this.id;
     }
 
-    /** Serializes this card with its derived score when requested. */
+    /**
+
+     * Serializes this card with its derived score when requested.
+     * @param {string[]|string|null} [include] - Fields to include, or null for all fields.
+     * @param {string[]} [exclude] - Fields to omit.
+     * @returns {Object} Card snapshot.
+     */
     toJSON(include = null, exclude = []) {
         const fields = typeof include === "string" ? null : include;
         const snapshot = super.toJSON(fields, exclude);
@@ -69,7 +92,9 @@ export class Card extends Serializable {
         return snapshot;
     }
 
-    /** @returns {number} Natural rank derived from the card value. */
+    /**
+     * @returns {number} Natural rank derived from the card value.
+     */
     get rank() {
         return Constants.getCardValue(this.value).rank;
     }

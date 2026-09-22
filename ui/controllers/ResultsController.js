@@ -10,16 +10,24 @@ import { ViewController } from "./ViewController.js";
  * Controls the singleton round-end overlay already present in the page HTML.
  */
 export class ResultsController extends ViewController {
-    /** @type {Object[]} Actor or item snapshots currently rendered by the controller. */
+    /**
+     * @type {Object[]} Actor or item snapshots currently rendered by the controller.
+     */
     #actors = [];
 
-    /** @type {HTMLElement} Required UI element owned by this controller. */
+    /**
+     * @type {HTMLElement} Required UI element owned by this controller.
+     */
     #message;
 
-    /** @type {HTMLTableSectionElement} Required table body replaced from authoritative state. */
+    /**
+     * @type {HTMLTableSectionElement} Required table body replaced from authoritative state.
+     */
     #statsBody;
 
-    /** @type {HTMLElement} Required UI element owned by this controller. */
+    /**
+     * @type {HTMLElement} Required UI element owned by this controller.
+     */
     #selectedActorItems;
 
     /**
@@ -185,7 +193,11 @@ export class ResultsController extends ViewController {
         return row;
     }
 
-    /** Selects a statistics row through its keyboard interaction. */
+    /**
+     * Selects a statistics row through its keyboard interaction.
+     * @param {string} actorName - Row actor name.
+     * @param {KeyboardEvent} event - Row key event.
+     */
     #handleStatsKeyDown(actorName, event) {
         if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();

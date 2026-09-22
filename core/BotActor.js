@@ -8,40 +8,64 @@ import { TurnUtils } from "./TurnUtils.js";
 /** Automated actor that chooses legal moves from private hand data and public room state. */
 export class BotActor extends Actor {
     // bot Scoring Constants
-    /** @type {number} Sentinel score for a move that guarantees the round win. */
+    /**
+     * @type {number} Sentinel score for a move that guarantees the round win.
+     */
     static #SCORE_WIN = Infinity;
 
-    /** @type {number} Sentinel score for a candidate that must not be selected. */
+    /**
+     * @type {number} Sentinel score for a candidate that must not be selected.
+     */
     static #SCORE_NEVER = -Infinity;
 
-    /** @type {number} Strong tactical priority bonus. */
+    /**
+     * @type {number} Strong tactical priority bonus.
+     */
     static #PRIORITY_HIGH = 10000;
 
-    /** @type {number} Medium tactical priority bonus. */
+    /**
+     * @type {number} Medium tactical priority bonus.
+     */
     static #PRIORITY_MEDIUM = 5000;
 
-    /** @type {number} Elevated tactical priority bonus. */
+    /**
+     * @type {number} Elevated tactical priority bonus.
+     */
     static #PRIORITY_ELEVATED = 1000;
 
-    /** @type {number} Small tactical priority bonus. */
+    /**
+     * @type {number} Small tactical priority bonus.
+     */
     static #PRIORITY_LOW = 100;
 
-    /** @type {number} Penalty for a strategically undesirable candidate. */
+    /**
+     * @type {number} Penalty for a strategically undesirable candidate.
+     */
     static #PENALTY_AVOID = -5000;
 
-    /** @type {number} Penalty for a strongly undesirable candidate. */
+    /**
+     * @type {number} Penalty for a strongly undesirable candidate.
+     */
     static #PENALTY_STRONG_AVOID = -8000;
 
-    /** @type {number} Penalty reserved for last-resort candidates. */
+    /**
+     * @type {number} Penalty reserved for last-resort candidates.
+     */
     static #PENALTY_LAST_RESORT = -1000;
 
-    /** @type {number} Conservation penalty applied to valuable aces. */
+    /**
+     * @type {number} Conservation penalty applied to valuable aces.
+     */
     static #PENALTY_ACE = -3000;
 
-    /** @type {number} Lowest natural rank considered an ordinary discard. */
+    /**
+     * @type {number} Lowest natural rank considered an ordinary discard.
+     */
     static #LOWEST_ORDINARY_RANK = Constants.CARD.VALUE.THREE.rank;
 
-    /** @type {number} Minimum estimated win probability for releasing a round-ending card. */
+    /**
+     * @type {number} Minimum estimated win probability for releasing a round-ending card.
+     */
     static #MIN_END_GAME_WIN_PROBABILITY = 0.7;
 
     /**
@@ -54,13 +78,22 @@ export class BotActor extends Actor {
         super(name, { drawAllowance: 1 });
     }
 
-    /** Waits, revalidates ownership, and performs one bot turn. */
+    /**
+
+     * Waits, revalidates ownership, and performs one bot turn.
+     * @param {import("./Room.js").Room} room - Room whose turn may belong to this Bot.
+     */
     async takeTurn(room) {
         await this._waitForTurnDelay();
         if (this._isTurnOwner(room)) await this._takeTurn(room);
     }
 
-    /** Returns whether this bot still owns the supplied room's turn. */
+    /**
+
+     * Returns whether this bot still owns the supplied room's turn.
+     * @param {import("./Room.js").Room} room - Room to check.
+     * @returns {boolean} Whether this Bot is the current turn owner.
+     */
     _isTurnOwner(room) {
         return TurnUtils.isTurnOwner(room.turnOrder.ownerKey, this.key);
     }

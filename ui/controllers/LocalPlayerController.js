@@ -11,43 +11,69 @@ import { ViewController } from "./ViewController.js";
  * Controls the local-player area within the shared Room play area.
  */
 export class LocalPlayerController extends ViewController {
-    /** @type {Function|null} Optional application callback registered by the owning page. */
+    /**
+     * @type {Function|null} Optional application callback registered by the owning page.
+     */
     #commandHandler = null;
 
-    /** @type {Function|null} Optional application callback registered by the owning page. */
+    /**
+     * @type {Function|null} Optional application callback registered by the owning page.
+     */
     #sortHandler = null;
 
-    /** @type {HTMLElement} Required UI element owned by this controller. */
+    /**
+     * @type {HTMLElement} Required UI element owned by this controller.
+     */
     #gameRegion;
 
-    /** @type {HTMLSpanElement} Required actor identity and status output. */
+    /**
+     * @type {HTMLSpanElement} Required actor identity and status output.
+     */
     #playerStatus;
 
-    /** @type {HTMLSpanElement} Required text output synchronized during rendering. */
+    /**
+     * @type {HTMLSpanElement} Required text output synchronized during rendering.
+     */
     #playerCardCount;
 
-    /** @type {HTMLSpanElement} Card-hand container and drop target. */
+    /**
+     * @type {HTMLSpanElement} Card-hand container and drop target.
+     */
     #handElement;
 
-    /** @type {HTMLButtonElement} Required command control owned by this controller. */
+    /**
+     * @type {HTMLButtonElement} Required command control owned by this controller.
+     */
     #drawButton;
 
-    /** @type {HTMLSpanElement} Required text output synchronized during rendering. */
+    /**
+     * @type {HTMLSpanElement} Required text output synchronized during rendering.
+     */
     #drawAllowanceOutput;
 
-    /** @type {HTMLSelectElement} Required selection control owned by this controller. */
+    /**
+     * @type {HTMLSelectElement} Required selection control owned by this controller.
+     */
     #sortControl;
 
-    /** @type {HTMLElement|null} Optional UI output present only in supported room modes. */
+    /**
+     * @type {HTMLElement|null} Optional UI output present only in supported room modes.
+     */
     #idleSecondsOutput = null;
 
-    /** @type {HTMLButtonElement} Required command control owned by this controller. */
+    /**
+     * @type {HTMLButtonElement} Required command control owned by this controller.
+     */
     #playButton;
 
-    /** @type {HTMLButtonElement} Required command control owned by this controller. */
+    /**
+     * @type {HTMLButtonElement} Required command control owned by this controller.
+     */
     #passButton;
 
-    /** @type {boolean} Current controller capability or lifecycle flag. */
+    /**
+     * @type {boolean} Current controller capability or lifecycle flag.
+     */
     #canRestartFinishedGame;
 
     /**
@@ -214,19 +240,31 @@ export class LocalPlayerController extends ViewController {
         }
     }
 
-    /** Renders turn ownership and final actor state on the local-area root. */
+    /**
+     * Renders turn ownership and final actor state on the local-area root.
+     * @param {Object} actor - Local actor snapshot.
+     * @param {Object} room - Authoritative room snapshot.
+     */
     #renderRootState(actor, room) {
         DomUtils.setBooleanState(this.root, "isTurnOwner", TurnUtils.isTurnOwner(room.turnOrder?.ownerKey, actor.key));
         DomUtils.setBooleanState(this.root, "isWinner", actor.state === Constants.ACTOR_STATE.WON);
     }
 
-    /** Renders the canonical local actor identity and item count. */
+    /**
+     * Renders the canonical local actor identity and item count.
+     * @param {Object} actor - Local actor snapshot.
+     */
     #renderHeader(actor) {
         this.#playerStatus.dataset.actorName = actor.name ?? "";
         this.#playerCardCount.dataset.itemCount = String(actor.collection.items.length);
     }
 
-    /** Enables controls from canonical actor ownership and Room lifecycle state. */
+    /**
+     * Enables controls from canonical actor ownership and Room lifecycle state.
+     * @param {Object} actor - Local actor snapshot.
+     * @param {Object} room - Authoritative room snapshot.
+     * @param {string} sortKey - Selected hand sort order.
+     */
     #renderControls(actor, room, sortKey) {
         this.#drawAllowanceOutput.dataset.drawAllowance = String(actor.drawAllowance);
         this.#drawButton.disabled = !LocalPlayerController.#isDrawButtonUsable(actor, room);
@@ -243,7 +281,12 @@ export class LocalPlayerController extends ViewController {
             !TurnUtils.isTurnOwner(room.turnOrder?.ownerKey, actor.key);
     }
 
-    /** Renders the sorted local collection and enables dragging only when discarding is legal. */
+    /**
+     * Renders the sorted local collection and enables dragging only when discarding is legal.
+     * @param {Object} actor - Local actor snapshot.
+     * @param {Object} room - Authoritative room snapshot.
+     * @param {string} sortKey - Selected hand sort order.
+     */
     #renderCards(actor, room, sortKey) {
         this.#handElement.replaceChildren();
         const orderedCards = CardSortUtils.sorted(actor.collection.items, sortKey);
@@ -262,7 +305,12 @@ export class LocalPlayerController extends ViewController {
         }
     }
 
-    /** Returns whether the local actor may draw in the authoritative Room state. */
+    /**
+     * Returns whether the local actor may draw in the authoritative Room state.
+     * @param {Object} actor - Local actor snapshot.
+     * @param {Object} room - Authoritative room snapshot.
+     * @returns {boolean} Whether drawing is enabled.
+     */
     static #isDrawButtonUsable(actor, room) {
         if (room.pending !== null) {
             return false;

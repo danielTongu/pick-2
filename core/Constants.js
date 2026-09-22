@@ -1,27 +1,43 @@
 /** Canonical immutable vocabulary, limits, card definitions, and timing shared across Pick 2. */
 export class Constants {
-    /** @type {number} Hosted actor idle limit in milliseconds. */
+    /**
+     * @type {number} Hosted actor idle limit in milliseconds.
+     */
     static MAX_IDLE_MS = 30 * 1000;
 
-    /** @type {number} Transition countdown length. */
+    /**
+     * @type {number} Transition countdown length.
+     */
     static COUNTDOWN_SECONDS = 5;
 
-    /** @type {number} Hosted connection attempt timeout. */
+    /**
+     * @type {number} Hosted connection attempt timeout.
+     */
     static NETWORK_CONNECTION_TIMEOUT_MS = 3 * 1000;
 
-    /** @type {number} Default maximum actors per room. */
+    /**
+     * @type {number} Default maximum actors per room.
+     */
     static ROOM_PLAYER_LIMIT = 4;
 
-    /** @type {number} Default number of cards dealt to each actor. */
+    /**
+     * @type {number} Default number of cards dealt to each actor.
+     */
     static INITIAL_ITEM_COUNT = 7;
 
-    /** @type {number} Minimum automated-turn delay. */
+    /**
+     * @type {number} Minimum automated-turn delay.
+     */
     static AUTOMATED_ACTOR_DELAY_MIN_MS = 2000;
 
-    /** @type {number} Maximum automated-turn delay. */
+    /**
+     * @type {number} Maximum automated-turn delay.
+     */
     static AUTOMATED_ACTOR_DELAY_MAX_MS = 4000;
 
-    /** @type {Readonly<Record<string, string>>} Connection and notification statuses. */
+    /**
+     * @type {Readonly<Record<string, string>>} Connection and notification statuses.
+     */
     static STATUS = Object.freeze({
         CONNECTING: "connecting",
         CONNECTED: "connected",
@@ -31,16 +47,24 @@ export class Constants {
         ERROR: "error"
     });
 
-    /** @type {Readonly<Record<string, string>>} Room lifecycle states. */
+    /**
+     * @type {Readonly<Record<string, string>>} Room lifecycle states.
+     */
     static ROOM_STATE = Object.freeze({ WAITING: "waiting", ACTIVE: "active", FINISHED: "finished" });
 
-    /** @type {Readonly<Record<string, string>>} Actor round states. */
+    /**
+     * @type {Readonly<Record<string, string>>} Actor round states.
+     */
     static ACTOR_STATE = Object.freeze({ READY: "ready", ACTIVE: "active", WON: "won", LOST: "lost" });
 
-    /** @type {Readonly<Record<string, string>>} Application views. */
+    /**
+     * @type {Readonly<Record<string, string>>} Application views.
+     */
     static VIEWS = Object.freeze({ HOME: "home", ROOM: "room" });
 
-    /** @type {Readonly<Record<string, string>>} Top-level response fields. */
+    /**
+     * @type {Readonly<Record<string, string>>} Top-level response fields.
+     */
     static RESPONSE_KEYS = Object.freeze({ VIEW: "view", MESSAGE: "message", DATA: "data" });
 
     /** Canonical notification headings and messages shown by the game and room interfaces. */
@@ -104,7 +128,9 @@ export class Constants {
         });
     }
 
-    /** @type {Readonly<Record<string,string>>} Canonical request command names accepted by Host and Game. */
+    /**
+     * @type {Readonly<Record<string,string>>} Canonical request command names accepted by Host and Game.
+     */
     static COMMANDS = Object.freeze({
         LIST: "list",
         CREATE: "create",
@@ -119,7 +145,12 @@ export class Constants {
         DECLARE: "declare"
     });
 
-    /** Returns the Pick 2 score for a validated card identity. */
+    /**
+     * Returns the Pick 2 score for a validated card identity.
+     * @param {string} value - Card value.
+     * @param {string} suit - Card suit.
+     * @returns {number} Score for the card.
+     */
     static getCardScore(value, suit) {
         let score = Constants.getCardValue(value).rank;
 
@@ -136,7 +167,9 @@ export class Constants {
         return score;
     }
 
-    /** @type {Readonly<Object>} Canonical card scores, values, suits, deck membership, and sort options. */
+    /**
+     * @type {Readonly<Object>} Canonical card scores, values, suits, deck membership, and sort options.
+     */
     static CARD = Object.freeze({
         SCORE: Object.freeze({ TWO: 20, SEVEN_OF_HEARTS: 30, JOKER: 40, ACE_OF_SPADES: 50 }),
 

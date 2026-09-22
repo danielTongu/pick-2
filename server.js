@@ -8,28 +8,46 @@ const SHUTDOWN_TIMEOUT_MS = 10_000;
 let network = null;
 let shutdownPromise = null;
 
-/** Manages report error. */
+/**
+ * Logs a server error and its stack when available.
+ * @param {*} error - Server failure.
+ */
 function reportError(error) {
     console.error(error instanceof Error ? error.stack || error.message : error);
 }
 
-/** Creates shutdown timeout. */
+/**
+ * Creates the bounded graceful-shutdown timeout.
+ * @returns {Promise<never>} Promise that rejects when shutdown times out.
+ */
 function createShutdownTimeout() {
     return new Promise(startShutdownTimer);
 }
 
-/** Manages start shutdown timer. */
+/**
+ * Starts the graceful-shutdown timer.
+ * @param {Function} _resolve - Unused promise resolver.
+ * @param {Function} reject - Promise rejection callback.
+ */
 function startShutdownTimer(_resolve, reject) {
     const timeoutId = globalThis.setTimeout(rejectShutdownTimeout.bind(null, reject), SHUTDOWN_TIMEOUT_MS);
     timeoutId.unref();
 }
 
-/** Manages reject shutdown timeout. */
+/**
+ * Rejects a timed-out shutdown.
+ * @param {Function} reject - Promise rejection callback.
+ */
 function rejectShutdownTimeout(reject) {
     reject(new Error(`Shutdown exceeded ${SHUTDOWN_TIMEOUT_MS}ms.`));
 }
 
-/** Manages perform shutdown. */
+/**
+ * Closes the gateway within the shutdown deadline.
+ * @param {number} exitCode - Process exit code.
+ * @param {string} reason - Shutdown reason for logging.
+ * @returns {Promise<void>} Completion of shutdown handling.
+ */
 async function performShutdown(exitCode, reason) {
     console.log(`\nShutting down: ${reason}`);
     process.exitCode = exitCode;
@@ -49,7 +67,12 @@ async function performShutdown(exitCode, reason) {
     }
 }
 
-/** Manages shutdown. */
+/**
+ * Starts shutdown once and preserves an error exit code from later failures.
+ * @param {number} exitCode - Process exit code.
+ * @param {string} reason - Shutdown reason.
+ * @returns {Promise<void>} Shared shutdown promise.
+ */
 function shutdown(exitCode, reason) {
     if (shutdownPromise === null) {
         shutdownPromise = performShutdown(exitCode, reason);
@@ -60,19 +83,28 @@ function shutdown(exitCode, reason) {
     return shutdownPromise;
 }
 
-/** Handles signal. */
+/**
+ * Shuts down after a process signal.
+ * @param {string} signal - Received signal name.
+ */
 function handleSignal(signal) {
     void shutdown(0, signal);
 }
 
-/** Handles uncaught exception. */
+/**
+ * Reports an uncaught exception and exits after cleanup.
+ * @param {Error} error - Uncaught exception.
+ */
 function handleUncaughtException(error) {
     console.error("Uncaught exception:");
     reportError(error);
     void shutdown(1, "uncaught exception");
 }
 
-/** Handles unhandled rejection. */
+/**
+ * Reports an unhandled rejection and exits after cleanup.
+ * @param {*} reason - Rejection reason.
+ */
 function handleUnhandledRejection(reason) {
     console.error("Unhandled rejection:");
     reportError(reason);

@@ -14,7 +14,9 @@ import { CardSortUtils } from "./CardSortUtils.js";
 
 /** Owns a Pick2 room, its membership, and all item rules. */
 export class Room extends Serializable {
-    /** @type {Promise<*>} Tail of serialized room mutations. */
+    /**
+     * @type {Promise<*>} Tail of serialized room mutations.
+     */
     #operationQueue = Promise.resolve();
 
     /**
@@ -46,7 +48,9 @@ export class Room extends Serializable {
         this._lastDiscardActorKey = null;
     }
 
-    /** @returns {Map<string, Actor>} Actors keyed by normalized identity. */
+    /**
+     * @returns {Map<string, Actor>} Actors keyed by normalized identity.
+     */
     get actors() {
         return this.turnOrder.actors;
     }
@@ -61,7 +65,12 @@ export class Room extends Serializable {
         return this.turnOrder.size >= this.actorLimit;
     }
 
-    /** Returns whether a normalized actor identity is seated. */
+    /**
+
+     * Returns whether a normalized actor identity is seated.
+     * @param {string} actorNameOrKey - Actor name or normalized key.
+     * @returns {boolean} Whether the Actor is seated.
+     */
     hasActor(actorNameOrKey) {
         try {
             return this.turnOrder.has(actorNameOrKey);
@@ -155,7 +164,14 @@ export class Room extends Serializable {
         return wasRemoved;
     }
 
-    /** Adds a human or automated actor through the serialized operation queue. */
+    /**
+
+     * Adds a human or automated actor through the serialized operation queue.
+     * @param {string} actorName - Name of the Actor to seat.
+     * @param {boolean} [isAutomated] - Whether the Actor is a Bot.
+     * @param {string|null} [viewerKey] - Viewer tab to promote, if any.
+     * @returns {Promise<Actor>} Added Actor.
+     */
     async joinActor(actorName, isAutomated = false, viewerKey = null) {
         return this._enqueue(
             /** Adds an actor as one serialized room mutation. */
@@ -184,17 +200,34 @@ export class Room extends Serializable {
         );
     }
 
-    /** Removes a seated actor and releases its items. */
+    /**
+
+     * Removes a seated actor and releases its items.
+     * @param {string} actorNameOrKey - Actor name or normalized key.
+     * @returns {Promise<Actor>} Removed Actor.
+     */
     async removeActor(actorNameOrKey) {
         return this.#removeActor(actorNameOrKey, null);
     }
 
-    /** Removes an actor and registers the same client as a viewer. */
+    /**
+
+     * Removes an actor and registers the same client as a viewer.
+     * @param {string} actorNameOrKey - Actor name or normalized key.
+     * @param {string} viewerKey - Viewer tab to register.
+     * @returns {Promise<Actor>} Removed Actor.
+     */
     async moveActorToView(actorNameOrKey, viewerKey) {
         return this.#removeActor(actorNameOrKey, viewerKey);
     }
 
-    /** Registers a named room-owned collection. */
+    /**
+
+     * Registers a named room-owned collection.
+     * @param {string} name - Collection role.
+     * @param {CardCollection} collection - Collection to register.
+     * @returns {CardCollection} Registered collection.
+     */
     setCollection(name, collection) {
         const key = ValidationUtils.requiredString(name, "Collection name");
         ValidationUtils.instanceOf(collection, CardCollection, "Room collection");
@@ -202,7 +235,12 @@ export class Room extends Serializable {
         return collection;
     }
 
-    /** Returns a named room-owned collection. */
+    /**
+
+     * Returns a named room-owned collection.
+     * @param {string} name - Collection role.
+     * @returns {CardCollection} Registered collection.
+     */
     getCollection(name) {
         const key = ValidationUtils.requiredString(name, "Collection name");
         const collection = this.collections[key];
@@ -214,7 +252,14 @@ export class Room extends Serializable {
         return collection;
     }
 
-    /** Transfers an item from an actor collection into a room collection. */
+    /**
+
+     * Transfers an item from an actor collection into a room collection.
+     * @param {string} actorNameOrKey - Source Actor identity.
+     * @param {string} destinationName - Destination collection role.
+     * @param {Card|Object|string} item - Card identity to transfer.
+     * @returns {Card} Transferred card.
+     */
     putItem(actorNameOrKey, destinationName, item) {
         const actor = this.turnOrder.get(actorNameOrKey);
         const destination = this.getCollection(destinationName);
@@ -222,7 +267,14 @@ export class Room extends Serializable {
         return this.#moveItem(actor.collection, destination, item);
     }
 
-    /** Transfers a requested or top item from a room collection to an actor. */
+    /**
+
+     * Transfers a requested or top item from a room collection to an actor.
+     * @param {string} actorNameOrKey - Destination Actor identity.
+     * @param {string} sourceName - Source collection role.
+     * @param {Card|Object|string|null} [requestedItem] - Card identity, or null for the top card.
+     * @returns {Card|null} Transferred card, if available.
+     */
     takeItem(actorNameOrKey, sourceName, requestedItem = null) {
         const actor = this.turnOrder.get(actorNameOrKey);
         const source = this.getCollection(sourceName);
@@ -236,7 +288,14 @@ export class Room extends Serializable {
         return this.#moveItem(source, actor.collection, item);
     }
 
-    /** Transfers up to a requested item count from a room collection to an actor. */
+    /**
+
+     * Transfers up to a requested item count from a room collection to an actor.
+     * @param {string} actorNameOrKey - Destination Actor identity.
+     * @param {string} sourceName - Source collection role.
+     * @param {number} count - Maximum cards to transfer.
+     * @returns {Card[]} Transferred cards.
+     */
     takeItems(actorNameOrKey, sourceName, count) {
         ValidationUtils.nonNegativeInteger(count, "Item count");
         const items = [];
@@ -252,7 +311,14 @@ export class Room extends Serializable {
         return items;
     }
 
-    /** Transfers one item between room-owned collections. */
+    /**
+
+     * Transfers one item between room-owned collections.
+     * @param {string} sourceName - Source collection role.
+     * @param {string} destinationName - Destination collection role.
+     * @param {Card|Object|string} item - Card identity to transfer.
+     * @returns {Card} Transferred card.
+     */
     moveItem(sourceName, destinationName, item) {
         const source = this.getCollection(sourceName);
         const destination = this.getCollection(destinationName);
@@ -260,7 +326,13 @@ export class Room extends Serializable {
         return this.#moveItem(source, destination, item);
     }
 
-    /** Deals a fixed count from a room collection to every actor in circle order. */
+    /**
+
+     * Deals a fixed count from a room collection to every actor in circle order.
+     * @param {string} sourceName - Source collection role.
+     * @param {number} count - Cards to deal to each Actor.
+     * @returns {Card[]} Cards dealt in order.
+     */
     disperseItems(sourceName, count) {
         ValidationUtils.nonNegativeInteger(count, "Item count");
         const dispersed = [];
@@ -570,20 +642,33 @@ export class Room extends Serializable {
         return actor;
     }
 
-    /** Serializes a room mutation behind all previously requested mutations. */
+    /**
+
+     * Serializes a room mutation behind all previously requested mutations.
+     * @param {function(): *} operation - Room mutation to execute.
+     * @returns {Promise<*>} Operation result.
+     */
     _enqueue(operation) {
         const result = this.#operationQueue.then(operation);
         this.#operationQueue = result.catch(function ignoreFailure() {});
         return result;
     }
 
-    /** Returns a departing actor’s cards to the draw collection and reshuffles it. */
+    /**
+
+     * Returns a departing actor’s cards to the draw collection and reshuffles it.
+     * @param {Card[]} items - Released cards.
+     */
     _storeReleasedItems(items) {
         this.collections.draw.addMany(items);
         this.collections.draw.shuffle();
     }
 
-    /** Restores a valid round or turn state after an actor leaves. */
+    /**
+
+     * Restores a valid round or turn state after an actor leaves.
+     * @param {Actor} actor - Departing Actor.
+     */
     _afterActorRemoved(actor) {
         if (this.isRoundActive()) {
             if (this.turnOrder.actors.size < 2) {
@@ -617,7 +702,13 @@ export class Room extends Serializable {
         }
     }
 
-    /** Serializes actor removal, item recovery, viewer conversion, activity, and publication. */
+    /**
+
+     * Serializes actor removal, item recovery, viewer conversion, activity, and publication.
+     * @param {string} actorNameOrKey - Actor name or normalized key.
+     * @param {string|null} viewerKey - Viewer tab to register, if any.
+     * @returns {Promise<Actor>} Removed Actor.
+     */
     async #removeActor(actorNameOrKey, viewerKey) {
         return this._enqueue(
             /** Removes an actor as one serialized room mutation. */
@@ -715,7 +806,14 @@ export class Room extends Serializable {
         }
     }
 
-    /** Atomically removes an item from one collection and inserts it in another. */
+    /**
+
+     * Atomically removes an item from one collection and inserts it in another.
+     * @param {CardCollection} source - Source collection.
+     * @param {CardCollection} destination - Destination collection.
+     * @param {Card|Object|string} item - Card identity to transfer.
+     * @returns {Card} Transferred card.
+     */
     #moveItem(source, destination, item) {
         ValidationUtils.instanceOf(source, CardCollection, "Source collection");
         ValidationUtils.instanceOf(destination, CardCollection, "Destination collection");
@@ -800,7 +898,12 @@ export class Room extends Serializable {
         this.turnOrder.setOwner(actorKeys[randomIndex]);
     }
 
-    /** Sorts a hand when a concrete ordering is requested. */
+    /**
+
+     * Sorts a hand when a concrete ordering is requested.
+     * @param {Actor} actor - Owner of the hand.
+     * @param {string} sortKey - Requested ordering.
+     */
     #sortActorItems(actor, sortKey) {
         if (sortKey !== "none") {
             actor.collection.sort(CardSortUtils.comparator(sortKey));
@@ -956,7 +1059,12 @@ export class Room extends Serializable {
         this.state = Constants.ROOM_STATE.FINISHED;
     }
 
-    /** Normalizes optional external text without throwing. */
+    /**
+
+     * Normalizes optional external text without throwing.
+     * @param {*} value - Optional input.
+     * @returns {string} Trimmed text or empty text.
+     */
     static #optionalText(value) {
         return typeof value === "string" ? value.trim() : "";
     }
