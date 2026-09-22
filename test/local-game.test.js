@@ -250,13 +250,13 @@ test("Client adds shared fields to every endpoint request", () => {
 test("browser and Node runtime import graphs stay separate", () => {
     const host = readFileSync(new URL("../runtime/Host.js", import.meta.url), "utf8");
     const transport = readFileSync(new URL("../runtime/Transport.js", import.meta.url), "utf8");
-    const browserRuntime = readFileSync(new URL("../runtime/BrowserRuntime.js", import.meta.url), "utf8");
+    const view = readFileSync(new URL("../ui/View.js", import.meta.url), "utf8");
     const hostedServer = readFileSync(new URL("../runtime/WebSocketGateway.js", import.meta.url), "utf8");
 
     assert.doesNotMatch(host, /from ["'](?:node:|express|ws)/);
     assert.doesNotMatch(host, /\b(?:document|localStorage|sessionStorage|WebSocket)\b/);
     assert.doesNotMatch(transport, /from ["'](?:node:|express|ws)/);
-    assert.match(browserRuntime, /from "\.\/Host\.js"/);
+    assert.match(view, /from "\.\.\/runtime\/Host\.js"/);
     assert.match(hostedServer, /from "\.\/Host\.js"/);
     assert.match(hostedServer, /from "node:/);
     assert.match(hostedServer, /from "ws"/);
@@ -332,12 +332,13 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
         /id="player-hand"[\s\S]*?<span class="playing-card-area" data-is-drag-over="false"><\/span>/
     );
     assert.doesNotMatch(gameHtml, /id="local-player-region"/);
-    assert.match(gameHtml, /<details id="game-guide" open>/);
+    assert.match(gameHtml, /<details id="game-guide">/);
+    assert.doesNotMatch(gameHtml, /<details id="game-guide" open>/);
     assert.match(gameHtml, /id="room-guide-link" href="#game-guide"/);
     assert.doesNotMatch(gameHtml, /data-game-region="guide"|id="guide-section"/);
     assert.match(gameHtml, /<tr class="placeholder-row"[^>]*>[\s\S]*?<td>--<\/td>/);
     assert.doesNotMatch(gameHtml, /id="room-mode-label"|id="connection-status-indicator"/);
-    assert.match(homeHtml, /src="index\.js"/);
+    assert.match(homeHtml, /src="main\.js"/);
     assert.doesNotMatch(homeMarkup, /network-connection\.js/);
     assert.match(homeTemplate, /<aside>\s*<span data-game-preview aria-hidden="true"><\/span>\s*<\/aside>/);
     assert.match(
@@ -358,7 +359,7 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.match(homeDecoration, /\.sort\(compareCardScores\)/);
     assert.match(homeDecoration, /PlayingCard\.create\(card\)/);
     assert.match(homeDecoration, /element\.rotation = null/);
-    assert.match(roomPageHtml, /src="index\.js"/);
+    assert.match(roomPageHtml, /src="main\.js"/);
     assert.match(homeHtml, /href="ui\/styles\/home\.css"/);
     assert.match(roomPageHtml, /href="\.\/ui\/styles\/room\.css"/);
     assert.doesNotMatch(main, /pick2\/ui\/styles\/room\.css/);
@@ -380,7 +381,7 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.match(gameHtml, /<button id="suit-selection-submit-button">Submit<\/button>/);
     assert.match(gameHtml, /<button id="results-dismiss-button">dismiss<\/button>/);
     assert.doesNotMatch(homeHtml + gameHtml, /id="(?:quick-start|core-rules|special-cards)"/);
-    assert.match(main, /new BrowserRuntime\(new this\.Game\(\)\)\.endpoint/);
+    assert.match(main, /new Endpoint\(new Host\("direct", "fill", false, new this\.Game\(\)\)\)/);
     assert.match(main, /new WebSocketEndpoint/);
     assert.match(main, /new HomeView\(roomUrl\)/);
     assert.match(main, /new RoomView\(homeUrl\)/);

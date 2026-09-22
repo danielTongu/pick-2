@@ -72,12 +72,12 @@ Client
 
 Responses return through the same path and always use the canonical `{ view, message, data }` envelope.
 
-| Runtime file | Responsibility |
+| File | Responsibility |
 | --- | --- |
 | `runtime/Client.js` | Adds tab and sort context, validates responses, and notifies controllers. |
 | `runtime/Command.js` | Validates requests, carries resolved command context, and dispatches commands. |
 | `runtime/Transport.js` | Defines the peer channel and the direct and WebSocket endpoint implementations. |
-| `runtime/BrowserRuntime.js` | Composes a browser-owned in-memory Host and direct Endpoint. |
+| `ui/View.js` | Selects Hosted transport or composes a browser-owned Host and direct Endpoint. |
 | `runtime/WebSocketGateway.js` | Owns Node HTTP/WebSocket infrastructure and adapts sockets to peer channels. |
 | `runtime/Host.js` | Defines Host policy and coordinates rooms, membership, publication, automation, and cleanup. |
 | `runtime/RateLimit.js` | Enforces connection-, player-, and room-scoped throttles. |
@@ -154,8 +154,8 @@ they do not restate this pipeline.
 #### Canonical startup and command pipeline
 
 1. `main.js` chooses `HomeView` or `RoomView` from the page, and the view creates its controller and a `Client`.
-2. `View.createClient(mode)` selects the transport. Direct mode uses `BrowserRuntime`, `Endpoint`, and `Connection`;
-   Hosted mode uses `WebSocketEndpoint`, `WebSocketConnection`, and the server-side `WebSocketGateway`. Both connect
+2. `View.createClient(mode)` selects the transport. Direct mode composes `Host`, `Endpoint`, and `Connection`; Hosted
+   mode uses `WebSocketEndpoint`, `WebSocketConnection`, and the server-side `WebSocketGateway`. Both connect
    the same `Client` to a `Host` through a `PeerChannel`.
 3. `Host.accept()` creates a `PeerSession` in `SessionRegistry` and publishes the initial Home snapshot after startup.
 4. `Client.request()` adds the tab identifier and current sort key. The selected transport delivers the request to

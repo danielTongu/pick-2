@@ -3,9 +3,9 @@
 
 import {Constants} from "../core/Constants.js";
 import {Game} from "../core/Game.js";
-import {BrowserRuntime} from "../runtime/BrowserRuntime.js";
 import {Client, ClientEvents} from "../runtime/Client.js";
-import {WebSocketEndpoint} from "../runtime/Transport.js";
+import {Host} from "../runtime/Host.js";
+import {Endpoint, WebSocketEndpoint} from "../runtime/Transport.js";
 import {DomUtils} from "./utilities/DomUtils.js";
 
 /** Provides shared controller, client, mode, and navigation state for an application view. */
@@ -41,7 +41,7 @@ export class View {
     createClient(mode) {
         const endpoint = mode === "hosted"
             ? new WebSocketEndpoint(ViewState.getHostedUrl())
-            : new BrowserRuntime(new this.Game()).endpoint;
+            : new Endpoint(new Host("direct", "fill", false, new this.Game()));
 
         return new Client(endpoint);
     }
