@@ -35,6 +35,10 @@ export class Game {
         let drawn = [];
         let mocked = true;
 
+        if (room.state === Constants.ROOM_STATE.FINISHED) {
+            await room.resumeWaiting();
+        }
+
         switch (command) {
             case Constants.COMMANDS.DRAW:
                 drawn = await room.drawItems(playerName, data.sortKey);

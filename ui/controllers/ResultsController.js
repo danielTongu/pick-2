@@ -3,7 +3,6 @@
 import { Constants } from "../../core/Constants.js";
 import { ValidationUtils } from "../../core/ValidationUtils.js";
 import { DomUtils } from "../utilities/DomUtils.js";
-import { PlayerDisplayUtils } from "../utilities/PlayerDisplayUtils.js";
 import { PlayingCard } from "../PlayingCard.js";
 import { ViewController } from "./ViewController.js";
 
@@ -35,6 +34,78 @@ export class ResultsController extends ViewController {
         this.#statsBody = DomUtils.requireChild(this.root, "#player-stats-body", HTMLTableSectionElement);
         this.#selectedActorItems = DomUtils.requireChild(this.root, "#selected-player-items", HTMLElement);
         this.bindDismissButton("#results-dismiss-button");
+    }
+
+    /**
+     * Rotates actor snapshots to begin with the local actor without mutating turn order.
+     *
+     * @param {Object[]|null} actors - Actors in authoritative turn order.
+     * @param {string|null} localActorName - Local actor name, when present.
+     * @returns {Object[]} Actors in local-first display order.
+     */
+    static localFirst(actors, localActorName) {
+        if (!Array.isArray(actors)) return [];
+
+        const localIndex = actors.findIndex(function findLocal(actor) {
+            return actor?.name === localActorName;
+        });
+        if (localIndex <= 0) return actors;
+
+        return actors.slice(localIndex).concat(actors.slice(0, localIndex));
+    }
+
+    /**
+     * Normalizes completed-Room data.
+     *
+     * @param {*} room - Room data.
+     * @returns {{actors:Object[],actorName:string}} Normalized Room data.
+     */
+    static #normalizeRoom(room) {
+        const source = ValidationUtils.object(room, "Room");
+        const actorName = ValidationUtils.optionalString(source.localActorName, "");
+
+        return {
+            actors: ResultsController.localFirst(source.turnOrder?.actors, actorName),
+            actorName
+        };
+    }
+
+    /**
+     * Returns display names for every actor whose final state is won.
+     *
+     * @param {Object[]} actors - Actor data objects.
+     * @returns {string[]} Winner names.
+     */
+    static #getWinnerNames(actors) {
+        const names = [];
+
+        for (const actor of actors) {
+            if (actor.state === Constants.ACTOR_STATE.WON) {
+                names.push(actor.name);
+            }
+        }
+
+        return names;
+    }
+
+    /**
+     * Builds the results message.
+     *
+     * @param {string} actorName - Local actor.
+     * @param {string[]} winners - Winner names.
+     * @returns {string} Room-end message.
+     */
+    static #buildResultMessage(actorName, winners) {
+        let message = "Room finished.";
+
+        if (winners.length > 1) {
+            message = "It is a tie.";
+        } else if (winners.length === 1) {
+            const isLocalActorWinner = winners[0] === actorName;
+            message = isLocalActorWinner ? "You won 🎉" : "You lost 😂";
+        }
+
+        return message;
     }
 
     /**
@@ -196,59 +267,5 @@ export class ResultsController extends ViewController {
         const cell = document.createElement("td");
         cell.textContent = text;
         return cell;
-    }
-
-    /**
-     * Normalizes completed-Room data.
-     *
-     * @param {*} room - Room data.
-     * @returns {{actors:Object[],actorName:string}} Normalized Room data.
-     */
-    static #normalizeRoom(room) {
-        const source = ValidationUtils.object(room, "Room");
-        const actorName = ValidationUtils.optionalString(source.localActorName, "");
-
-        return {
-            actors: PlayerDisplayUtils.localFirst(source.turnOrder?.actors, actorName),
-            actorName
-        };
-    }
-
-    /**
-     * Returns display names for every actor whose final state is won.
-     *
-     * @param {Object[]} actors - Actor data objects.
-     * @returns {string[]} Winner names.
-     */
-    static #getWinnerNames(actors) {
-        const names = [];
-
-        for (const actor of actors) {
-            if (actor.state === Constants.ACTOR_STATE.WON) {
-                names.push(actor.name);
-            }
-        }
-
-        return names;
-    }
-
-    /**
-     * Builds the results message.
-     *
-     * @param {string} actorName - Local actor.
-     * @param {string[]} winners - Winner names.
-     * @returns {string} Room-end message.
-     */
-    static #buildResultMessage(actorName, winners) {
-        let message = "Room finished.";
-
-        if (winners.length > 1) {
-            message = "It is a tie.";
-        } else if (winners.length === 1) {
-            const isLocalActorWinner = winners[0] === actorName;
-            message = isLocalActorWinner ? "You won 🎉" : "You lost 😂";
-        }
-
-        return message;
     }
 }

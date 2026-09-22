@@ -1,6 +1,6 @@
 "use strict";
 
-import { PageState } from "../PageState.js";
+import { ViewState } from "../View.js";
 import { Constants } from "../../core/Constants.js";
 import { DomUtils } from "../utilities/DomUtils.js";
 import { ViewController } from "./ViewController.js";
@@ -137,7 +137,7 @@ export class NetworkConnectionController extends ViewController {
         }
 
         try {
-            void this.connect(PageState.resolveHostedUrl(origin));
+            void this.connect(ViewState.resolveHostedUrl(origin));
         } catch (error) {
             this.render("error", origin, error instanceof Error ? error.message : String(error));
         }
@@ -195,20 +195,20 @@ export class NetworkConnectionController extends ViewController {
 
     /** Resolves the optional configured host and the host serving this page. */
     #resolveHosts() {
-        const configuredOrigin = PageState.getConfiguredServerOrigin();
+        const configuredOrigin = ViewState.getConfiguredServerOrigin();
         this.#configuredUrl = null;
         this.#configurationError = "";
 
         if (configuredOrigin !== null) {
             try {
-                this.#configuredUrl = PageState.resolveHostedUrl(configuredOrigin);
+                this.#configuredUrl = ViewState.resolveHostedUrl(configuredOrigin);
             } catch (error) {
                 this.#configurationError = error instanceof Error ? error.message : String(error);
             }
         }
 
         try {
-            this.#currentHostUrl = PageState.getCurrentHostUrl();
+            this.#currentHostUrl = ViewState.getCurrentHostUrl();
         } catch (_error) {
             this.#currentHostUrl = null;
         }

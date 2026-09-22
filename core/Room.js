@@ -308,20 +308,20 @@ export class Room extends Serializable {
     }
 
     /**
-     * Returns the active or completed room to waiting without clearing it.
+     * Resumes waiting-state transactions after completed results were visible.
      *
-     * Actors, hands, the deck, and the discard pile remain available in the
-     * waiting state. Starting another round performs the normal reset.
+     * Actors, hands, the deck, and the discard pile remain unchanged. Starting
+     * another round performs the separate full reset.
      *
-     * @returns {Promise<boolean>} True when the room returned to waiting.
+     * @returns {Promise<boolean>} True when a finished room resumed waiting.
      */
-    async stopRound() {
+    async resumeWaiting() {
         return this._enqueue(
-            /** Stops the current round inside the room queue. */
-            function stopOperation() {
-                const wasStopped = this.state !== Constants.ROOM_STATE.WAITING;
+            /** Resumes waiting transactions inside the room queue. */
+            function resumeWaitingOperation() {
+                const wasFinished = this.state === Constants.ROOM_STATE.FINISHED;
 
-                if (wasStopped) {
+                if (wasFinished) {
                     this.state = Constants.ROOM_STATE.WAITING;
                     this.pending = null;
                     this.declaredSuit = null;
@@ -332,7 +332,7 @@ export class Room extends Serializable {
                     this.notifyStateChange();
                 }
 
-                return wasStopped;
+                return wasFinished;
             }.bind(this)
         );
     }

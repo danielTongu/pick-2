@@ -5,6 +5,7 @@ import test from "node:test";
 
 import { Card } from "../core/Card.js";
 import { Constants } from "../core/Constants.js";
+import { Game } from "../core/Game.js";
 import { Actor as Player } from "../core/Actor.js";
 import { BotActor } from "../core/BotActor.js";
 import { TurnOrder } from "../core/TurnOrder.js";
@@ -141,19 +142,30 @@ test("room lifecycle predicates describe active and membership-locked states", (
     assert.equal(room.isMembershipLocked(), false);
 });
 
-test("stopping a completed round returns the same room to waiting", async (t) => {
+test("a completed round resumes waiting without resetting its cards", async (t) => {
     const room = new Room("Completed Game", 2);
 
     t.after(() => stopIdleMonitoring(room));
     await room.joinActor("Alice");
     await room.joinActor("Bob");
     await room.startRound();
+    const collections = JSON.stringify(room.collections);
+    const hands = JSON.stringify(Array.from(room.turnOrder.actors.values(), function mapHand(actor) {
+        return actor.collection;
+    }));
     room.state = Constants.ROOM_STATE.FINISHED;
 
-    assert.equal(await room.stopRound(), true);
+    assert.equal(await room.resumeWaiting(), true);
     assert.equal(room.state, Constants.ROOM_STATE.WAITING);
     assert.equal(room.turnOrder.ownerKey, null);
     assert.equal(room.turnOrder.actors.size, 2);
+    assert.equal(JSON.stringify(room.collections), collections);
+    assert.equal(
+        JSON.stringify(Array.from(room.turnOrder.actors.values(), function mapHand(actor) {
+            return actor.collection;
+        })),
+        hands
+    );
 });
 
 test("game membership enforces uniqueness and player limit", async (t) => {
@@ -336,8 +348,9 @@ test("starting a round deals seven cards and selects an ordinary discard", async
     assert.equal(room.collections.draw.items.length, 39);
 });
 
-test("finished hands remain unchanged until a new round starts", async (t) => {
+test("the next actor command resumes a finished room before its waiting transaction", async (t) => {
     const room = await createPlayingSession(t, ["Alice", "Bob"]);
+    const game = new Game();
     const alice = room.turnOrder.get("Alice");
     const bob = room.turnOrder.get("Bob");
 
@@ -347,11 +360,13 @@ test("finished hands remain unchanged until a new round starts", async (t) => {
 
     const finishedHands = [alice, bob].map((actor) => actor.collection.items.map((card) => card.id));
 
-    assert.deepEqual(await room.drawItems("Alice"), []);
-    assert.deepEqual(
-        [alice, bob].map((actor) => actor.collection.items.map((card) => card.id)),
-        finishedHands
-    );
+    await game.execute(room, "Alice", Constants.COMMANDS.DRAW, { sortKey: "none" });
+
+    assert.equal(room.state, Constants.ROOM_STATE.WAITING);
+    assert.equal(room.turnOrder.ownerKey, null);
+    assert.equal(alice.collection.size, finishedHands[0].length + 1);
+    assert.deepEqual(alice.collection.items.slice(0, finishedHands[0].length).map((card) => card.id), finishedHands[0]);
+    assert.deepEqual(bob.collection.items.map((card) => card.id), finishedHands[1]);
 
     await room.startRound();
 

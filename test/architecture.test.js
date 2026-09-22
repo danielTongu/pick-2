@@ -50,7 +50,7 @@ test("all application imports resolve from the Pick2 root", () => {
         ...sources(new URL("core/", root)),
         ...sources(new URL("runtime/", root)),
         ...sources(new URL("ui/", root)),
-        new URL("index.js", root),
+        new URL("main.js", root),
         new URL("server.js", root)
     ];
     for (const file of files) {
@@ -67,7 +67,7 @@ test("application classes, fields, methods, and functions have adjacent JSDoc", 
         ...sources(new URL("core/", root)),
         ...sources(new URL("runtime/", root)),
         ...sources(new URL("ui/", root)),
-        new URL("index.js", root),
+        new URL("main.js", root),
         new URL("server.js", root)
     ].filter(function excludeTests(file) {
         return !file.pathname.includes("/test/");

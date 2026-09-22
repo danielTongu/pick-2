@@ -4,9 +4,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { PageState } from "../ui/PageState.js";
+import { ViewState } from "../ui/View.js";
 
-/** Installs the browser values used by PageState and restores them afterward. */
+/** Installs the browser values used by ViewState and restores them afterward. */
 function useBrowserState(serverOrigin, callback) {
     const originals = new Map();
     const storage = new Map();
@@ -47,13 +47,13 @@ function useBrowserState(serverOrigin, callback) {
     }
 }
 
-test("PageState normalizes configured and current Network hosts", () => {
+test("ViewState normalizes configured and current Network hosts", () => {
     useBrowserState("", () => {
-        assert.equal(PageState.getModePreference(), null);
-        assert.equal(PageState.getMode(), "direct");
-        assert.equal(PageState.getConfiguredServerOrigin(), null);
-        assert.equal(PageState.getCurrentHostUrl(), "wss://example.test/");
-        assert.equal(PageState.getHostedUrl(), "wss://example.test/");
+        assert.equal(ViewState.getModePreference(), null);
+        assert.equal(ViewState.getMode(), "direct");
+        assert.equal(ViewState.getConfiguredServerOrigin(), null);
+        assert.equal(ViewState.getCurrentHostUrl(), "wss://example.test/");
+        assert.equal(ViewState.getHostedUrl(), "wss://example.test/");
     });
 
     const cases = new Map([
@@ -65,37 +65,37 @@ test("PageState normalizes configured and current Network hosts", () => {
 
     for (const [origin, expectedUrl] of cases) {
         useBrowserState(`  ${origin}  `, () => {
-            assert.equal(PageState.getConfiguredServerOrigin(), origin.trim());
-            assert.equal(PageState.getHostedUrl(), expectedUrl);
+            assert.equal(ViewState.getConfiguredServerOrigin(), origin.trim());
+            assert.equal(ViewState.getHostedUrl(), expectedUrl);
         });
     }
 
     useBrowserState("ftp://server.test", () => {
-        assert.throws(() => PageState.getHostedUrl(), /Unsupported server protocol/);
+        assert.throws(() => ViewState.getHostedUrl(), /Unsupported server protocol/);
     });
 });
 
-test("PageState stores and clears a verified Network host", () => {
+test("ViewState stores and clears a verified Network host", () => {
     useBrowserState("https://server.test", () => {
-        PageState.setHostedUrl("wss://direct.test/");
-        assert.equal(PageState.getHostedUrl(), "wss://direct.test/");
-        PageState.clearHostedUrl();
-        assert.equal(PageState.getHostedUrl(), "wss://server.test/");
+        ViewState.setHostedUrl("wss://direct.test/");
+        assert.equal(ViewState.getHostedUrl(), "wss://direct.test/");
+        ViewState.clearHostedUrl();
+        assert.equal(ViewState.getHostedUrl(), "wss://server.test/");
     });
 });
 
 test("the embedded Network view checks configured and current hosts", () => {
     const homeHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
     const main =
-        readFileSync(new URL("../index.js", import.meta.url), "utf8") +
-        readFileSync(new URL("../ui/GameApplication.js", import.meta.url), "utf8");
-    const network = readFileSync(new URL("../runtime/Network.js", import.meta.url), "utf8");
+        readFileSync(new URL("../ui/View.js", import.meta.url), "utf8") +
+        readFileSync(new URL("../main.js", import.meta.url), "utf8");
+    const network = readFileSync(new URL("../runtime/WebSocketGateway.js", import.meta.url), "utf8");
     const styles = readFileSync(new URL("../ui/styles/home.css", import.meta.url), "utf8");
     const controller = readFileSync(
         new URL("../ui/controllers/NetworkConnectionController.js", import.meta.url),
         "utf8"
     );
-    const networkClient = readFileSync(new URL("../runtime/NetworkClient.js", import.meta.url), "utf8");
+    const networkClient = readFileSync(new URL("../runtime/Transport.js", import.meta.url), "utf8");
     const headerPattern =
         /<header id="app-header">\s*<h1>\s*<a id="app-home-link"[\s\S]*?<span class="brand-mark"[\s\S]*?<span class="brand-copy"[^>]*>[\s\S]*?<\/h1>\s*<aside\s+[^>]*data-status="connecting"/;
     const footerPattern =
@@ -125,15 +125,15 @@ test("the embedded Network view checks configured and current hosts", () => {
     assert.doesNotMatch(network, /network\/index\.html/);
     assert.match(controller, /this\.#resolveHosts\(\);[\s\S]*?NetworkConnectionController\.#check\(networkUrl\)/);
     assert.match(controller, /getConfiguredServerOrigin\(\)/);
-    assert.match(controller, /PageState\.getCurrentHostUrl\(\)/);
+    assert.match(controller, /ViewState\.getCurrentHostUrl\(\)/);
     assert.match(controller, /#form\.addEventListener\("submit"/);
-    assert.match(controller, /PageState\.resolveHostedUrl\(origin\)/);
+    assert.match(controller, /ViewState\.resolveHostedUrl\(origin\)/);
     assert.doesNotMatch(controller, /#(?:retryButton|useHostButton)/);
     assert.match(controller, /new WebSocket\(this\.#networkUrl\)/);
     assert.match(controller, /Constants\.NETWORK_CONNECTION_TIMEOUT_MS/);
     assert.match(controller, /this\.#connectedHandler\?\.\(networkUrl\)/);
     assert.match(main, /#networkController\.setConnectedHandler\(this\.#handleHostedConnected\.bind\(this\)\)/);
-    assert.match(main, /PageState\.setHostedUrl\(networkUrl\)/);
+    assert.match(main, /ViewState\.setHostedUrl\(networkUrl\)/);
     assert.match(main, /this\.#selectHosted\(true\)/);
     assert.match(main, /fallbackToDirect && !isAvailable/);
     assert.match(controller, /return false;/);
@@ -155,7 +155,7 @@ test("the embedded Network view checks configured and current hosts", () => {
     assert.match(controller, /this\.#messageOutput\.dataset\.detail/);
     assert.match(styles, /\.network-connection-field\s*\{[\s\S]*?display:\s*grid;/);
     assert.match(networkClient, /isReconnecting \? "reconnecting" : "connecting"/);
-    assert.match(networkClient, /#events\.status\?\.\("reconnecting", "Reconnecting…"\)/);
+    assert.match(networkClient, /events\.status\?\.\("reconnecting", "Reconnecting…"\)/);
     assert.match(
         styles,
         /\[data-status="connecting"\][\s\S]*?\[data-status="reconnecting"\][\s\S]*?#network-connection-indicator[\s\S]*?animation:\s*network-connection-pulse/

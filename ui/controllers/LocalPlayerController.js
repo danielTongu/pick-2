@@ -248,9 +248,11 @@ export class LocalPlayerController extends ViewController {
         this.#handElement.replaceChildren();
         const orderedCards = CardSortUtils.sorted(actor.collection.items, sortKey);
         const ownerKey = room.turnOrder?.ownerKey ?? null;
+        const allowsFreeTransactions =
+            room.state === Constants.ROOM_STATE.WAITING || room.state === Constants.ROOM_STATE.FINISHED;
         const canDiscard =
             room.pending === null &&
-            (room.state === Constants.ROOM_STATE.WAITING ||
+            (allowsFreeTransactions ||
                 (room.state === Constants.ROOM_STATE.ACTIVE &&
                     (!TurnUtils.hasTurnOwner(ownerKey) || TurnUtils.isTurnOwner(ownerKey, actor.key))));
         const destination = canDiscard ? DomUtils.require("#table-play-area > [data-is-drag-over]", HTMLElement) : null;
@@ -262,9 +264,15 @@ export class LocalPlayerController extends ViewController {
 
     /** Returns whether the local actor may draw in the authoritative Room state. */
     static #isDrawButtonUsable(actor, room) {
-        const isMutableState =
-            room.state === Constants.ROOM_STATE.WAITING || room.state === Constants.ROOM_STATE.ACTIVE;
-        let isDrawAllowed = isMutableState && room.pending === null && actor.drawAllowance > 0;
+        if (room.pending !== null) {
+            return false;
+        }
+
+        if (room.state === Constants.ROOM_STATE.WAITING || room.state === Constants.ROOM_STATE.FINISHED) {
+            return true;
+        }
+
+        let isDrawAllowed = room.state === Constants.ROOM_STATE.ACTIVE && actor.drawAllowance > 0;
 
         if (room.state === Constants.ROOM_STATE.ACTIVE) {
             const ownerKey = room.turnOrder?.ownerKey ?? null;

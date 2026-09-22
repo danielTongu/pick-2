@@ -4,13 +4,14 @@
 
 import { Constants } from "../core/Constants.js";
 import { ValidationUtils } from "../core/ValidationUtils.js";
+import { Endpoint, EndpointEvents, Connection } from "./Transport.js";
 
 /** Explicit UI callbacks used while a Client connection is open. */
 export class ClientEvents {
     /**
-     * @param {Object} controller - Page controller receiving client events.
-     * @param {Function|null} onStatus - Connection-status callback.
-     * @param {Function|null} onData - View-data callback.
+     * @param {import("../ui/controllers/ViewController.js").ViewController} controller - Page controller receiving events.
+     * @param {(function(string, string): void)|null} onStatus - Connection-status callback.
+     * @param {(function(string|null, Object): void)|null} onData - View-data callback.
      */
     constructor(controller, onStatus, onData) {
         this.controller = controller;
@@ -20,47 +21,32 @@ export class ClientEvents {
     }
 }
 
-/** Concrete event contract shared by browser endpoints. */
-export class EndpointEvents {
-    /**
-     * @param {Function|null} receive - Raw response callback.
-     * @param {Function|null} status - Connection-status callback.
-     * @param {Function|null} open - Open callback.
-     * @param {Function|null} close - Close callback.
-     */
-    constructor(receive, status, open, close) {
-        this.receive = receive;
-        this.status = status;
-        this.open = open;
-        this.close = close;
-        Object.freeze(this);
-    }
-}
+
 
 /** Browser-facing API over any endpoint that implements open(). */
 export class Client {
     /** @type {string} Card ordering requested for room snapshots. */
     #sortKey = Constants.CARD.SORT_OPTIONS[0];
 
-    /** @type {{open:Function}} Transport endpoint used to create the active connection. */
+    /** @type {Endpoint} Transport endpoint used to create the active connection. */
     #endpoint;
 
-    /** @type {{request:Function,close:Function}|null} Active endpoint connection handle. */
+    /** @type {Connection|null} Active endpoint connection handle. */
     #connection = null;
 
-    /** @type {Object|null} Page controller receiving connection, data, and notification events. */
+    /** @type {import("../ui/controllers/ViewController.js").ViewController|null} Active page controller. */
     #controller = null;
 
-    /** @type {Function|null} Optional observer for endpoint status changes. */
+    /** @type {(function(string, string): void)|null} Optional endpoint-status observer. */
     #onStatus = null;
 
-    /** @type {Function|null} Optional observer for accepted view snapshots. */
+    /** @type {(function(string|null, Object): void)|null} Optional view-data observer. */
     #onData = null;
 
     /** @type {string} Session-stable identifier included with every request. */
     #tabId = Client.#getTabId();
 
-    /** @param {{open:Function}} endpoint - Browser or Network endpoint. */
+    /** @param {Endpoint} endpoint - Direct or WebSocket endpoint. */
     constructor(endpoint) {
         const source = ValidationUtils.object(endpoint, "Endpoint");
 
@@ -138,12 +124,12 @@ export class Client {
         );
     }
 
-    /** Forwards a normalized notification to the active page controller. */
+    /** @param {Object} message - Normalized user notification. */
     showAlert(message) {
         this.#controller?.handleNotification?.(message);
     }
 
-    /** Forwards endpoint status to the controller and optional status observer. */
+    /** @param {string} status - Connection status. @param {string} label - Display label. */
     #handleStatus(status, label) {
         this.#controller?.handleConnectionStatus?.(status, label);
         this.#onStatus?.(status, label);
@@ -159,7 +145,7 @@ export class Client {
         this.#controller?.handleClientClose?.();
     }
 
-    /** Parses and routes one host response without exposing malformed payloads to controllers. */
+    /** @param {Object|string} raw - Raw endpoint response. */
     #receive(raw) {
         const response = Client.#parseResponse(raw);
 
@@ -178,7 +164,7 @@ export class Client {
         }
     }
 
-    /** @returns {{view:string|null,message:Object|null,data:Object|null}|null} Canonical response, or null when parsing or validation fails. */
+    /** @param {Object|string} raw - Raw endpoint response. @returns {{view:string|null,message:Object|null,data:Object|null}|null} Canonical response, or null. */
     static #parseResponse(raw) {
         try {
             const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;

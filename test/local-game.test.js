@@ -8,12 +8,13 @@ import test from "node:test";
 import { Constants } from "../core/Constants.js";
 import { Client } from "../runtime/Client.js";
 import { ClientEvents } from "../runtime/Client.js";
-import { Host, HostChannel, HostConfig } from "../runtime/Host.js";
+import { Host, HostOptions } from "../runtime/Host.js";
+import { PeerChannel } from "../runtime/Transport.js";
 
 function createPeer(host, tabId = "test-tab") {
     const responses = [];
-    const connection = host.open(
-        new HostChannel(
+    const connection = host.accept(
+        new PeerChannel(
             (response) => responses.push(response),
             () => {}
         )
@@ -23,7 +24,7 @@ function createPeer(host, tabId = "test-tab") {
         responses,
         async request(command, data = {}) {
             const firstResponse = responses.length;
-            await connection.request({
+            await connection.receive({
                 command,
                 data: { tabId, sortKey: "none", ...data }
             });
@@ -38,7 +39,14 @@ function latestGame(responses) {
 
 for (const mode of ["direct", "hosted"]) {
     test(`${mode} returns use authenticated membership and broadcast the updated hand`, async (t) => {
-        const host = new Host(new HostConfig(mode, 0, false, false, false, null), new Game());
+        const host = new Host(
+            new HostOptions({
+                mode,
+                customBots: 0,
+                trackIdle: false
+            }),
+            new Game()
+        );
         t.after(() => host.shutdown());
         const owner = createPeer(host, "owner");
         const viewer = createPeer(host, "viewer");
@@ -85,7 +93,14 @@ function readJavaScriptSources(directory) {
 }
 
 test("Host seeds configured bot players and leaves every remaining seat open", async () => {
-    const host = new Host(new HostConfig("direct", 0, false, false, true, null), new Game());
+    const host = new Host(
+        new HostOptions({
+            mode: "direct",
+            customBots: 0,
+            trackIdle: false
+        }),
+        new Game()
+    );
     const peer = createPeer(host);
     const home = (await peer.request(Constants.COMMANDS.LIST)).findLast(
         (response) => response.view === Constants.VIEWS.HOME
@@ -104,13 +119,16 @@ test("Host seeds configured bot players and leaves every remaining seat open", a
         }))
     );
     assert.equal(home.mode, "direct");
-    assert.equal(home.capabilities.botFill, true);
+    assert.equal(home.capabilities.botFill, false);
     await peer.connection.close();
     await host.shutdown();
 });
 
 test("a custom local game fills its open seats with bots immediately", async () => {
-    const host = new Host(new HostConfig("direct", "fill", false, false, true, null), new Game());
+    const host = new Host(
+        new HostOptions({ mode: "direct", customBots: "fill", trackIdle: false }),
+        new Game()
+    );
     const peer = createPeer(host);
     const responses = await peer.request(Constants.COMMANDS.CREATE, {
         roomName: "Local Game",
@@ -130,7 +148,14 @@ test("a custom local game fills its open seats with bots immediately", async () 
 });
 
 test("the shared Host rejects every join while a room is playing", async () => {
-    const host = new Host(new HostConfig("hosted", 0, false, false, false, null), new Game());
+    const host = new Host(
+        new HostOptions({
+            mode: "hosted",
+            customBots: 0,
+            trackIdle: false
+        }),
+        new Game()
+    );
     const owner = createPeer(host, "owner");
     const guest = createPeer(host, "guest");
     const lateGuest = createPeer(host, "late");
@@ -158,7 +183,14 @@ test("the shared Host rejects every join while a room is playing", async () => {
 });
 
 test("a player can leave a hosted room while it is playing", async () => {
-    const host = new Host(new HostConfig("hosted", 0, false, false, false, null), new Game());
+    const host = new Host(
+        new HostOptions({
+            mode: "hosted",
+            customBots: 0,
+            trackIdle: false
+        }),
+        new Game()
+    );
     const owner = createPeer(host, "owner");
     const guest = createPeer(host, "guest");
 
@@ -186,21 +218,11 @@ test("a player can leave a hosted room while it is playing", async () => {
     await host.shutdown();
 });
 
-test("Host persistence stores only custom definitions through one small API", async () => {
-    const calls = [];
-    const store = {
-        async load() {
-            calls.push(["load"]);
-            return [];
-        },
-        async save(definition) {
-            calls.push(["save", definition]);
-        },
-        async remove(key) {
-            calls.push(["remove", key]);
-        }
-    };
-    const host = new Host(new HostConfig("direct", "fill", false, false, true, store), new Game());
+test("Host retains a custom room in memory after its creator leaves", async () => {
+    const host = new Host(
+        new HostOptions({ mode: "direct", customBots: "fill", trackIdle: false }),
+        new Game()
+    );
     const peer = createPeer(host, "owner");
 
     await peer.request(Constants.COMMANDS.CREATE, {
@@ -215,17 +237,7 @@ test("Host persistence stores only custom definitions through one small API", as
 
     assert.equal(
         home.rooms.some((room) => room.name === "Saved Game"),
-        false
-    );
-    assert.deepEqual(calls[0], ["load"]);
-    assert.deepEqual(calls.find(([type]) => type === "save")?.[1], {
-        roomName: "Saved Game",
-        playerLimit: 3,
-        botCount: 2
-    });
-    assert.deepEqual(
-        calls.find(([type]) => type === "remove"),
-        ["remove", "saved-game"]
+        true
     );
     await host.shutdown();
 });
@@ -271,24 +283,24 @@ test("Client adds shared fields to every endpoint request", () => {
 
 test("browser and Node runtime import graphs stay separate", () => {
     const host = readFileSync(new URL("../runtime/Host.js", import.meta.url), "utf8");
-    const browser = readFileSync(new URL("../runtime/Browser.js", import.meta.url), "utf8");
-    const networkClient = readFileSync(new URL("../runtime/NetworkClient.js", import.meta.url), "utf8");
-    const network = readFileSync(new URL("../runtime/Network.js", import.meta.url), "utf8");
+    const transport = readFileSync(new URL("../runtime/Transport.js", import.meta.url), "utf8");
+    const browserRuntime = readFileSync(new URL("../runtime/BrowserRuntime.js", import.meta.url), "utf8");
+    const hostedServer = readFileSync(new URL("../runtime/WebSocketGateway.js", import.meta.url), "utf8");
 
     assert.doesNotMatch(host, /from ["'](?:node:|express|ws)/);
     assert.doesNotMatch(host, /\b(?:document|localStorage|sessionStorage|WebSocket)\b/);
-    assert.match(browser, /from "\.\/Host\.js"/);
-    assert.doesNotMatch(browser, /from ["'](?:node:|express|ws)/);
-    assert.doesNotMatch(networkClient, /from ["'](?:node:|express|ws)/);
-    assert.match(network, /from "\.\/Host\.js"/);
-    assert.match(network, /from "node:/);
-    assert.match(network, /from "ws"/);
-    assert.doesNotMatch(network, /\.\/Browser\.js|\.\/NetworkClient\.js/);
+    assert.doesNotMatch(transport, /from ["'](?:node:|express|ws)/);
+    assert.match(browserRuntime, /from "\.\/Host\.js"/);
+    assert.match(hostedServer, /from "\.\/Host\.js"/);
+    assert.match(hostedServer, /from "node:/);
+    assert.match(hostedServer, /from "ws"/);
+    assert.match(hostedServer, /from "\.\/Transport\.js"/);
 });
 
 test("application source uses explicit, named control flow", () => {
     const source = [
-        readFileSync(new URL("../index.js", import.meta.url), "utf8"),
+        readFileSync(new URL("../ui/View.js", import.meta.url), "utf8"),
+        readFileSync(new URL("../main.js", import.meta.url), "utf8"),
         readJavaScriptSources(new URL("../core/", import.meta.url)).join("\n"),
         readJavaScriptSources(new URL("../runtime/", import.meta.url)).join("\n"),
         readJavaScriptSources(new URL("../ui/", import.meta.url)).join("\n")
@@ -305,9 +317,9 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     const gameHtml = readFileSync(new URL("../room.html", import.meta.url), "utf8");
     const roomPageHtml = readFileSync(new URL("../room.html", import.meta.url), "utf8");
     const main =
-        readFileSync(new URL("../index.js", import.meta.url), "utf8") +
-        readFileSync(new URL("../ui/GameApplication.js", import.meta.url), "utf8");
-    const network = readFileSync(new URL("../runtime/Network.js", import.meta.url), "utf8");
+        readFileSync(new URL("../ui/View.js", import.meta.url), "utf8") +
+        readFileSync(new URL("../main.js", import.meta.url), "utf8");
+    const network = readFileSync(new URL("../runtime/WebSocketGateway.js", import.meta.url), "utf8");
     const homeCss = readFileSync(new URL("../ui/styles/home.css", import.meta.url), "utf8");
 
     assert.match(homeHtml, /<body data-game="pick2" data-page="home">/);
@@ -402,9 +414,10 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.match(gameHtml, /<button id="suit-selection-submit-button">Submit<\/button>/);
     assert.match(gameHtml, /<button id="results-dismiss-button">dismiss<\/button>/);
     assert.doesNotMatch(homeHtml + gameHtml, /id="(?:quick-start|core-rules|special-cards)"/);
-    assert.match(main, /new Browser\(new this\.GameType\(\)\)/);
-    assert.match(main, /new NetworkClient/);
-    assert.match(main, /new GameApplicationConfig\(Game, Client, HomeController, RoomController, GuideController\)/);
+    assert.match(main, /new BrowserRuntime\(new this\.Game\(\)\)\.endpoint/);
+    assert.match(main, /new WebSocketEndpoint/);
+    assert.match(main, /new HomeView\(roomUrl\)/);
+    assert.match(main, /new RoomView\(homeUrl\)/);
     assert.match(network, /app\.use\(express\.static\(repositoryPath\)\)/);
     assert.match(network, /path\.join\(path\.dirname\(fileURLToPath\(import\.meta\.url\)\), "\.\."\)/);
     assert.doesNotMatch(network, /"\.\.\/\.\."/);
@@ -416,6 +429,10 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
 
 test("the finished dialog opens once per finish and clears for a new game", () => {
     const controller = readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8");
+    const playerController = readFileSync(
+        new URL("../ui/controllers/LocalPlayerController.js", import.meta.url),
+        "utf8"
+    );
     const resultsController = readFileSync(new URL("../ui/controllers/ResultsController.js", import.meta.url), "utf8");
 
     assert.match(
@@ -430,6 +447,11 @@ test("the finished dialog opens once per finish and clears for a new game", () =
         resultsController,
         /hide\(\)\s*\{[\s\S]*?#actors = \[\];[\s\S]*?#statsBody\.replaceChildren\(\);[\s\S]*?#selectedActorItems\.replaceChildren\(\);[\s\S]*?super\.hide\(\)/
     );
+    assert.match(
+        playerController,
+        /ROOM_STATE\.WAITING \|\| room\.state === Constants\.ROOM_STATE\.FINISHED[\s\S]*?return true;/
+    );
+    assert.match(controller, /allowsFreeTransactions[\s\S]*?ROOM_STATE\.FINISHED/);
 });
 
 test("the shared table stylesheet owns foundational row states", () => {

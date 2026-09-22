@@ -23,7 +23,7 @@ test("the root page is the playable Pick 2 Home", () => {
     const html = readFileSync(new URL("index.html", root), "utf8");
     assert.match(html, /<body data-game="pick2" data-page="home">/);
     assert.match(html, /<main class="site-shell">/);
-    assert.match(html, /src="index.js"/);
+    assert.match(html, /src="main.js"/);
     assert.doesNotMatch(html, /game-tile|Coming soon|Poker|Yahtzee|Dice Games/);
     for (const match of html.matchAll(/<playing-card data-value="([^"]+)" data-suit="([^"]+)"/g)) {
         assert.doesNotThrow(() => new Card(match[1], match[2], 0));
@@ -76,8 +76,15 @@ test("Home and Room resolve their local assets and navigation under a subdirecto
 });
 
 /** Runs the real page entry point with a controlled transport and browser location. */
-async function startRoomPage(basePath, mode, validIntent) {
+async function startRoomView(basePath, mode, validIntent) {
     const state = { redirects: [], errors: [], cleared: false, closed: false, notice: null };
+    const storedValues = new Map([
+        ["game.mode", mode],
+        [
+            "game.gameIntent",
+            validIntent ? JSON.stringify({ mode, command: Constants.COMMANDS.JOIN, data: { roomName: "Test" } }) : "null"
+        ]
+    ]);
     let homeHandler;
     class FakeRoomController {
         setClient() {}
@@ -86,6 +93,7 @@ async function startRoomPage(basePath, mode, validIntent) {
         setHomeHandler(handler) {
             homeHandler = handler;
         }
+        renderYear() {}
         async initialize() {}
     }
     class FakeClient {
@@ -96,9 +104,9 @@ async function startRoomPage(basePath, mode, validIntent) {
     }
     const context = {
         Constants,
+        Game: class {},
         URL,
         URLSearchParams,
-        renderYear() {},
         document: { body: { dataset: { page: "room" } } },
         location: {
             href: `https://example.test${basePath}room.html?mode=${mode}`,
@@ -111,26 +119,22 @@ async function startRoomPage(basePath, mode, validIntent) {
             }
         },
         window: { addEventListener() {} },
+        sessionStorage: {
+            getItem(key) {
+                return storedValues.get(key) ?? null;
+            },
+            setItem(key, value) {
+                storedValues.set(key, value);
+                if (key === "game.notice") state.notice = JSON.parse(value);
+            },
+            removeItem(key) {
+                storedValues.delete(key);
+                if (key === "game.gameIntent") state.cleared = true;
+            }
+        },
         console: {
             error(...args) {
                 state.errors.push(args);
-            }
-        },
-        PageState: {
-            getMode() {
-                return mode;
-            },
-            getIntent() {
-                return validIntent ? { mode, command: Constants.COMMANDS.JOIN, data: { roomName: "Test" } } : null;
-            },
-            getHostedUrl() {
-                return "wss://example.test/";
-            },
-            clearIntent() {
-                state.cleared = true;
-            },
-            setNotice(notice) {
-                state.notice = notice;
             }
         },
         ClientEvents: class {},
@@ -142,17 +146,31 @@ async function startRoomPage(basePath, mode, validIntent) {
         createClient() {
             return new FakeClient();
         },
-        homeUrl() {
-            return new URL(`./index.html?mode=${mode}`, `https://example.test${basePath}`);
-        },
-        RoomControllerType: FakeRoomController,
-        initializeGuide() {}
+        RoomController: FakeRoomController
     };
-    const source = readFileSync(new URL("ui/GameApplication.js", root), "utf8")
+    context.FakeRoomController = FakeRoomController;
+    context.RoomController = FakeRoomController;
+    const source = readFileSync(new URL("ui/View.js", root), "utf8")
         .replace(/^import .+;\n/gm, "")
+        .replace(
+            'const {RoomController} = await import("./controllers/RoomController.js");',
+            "const RoomController = FakeRoomController;"
+        )
+        .replace(
+            'const {GuideController} = await import("./controllers/GuideController.js");',
+            "const GuideController = class { initialize() {} };"
+        )
         .replaceAll("export ", "");
     context.config = config;
-    await runInNewContext(`(async function () { ${source}; await startGameApplication(config); })()`, context);
+    await runInNewContext(
+        `(async function () {
+            ${source};
+            RoomView.prototype.createClient = config.createClient;
+            const homeUrl = new URL("./index.html", "https://example.test${basePath}");
+            await new RoomView(homeUrl).start();
+        })()`,
+        context
+    );
     assert.deepEqual(state.errors, []);
     return { state, returnHome: homeHandler };
 }
@@ -161,20 +179,20 @@ test("room exits, failed admissions, and missing intents return Home with mode a
     for (const basePath of ["/", "/pick-2/"]) {
         for (const mode of ["direct", "hosted"]) {
             const url = `https://example.test${basePath}index.html?mode=${mode}`;
-            const invalid = await startRoomPage(basePath, mode, false);
+            const invalid = await startRoomView(basePath, mode, false);
             assert.deepEqual(invalid.state.redirects, [{ method: "replace", url }]);
 
-            const leaving = await startRoomPage(basePath, mode, true);
+            const leaving = await startRoomView(basePath, mode, true);
             leaving.returnHome(null);
             assert.deepEqual(leaving.state.redirects, [{ method: "assign", url }]);
             assert.equal(leaving.state.cleared, true);
             assert.equal(leaving.state.closed, true);
 
-            const failed = await startRoomPage(basePath, mode, true);
+            const failed = await startRoomView(basePath, mode, true);
             const notice = { status: "error", message: "Room not found" };
             failed.returnHome(notice);
             assert.deepEqual(failed.state.redirects, [{ method: "replace", url }]);
-            assert.equal(failed.state.notice, notice);
+            assert.equal(JSON.stringify(failed.state.notice), JSON.stringify(notice));
             assert.equal(failed.state.cleared, true);
             assert.equal(failed.state.closed, true);
         }

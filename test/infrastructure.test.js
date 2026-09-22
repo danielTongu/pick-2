@@ -99,10 +99,22 @@ test("browser controller, custom element, and template utility families share th
         }
 
         assert.equal(LocalPlayerController.prototype instanceof ViewController, true);
-        assert.equal(typeof ViewController.prototype.bindDismissButton, "function");
+            assert.equal(typeof ViewController.prototype.bindDismissButton, "function");
+            assert.equal(typeof ViewController.prototype.renderYear, "function");
         assert.equal(PlayingCard.prototype instanceof globalThis.HTMLElement, true);
         assert.equal(registeredElements.get(PlayingCard.elementName), PlayingCard);
         assert.equal(Object.getOwnPropertyDescriptor(PlayingCard.prototype, "card"), undefined);
+
+        const players = [{ name: "Alice" }, { name: "Bob" }, { name: "Casey" }, { name: "Daniel" }];
+        assert.deepEqual(
+            ResultsController.localFirst(players, "Casey").map(function getName(player) {
+                return player.name;
+            }),
+            ["Casey", "Daniel", "Alice", "Bob"]
+        );
+        assert.deepEqual(ResultsController.localFirst(players, null), players);
+        assert.deepEqual(ResultsController.localFirst(players, "Unknown"), players);
+        assert.deepEqual(ResultsController.localFirst(null, "Alice"), []);
     } finally {
         if (OriginalHTMLElement === undefined) {
             delete globalThis.HTMLElement;

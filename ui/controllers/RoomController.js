@@ -13,7 +13,6 @@ import { DomUtils } from "../utilities/DomUtils.js";
 import { RoomRowUtils } from "../utilities/RoomRowUtils.js";
 import { NotificationUtils } from "../utilities/NotificationUtils.js";
 import { OpponentUtils } from "../utilities/OpponentUtils.js";
-import { PlayerDisplayUtils } from "../utilities/PlayerDisplayUtils.js";
 import { PlayingCard } from "../PlayingCard.js";
 
 /** Controls the complete Pick2 Room. */
@@ -258,7 +257,11 @@ export class RoomController extends ViewController {
 
     /** Converts an eligible pile-to-hand card drop into a return request. */
     #handleCardReturn(event) {
-        if (event instanceof CustomEvent && event.detail?.card && this.room?.state === Constants.ROOM_STATE.WAITING) {
+        const allowsFreeTransactions =
+            this.room?.state === Constants.ROOM_STATE.WAITING ||
+            this.room?.state === Constants.ROOM_STATE.FINISHED;
+
+        if (event instanceof CustomEvent && event.detail?.card && allowsFreeTransactions) {
             this.#sendCardMove(Constants.COMMANDS.RETURN, { card: event.detail.card });
         }
     }
@@ -341,7 +344,7 @@ export class RoomController extends ViewController {
 
         container.replaceChildren();
 
-        const players = PlayerDisplayUtils.localFirst(RoomController.#getPlayers(room), localName);
+        const players = ResultsController.localFirst(RoomController.#getPlayers(room), localName);
 
         for (const player of players) {
             if (player.name !== localName) {
@@ -362,8 +365,10 @@ export class RoomController extends ViewController {
     /** Renders discard pile. */
     #renderDiscardPile(room, localPlayer) {
         const cards = Array.isArray(room.collections?.play?.items) ? room.collections.play.items : [];
+        const allowsFreeTransactions =
+            room.state === Constants.ROOM_STATE.WAITING || room.state === Constants.ROOM_STATE.FINISHED;
         const destination =
-            room.state === Constants.ROOM_STATE.WAITING && localPlayer !== null && room.pending === null
+            allowsFreeTransactions && localPlayer !== null && room.pending === null
                 ? DomUtils.require("#player-hand > [data-is-drag-over]", HTMLElement)
                 : null;
 

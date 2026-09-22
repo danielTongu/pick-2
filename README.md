@@ -38,7 +38,8 @@ npm run test:coverage
 pick-2/
 ├── index.html              Pick 2 Home
 ├── room.html               Active Pick 2 Room
-├── index.js                Home and Room application entry point
+├── ui/View.js              Home and Room view objects
+├── main.js                 Browser startup and dependency wiring
 ├── server.js              Hosted Node entry point
 ├── core/                   Cards, collections, actors, turns, rules, hosting, bots, and mapping
 ├── runtime/                Direct and Hosted connection infrastructure
@@ -47,9 +48,10 @@ pick-2/
 └── docs/                   Design and maintenance documentation
 ```
 
-The Home and Room controllers use one `Client` API. Direct play connects it to an in-browser, transport-neutral `Host`;
-Hosted play uses `NetworkClient` and the Node-only `Network` boundary. Both return the same `{ view, message, data }`
-envelope.
+The Home and Room controllers use one `Client` API. Direct play connects through the default `Endpoint` to an in-browser,
+transport-neutral `Host`; Hosted play uses `WebSocketEndpoint` and the Node-only `WebSocketGateway`. Both return the same
+`{ view, message, data }` envelope. See the [runtime architecture](docs/pick-2.md#31-runtime-architecture) for the
+request flow and file map.
 
 `CardCollection` supplies every card-storage role. Pick 2 owns its card, Room, actor, turn-order, runtime, and UI
 foundations directly, without single-use base layers.

@@ -15,7 +15,7 @@ export class RateLimit {
     /**
      * Enforces throttle for a connected peer.
      *
-     * @param {*} peer - Connected peer.
+     * @param {import("./Session.js").PeerSession} peer - Connected peer.
      * @param {string} eventType - Event type.
      * @param {number} windowMs - Minimum interval.
      */

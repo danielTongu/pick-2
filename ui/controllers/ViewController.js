@@ -6,6 +6,7 @@ import { DomUtils } from "../utilities/DomUtils.js";
  * Base class for controllers that own one visible page element.
  */
 export class ViewController {
+
     /** @type {HTMLElement} Required UI element owned by this controller. */
     root;
 
@@ -21,6 +22,15 @@ export class ViewController {
     constructor(target) {
         this.root = DomUtils.require(target, HTMLElement);
         this.client = null;
+    }
+
+    /** Updates the shared copyright date on the current page. */
+    renderYear() {
+        const element = document.querySelector("#copyright-year");
+
+        if (element instanceof HTMLTimeElement) {
+            element.dateTime = String(new Date().getFullYear());
+        }
     }
 
     /**
