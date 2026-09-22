@@ -12,18 +12,6 @@ import WebSocket, { WebSocketServer } from "ws";
 import { Host, HostOptions } from "./Host.js";
 import { PeerChannel } from "./Transport.js";
 
-/** Explicit Node hosted-server configuration. */
-export class WebSocketGatewayOptions {
-    /** @type {number|string} Requested listening port. */
-    port;
-
-    /** @param {number|string} port - HTTP/WebSocket listening port. */
-    constructor(port) {
-        this.port = port;
-        Object.freeze(this);
-    }
-}
-
 /** Node-only HTTP and WebSocket boundary around the shared Host. */
 export class WebSocketGateway {
     /** @type {Host} Authoritative Pick 2 host. */
@@ -40,22 +28,18 @@ export class WebSocketGateway {
 
     /**
      * Creates and starts the Node HTTP/WebSocket runtime.
-     * @param {WebSocketGatewayOptions} config - Gateway configuration.
-     * @param {import("../core/Game.js").Game} game - Hosted game contract.
+     * @param {number|string} port - HTTP/WebSocket listening port.
+    * @param {import("../core/Game.js").Game} game - Hosted game contract.
      */
-    constructor(config, game) {
-        if (!(config instanceof WebSocketGatewayOptions)) {
-            throw new Error("WebSocketGateway requires WebSocketGatewayOptions.");
-        }
-
-        const port = WebSocketGateway.#resolvePort(config.port);
+    constructor(port, game) {
+        const resolvedPort = WebSocketGateway.#resolvePort(port);
         this.#host = new Host(new HostOptions({ mode: "hosted", customBots: 0, trackIdle: true }), game);
         this.#httpServer = http.createServer(WebSocketGateway.#createApp());
         this.#webSocketServer = new WebSocketServer({ server: this.#httpServer });
         this.#webSocketServer.on("connection", this.#connect.bind(this));
         this.#httpServer.on("close", this.#stopMaintenance.bind(this));
         this.#startMaintenance();
-        this.#httpServer.listen(port, "0.0.0.0", this.#reportStarted.bind(this, port));
+        this.#httpServer.listen(resolvedPort, "0.0.0.0", this.#reportStarted.bind(this, resolvedPort));
     }
 
     /** Stops network infrastructure and the shared Host. @returns {Promise<void>} */

@@ -1,7 +1,7 @@
 "use strict";
 
 import { Game as Pick2Game } from "./core/Game.js";
-import { WebSocketGateway, WebSocketGatewayOptions } from "./runtime/WebSocketGateway.js";
+import { WebSocketGateway } from "./runtime/WebSocketGateway.js";
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
 
@@ -85,7 +85,7 @@ process.once("uncaughtException", handleUncaughtException);
 process.once("unhandledRejection", handleUnhandledRejection);
 
 try {
-    network = new WebSocketGateway(new WebSocketGatewayOptions(process.env.PORT ?? "8080"), new Pick2Game());
+    network = new WebSocketGateway(process.env.PORT ?? "8080", new Pick2Game());
 } catch (error) {
     console.error("Hosted server startup failed:");
     reportError(error);
