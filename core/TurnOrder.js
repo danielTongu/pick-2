@@ -18,22 +18,10 @@ export class TurnOrder extends Serializable {
     }
 
     /**
-     * @returns {number} Seated actor count.
-     */
-    get size() {
-        return this.actors.size;
-    }
-
-    /**
      * @returns {Actor|null} Current turn owner.
      */
     get owner() {
         return this.ownerKey === null ? null : (this.actors.get(this.ownerKey) ?? null);
-    }
-
-    /** Returns whether the order contains no actors. */
-    isEmpty() {
-        return this.actors.size === 0;
     }
 
     /**

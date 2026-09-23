@@ -494,9 +494,9 @@ export class RoomView extends View {
     #controller = null;
 
     /**
-     * @type {import("./controllers/GuideController.js").GuideController|null} Game-guide controller after startup.
+     * @type {import("./controllers/FaqController.js").FaqController|null} FAQ controller after startup.
      */
-    #guideController = null;
+    #faqController = null;
 
     /**
      * @type {{mode:"direct"|"hosted", command:string, data:Record<string, *>}|null} Create, join, or view intent carried from Home.
@@ -536,7 +536,7 @@ export class RoomView extends View {
         }
 
         const {RoomController} = await import("./controllers/RoomController.js");
-        const {GuideController} = await import("./controllers/GuideController.js");
+        const {FaqController} = await import("./controllers/FaqController.js");
 
         this.#controller = new RoomController();
         await this.#controller.initialize();
@@ -548,8 +548,8 @@ export class RoomView extends View {
         this.#controller.setReadyHandler(this.#handleReady.bind(this));
         this.#controller.setHomeHandler(this.#returnHome.bind(this));
 
-        this.#guideController = new GuideController();
-        this.#guideController?.initialize();
+        this.#faqController = new FaqController();
+        this.#faqController?.initialize();
 
         window.addEventListener("pagehide", this.disconnect.bind(this), {once: true});
     }

@@ -3,20 +3,19 @@
 import { Constants } from "./Constants.js";
 import { CardCollection } from "./CardCollection.js";
 import { Actor } from "./Actor.js";
-import { TurnUtils } from "./TurnUtils.js";
 
 /** Automated actor that chooses legal moves from private hand data and public room state. */
 export class BotActor extends Actor {
     // bot Scoring Constants
     /**
-     * @type {number} Sentinel score for a move that guarantees the round win.
+     * @type {number} Sentinel priority for a move that guarantees the round win.
      */
-    static #SCORE_WIN = Infinity;
+    static #PRIORITY_WIN = Infinity;
 
     /**
-     * @type {number} Sentinel score for a candidate that must not be selected.
+     * @type {number} Sentinel priority for a candidate that must not be selected.
      */
-    static #SCORE_NEVER = -Infinity;
+    static #PRIORITY_NEVER = -Infinity;
 
     /**
      * @type {number} Strong tactical priority bonus.
@@ -85,17 +84,7 @@ export class BotActor extends Actor {
      */
     async takeTurn(room) {
         await this._waitForTurnDelay();
-        if (this._isTurnOwner(room)) await this._takeTurn(room);
-    }
-
-    /**
-
-     * Returns whether this bot still owns the supplied room's turn.
-     * @param {import("./Room.js").Room} room - Room to check.
-     * @returns {boolean} Whether this Bot is the current turn owner.
-     */
-    _isTurnOwner(room) {
-        return TurnUtils.isTurnOwner(room.turnOrder.ownerKey, this.key);
+        if (room.turnOrder.ownerKey === this.key) await this.#performTurnCommand(room);
     }
 
     /** Waits for a randomized human-like delay. */
@@ -105,16 +94,6 @@ export class BotActor extends Actor {
         await new Promise(function wait(resolve) {
             setTimeout(resolve, delay);
         });
-    }
-
-    /**
-     * Executes a bot turn.
-     *
-     * @param {import("./Room.js").Room} room - Room instance.
-     * @returns {Promise<void>}
-     */
-    async _takeTurn(room) {
-        await this.#performTurnCommand(room);
     }
 
     /**
@@ -165,21 +144,21 @@ export class BotActor extends Actor {
                 }
             }
             const isUnderAttack = this.drawAllowance > 1;
-            const scored = [];
+            const candidates = [];
 
             for (const card of selectableCards) {
-                scored.push({
+                candidates.push({
                     card,
-                    score: this.#calculateCardPriority(room, card, isUnderAttack, selectableCards.length, unseenCards)
+                    priority: this.#calculateCardPriority(room, card, isUnderAttack, selectableCards.length, unseenCards)
                 });
             }
 
-            scored.sort(function compareScores(left, right) {
-                return right.score - left.score;
+            candidates.sort(function comparePriorities(left, right) {
+                return right.priority - left.priority;
             });
 
-            if (scored[0].score > BotActor.#SCORE_NEVER) {
-                selectedCard = scored[0].card;
+            if (candidates[0].priority > BotActor.#PRIORITY_NEVER) {
+                selectedCard = candidates[0].card;
             }
         }
 
@@ -244,77 +223,77 @@ export class BotActor extends Actor {
     }
 
     /**
-     * Scores a card based on bot strategy.
+     * Prioritizes a card based on bot strategy.
      *
      * @param {import("./Room.js").Room} room - Room instance.
-     * @param {import("./Card.js").Card} card - Card to score.
+     * @param {import("./Card.js").Card} card - Candidate card.
      * @param {boolean} isUnderAttack - Whether actor is being attacked.
      * @param {number} totalLegal - Total number of legal cards.
      * @param {import("./Card.js").Card[]} unseenCards - Cards not publicly accounted for.
-     * @returns {number} Card score.
+     * @returns {number} Card priority.
      */
     #calculateCardPriority(room, card, isUnderAttack, totalLegal, unseenCards) {
         const hasOtherOptions = totalLegal > 1;
-        let score = card.score;
+        let priority = card.rank;
 
-        score += this.#calculateOpponentPressurePriority(room, card, totalLegal, unseenCards);
-        score += this.#calculateHandSetupPriority(room, card, unseenCards);
+        priority += this.#calculateOpponentPressurePriority(room, card, totalLegal, unseenCards);
+        priority += this.#calculateHandSetupPriority(room, card, unseenCards);
 
         if (this.#pressesInferredEmptySuit(room, card)) {
-            score += BotActor.#PRIORITY_MEDIUM;
+            priority += BotActor.#PRIORITY_MEDIUM;
         }
 
         // Draw cards (2s, Jokers)
         if (card.isDrawCard()) {
             if (isUnderAttack) {
-                score += BotActor.#PRIORITY_HIGH;
+                priority += BotActor.#PRIORITY_HIGH;
             } else if (hasOtherOptions) {
-                score += BotActor.#PENALTY_AVOID;
+                priority += BotActor.#PENALTY_AVOID;
             }
         }
 
         // Ace of Spades - defensive shield
         if (card.isAceOfSpades()) {
             if (isUnderAttack) {
-                score += this.#isDrawCardPresent() ? BotActor.#PRIORITY_MEDIUM : BotActor.#PRIORITY_HIGH;
+                priority += this.#isDrawCardPresent() ? BotActor.#PRIORITY_MEDIUM : BotActor.#PRIORITY_HIGH;
             } else if (hasOtherOptions) {
-                score += BotActor.#PENALTY_STRONG_AVOID;
+                priority += BotActor.#PENALTY_STRONG_AVOID;
             } else {
-                score += BotActor.#PENALTY_LAST_RESORT;
+                priority += BotActor.#PENALTY_LAST_RESORT;
             }
         }
 
         // Other Aces (suit changers)
         if (card.isAce() && !card.isAceOfSpades() && hasOtherOptions) {
-            score += BotActor.#PENALTY_ACE;
+            priority += BotActor.#PENALTY_ACE;
         }
 
         // Skip/Reverse cards (8s, Jacks)
         const actorCount = room.turnOrder.actors.size;
         if (card.isSkip(actorCount) || card.isReverse(actorCount)) {
-            score += BotActor.#PRIORITY_LOW;
+            priority += BotActor.#PRIORITY_LOW;
         }
 
         // Round-ending cards (7 of Hearts, last card)
         if (card.isRoundEndingCard()) {
-            score = this.#calculateRoundEndingPriority(room, card, unseenCards);
+            priority = this.#calculateRoundEndingPriority(room, card, unseenCards);
         }
 
-        return score;
+        return priority;
     }
 
     /**
-     * Scores how safely a candidate controls the projected opponent.
+     * Estimates how safely a candidate controls the projected opponent.
      *
      * The projected actor accounts for skips and reverses. Only visible hand counts are used:
-     * the bot never reads an opponent's card identities or hand score. Publicly known cards
+     * the bot never reads an opponent's card identities or hand penalty. Publicly known cards
      * refine the probability that the projected opponent can legally respond.
      *
      * @param {import("./Room.js").Room} room - Room instance.
      * @param {import("./Card.js").Card} card - Candidate discard.
      * @param {number} playableCardCount - Number of legal choices available to the bot.
      * @param {import("./Card.js").Card[]} unseenCards - Cards not publicly accounted for.
-     * @returns {number} Strategy score adjustment.
+     * @returns {number} Strategy priority adjustment.
      */
     #calculateOpponentPressurePriority(room, card, playableCardCount, unseenCards) {
         let priority = 0;
@@ -555,7 +534,7 @@ export class BotActor extends Actor {
             lastActor.key !== this.key &&
             projectedActor.key === lastActor.key &&
             !top.isSpecial() &&
-            top.rank === BotActor.#LOWEST_ORDINARY_RANK &&
+            Constants.getCardValue(top.value).rank === BotActor.#LOWEST_ORDINARY_RANK &&
             card.suit === top.suit
         );
     }
@@ -575,23 +554,23 @@ export class BotActor extends Actor {
     }
 
     /**
-     * Scores a room-ending card from public information.
+     * Prioritizes a room-ending card from public information.
      *
      * @param {import("./Room.js").Room} room - Room instance.
      * @param {import("./Card.js").Card} card - Candidate room-ending card.
      * @param {import("./Card.js").Card[]} unseenCards - Cards not publicly accounted for.
-     * @returns {number} Card score.
+     * @returns {number} Card priority.
      */
     #calculateRoundEndingPriority(room, card, unseenCards) {
-        let priority = BotActor.#SCORE_NEVER;
+        let priority = BotActor.#PRIORITY_NEVER;
 
         if (this.collection.items.length === 1) {
-            priority = BotActor.#SCORE_WIN;
+            priority = BotActor.#PRIORITY_WIN;
         } else if (this.#hasRoundEndCardCountAdvantage(room)) {
             const winProbability = this.#calculateRoundEndWinProbability(room, card, unseenCards);
 
             if (winProbability >= BotActor.#MIN_END_GAME_WIN_PROBABILITY) {
-                priority = BotActor.#SCORE_WIN;
+                priority = BotActor.#PRIORITY_WIN;
             }
         }
 
@@ -623,10 +602,10 @@ export class BotActor extends Actor {
     }
 
     /**
-     * Estimates the chance that the bot's remaining score ties or beats every opponent.
+     * Estimates the chance that the bot's remaining penalty ties or beats every opponent.
      *
      * Opponent hands are treated as random samples from unseen cards. Individual opponent
-     * estimates are combined conservatively without inspecting any hidden card or score.
+     * estimates are combined conservatively without inspecting any hidden card or penalty.
      *
      * @param {import("./Room.js").Room} room - Room instance.
      * @param {import("./Card.js").Card} card - Candidate room-ending card.
@@ -634,13 +613,13 @@ export class BotActor extends Actor {
      * @returns {number} Estimated probability from zero through one.
      */
     #calculateRoundEndWinProbability(room, card, unseenCards) {
-        const remainingScore = this.collection.score - card.score;
+        const remainingPenalty = this.collection.penalty - card.rank;
         let winProbability = 1;
 
         for (const actor of room.turnOrder.actors.values()) {
             if (actor.key !== this.key) {
-                const opponentProbability = this.#calculateScoreAtLeastProbability(
-                    remainingScore,
+                const opponentProbability = this.#calculatePenaltyAtLeastProbability(
+                    remainingPenalty,
                     actor.collection.items.length,
                     unseenCards
                 );
@@ -652,17 +631,17 @@ export class BotActor extends Actor {
     }
 
     /**
-     * Calculates the chance that a random hand from unseen cards reaches a score.
+     * Calculates the chance that a random hand from unseen cards reaches a penalty.
      *
-     * @param {number} targetScore - Score the sampled hand must meet or exceed.
+     * @param {number} targetPenalty - Penalty the sampled hand must meet or exceed.
      * @param {number} cardCount - Visible number of cards in the sampled hand.
      * @param {import("./Card.js").Card[]} unseenCards - Cards not publicly accounted for.
      * @returns {number} Probability from zero through one.
      */
-    #calculateScoreAtLeastProbability(targetScore, cardCount, unseenCards) {
+    #calculatePenaltyAtLeastProbability(targetPenalty, cardCount, unseenCards) {
         let probability = 0;
 
-        if (targetScore <= 0) {
+        if (targetPenalty <= 0) {
             probability = 1;
         } else if (cardCount > 0 && unseenCards.length > 0) {
             const sampleCount = Math.min(cardCount, unseenCards.length);
@@ -683,11 +662,11 @@ export class BotActor extends Actor {
                     const previousCounts = combinationCounts[sampleSize - 1];
                     const currentCounts = combinationCounts[sampleSize];
 
-                    for (const [score, count] of previousCounts) {
-                        const nextScore = score + unseenCard.score;
-                        const previousCount = currentCounts.get(nextScore) ?? 0;
+                    for (const [rank, count] of previousCounts) {
+                        const nextRank = rank + unseenCard.rank;
+                        const previousCount = currentCounts.get(nextRank) ?? 0;
 
-                        currentCounts.set(nextScore, previousCount + count);
+                        currentCounts.set(nextRank, previousCount + count);
                     }
                 }
 
@@ -697,10 +676,10 @@ export class BotActor extends Actor {
             let totalCombinationCount = 0;
             let favorableCombinationCount = 0;
 
-            for (const [score, count] of combinationCounts[sampleCount]) {
+            for (const [rank, count] of combinationCounts[sampleCount]) {
                 totalCombinationCount += count;
 
-                if (score >= targetScore) {
+                if (rank >= targetPenalty) {
                     favorableCombinationCount += count;
                 }
             }
@@ -721,7 +700,7 @@ export class BotActor extends Actor {
      */
     async chooseSuit(room) {
         await this._waitForTurnDelay();
-        if (this._isTurnOwner(room)) {
+        if (room.turnOrder.ownerKey === this.key) {
             const unseenCards = this.#getUnseenCards(room);
 
             await room.declareSuit(this.#selectBestSuit(room, null, unseenCards));

@@ -4,12 +4,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { CardSortUtils } from "../core/CardSortUtils.js";
+import { CardCollection } from "../core/CardCollection.js";
 import { Constants } from "../core/Constants.js";
 import { ValidationUtils } from "../core/ValidationUtils.js";
 import { Serializable } from "../core/Serializable.js";
 import { StateMapper } from "../core/StateMapper.js";
-import { TurnUtils } from "../core/TurnUtils.js";
 import { UserNotification } from "../core/UserNotification.js";
 import { RoomRowUtils } from "../ui/utilities/RoomRowUtils.js";
 import { RateLimit } from "../runtime/RateLimit.js";
@@ -88,7 +87,7 @@ test("browser controller, custom element, and template utility families share th
             assert.equal(typeof PlayingCard.prototype[method], "function");
         }
 
-        for (const property of ["value", "suit", "rank", "score", "rotation", "isDragging", "isFaceUp"]) {
+        for (const property of ["value", "suit", "rank", "rotation", "isDragging", "isFaceUp"]) {
             const descriptor = Object.getOwnPropertyDescriptor(PlayingCard.prototype, property);
             assert.equal(typeof descriptor.get, "function", property);
             assert.equal(
@@ -185,9 +184,9 @@ test("StateMapper builds immutable response, message, Home, and detailed Game pa
                     key: "alice",
                     name: "Alice",
                     collection: {
-                        score: 5,
+                        penalty: 5,
                         sortKey: Constants.CARD.SORT_OPTIONS[0],
-                        items: [{ value: "5", suit: "clubs", score: 5, rotation: 10 }]
+                        items: [{ value: "5", suit: "clubs", rank: 5, rotation: 10 }]
                     },
                     drawAllowance: 2,
                     state: Constants.ACTOR_STATE.WON,
@@ -196,7 +195,7 @@ test("StateMapper builds immutable response, message, Home, and detailed Game pa
             ]
         },
         collections: {
-            play: { items: [{ value: "3", suit: "hearts", score: 3, rotation: 20 }] },
+            play: { items: [{ value: "3", suit: "hearts", rank: 3, rotation: 20 }] },
             draw: { items: [{}, {}] }
         },
         winners: ["Alice"],
@@ -215,9 +214,9 @@ test("StateMapper builds immutable response, message, Home, and detailed Game pa
 
     const data = StateMapper.toRoomData(room, "Alice");
     assert.equal(data.turnOrder.ownerKey, "alice");
-    assert.equal(TurnUtils.isTurnOwner(data.turnOrder.ownerKey, data.turnOrder.actors[0].key), true);
+    assert.equal(data.turnOrder.ownerKey, data.turnOrder.actors[0].key);
     assert.equal(data.turnOrder.actors[0].collection.items.length, 1);
-    assert.equal(data.turnOrder.actors[0].collection.score, 5);
+    assert.equal(data.turnOrder.actors[0].collection.penalty, 5);
     assert.equal(data.collections.play.items.length, 2);
     assert.deepEqual(data.collections.play.items[1], { suit: Constants.CARD.SUIT.SPADES, rotation: 0 });
     assert.equal(data.collections.draw.itemCount, 2);
@@ -266,36 +265,32 @@ test("RateLimit isolates scopes and supports reset, pruning, and validation", ()
     assert.throws(() => guard.enforceRoomThrottle("room", "move", -1), /non-negative integer/);
 });
 
-test("CardSortUtils supports every sort mode without mutating its input", () => {
+test("CardCollection supports every sort mode without mutating the collection", () => {
     const cards = [
-        { value: "k", suit: "clubs", score: 13 },
-        { value: "2", suit: "hearts", score: 20 },
-        { value: "5", suit: "diamonds", score: 5 }
+        { value: "k", suit: "clubs", rank: 13 },
+        { value: "2", suit: "hearts", rank: 20 },
+        { value: "5", suit: "diamonds", rank: 5 }
     ];
 
-    assert.deepEqual(CardSortUtils.sorted(cards, "none"), cards);
-    assert.notEqual(CardSortUtils.sorted(cards, "none"), cards);
+    const collection = new CardCollection(cards);
+    assert.deepEqual(collection.sorted("none"), collection.items);
+    assert.notEqual(collection.sorted("none"), collection.items);
     assert.deepEqual(
-        CardSortUtils.sorted(cards, "rank").map((card) => card.value),
-        ["2", "5", "k"]
-    );
-    assert.deepEqual(
-        CardSortUtils.sorted(cards, "value").map((card) => card.value),
-        ["2", "5", "k"]
-    );
-    assert.deepEqual(
-        CardSortUtils.sorted(cards, "suit").map((card) => card.suit),
-        ["clubs", "diamonds", "hearts"]
-    );
-    assert.deepEqual(
-        CardSortUtils.sorted(cards, "score").map((card) => card.value),
+        collection.sorted("rank").map((card) => card.value),
         ["5", "k", "2"]
     );
-    assert.throws(() => CardSortUtils.sorted(cards, "unknown"), /Invalid card sort key/);
+    assert.deepEqual(
+        collection.sorted("suit").map((card) => card.suit),
+        ["clubs", "diamonds", "hearts"]
+    );
+    assert.throws(() => collection.sorted("score"), /Invalid card sort key/);
+    assert.deepEqual(collection.items.map((card) => card.value), ["k", "2", "5"]);
+    assert.throws(() => collection.sorted("unknown"), /Invalid card sort key/);
+    assert.throws(() => collection.sorted("value"), /Invalid card sort key/);
 });
 
-test("the shared guide initializes canonical card-sort options", () => {
-    const controller = readFileSync(new URL("../ui/controllers/GuideController.js", import.meta.url), "utf8");
+test("the shared FAQ initializes canonical card-sort options", () => {
+    const controller = readFileSync(new URL("../ui/controllers/FaqController.js", import.meta.url), "utf8");
 
     assert.match(INDEX_HTML, /<select id="sort-key-select"><\/select>/);
     assert.match(controller, /Constants\.CARD\.SORT_OPTIONS/);
@@ -314,15 +309,15 @@ test("the countdown strobes its box shadow and respects reduced motion", () => {
     );
 });
 
-test("game-guide score cells initialize from canonical card scores", () => {
-    const scoreCells = Array.from(
+test("FAQ rank cells initialize from canonical card ranks", () => {
+    const rankCells = Array.from(
         INDEX_HTML.matchAll(/<td data-card-value="([^"]+)" data-card-suit="([^"]+)">(\d+)<\/td>/g)
     );
 
-    assert.equal(scoreCells.length, 8);
+    assert.equal(rankCells.length, 8);
 
-    for (const [, value, suit, displayedScore] of scoreCells) {
-        assert.equal(Number(displayedScore), Constants.getCardScore(value, suit));
+    for (const [, value, suit, displayedRank] of rankCells) {
+        assert.equal(Number(displayedRank), Constants.getCardRank(value, suit));
     }
 });
 

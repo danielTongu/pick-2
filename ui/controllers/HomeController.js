@@ -12,13 +12,13 @@ import { Card } from "../../core/Card.js";
 import { PlayingCard } from "../PlayingCard.js";
 
 /**
- * Orders preview cards by Pick2 score.
+ * Orders preview cards by Pick2 rank.
  * @param {Card} left - First card.
  * @param {Card} right - Second card.
- * @returns {number} Score difference.
+ * @returns {number} Rank difference.
  */
-function compareCardScores(left, right) {
-    return left.score - right.score;
+function compareCardRanks(left, right) {
+    return left.rank - right.rank;
 }
 
 /**
@@ -46,7 +46,7 @@ function renderSpecialCardFan() {
         new Card(VALUE.SEVEN.id, SUIT.HEARTS, 0),
         new Card(VALUE.JOKER.id, SUIT.BLACK, 0),
         new Card(VALUE.ACE.id, SUIT.SPADES, 0)
-    ].sort(compareCardScores);
+    ].sort(compareCardRanks);
 
     fan.replaceChildren(...cards.map(createFanCard));
 }

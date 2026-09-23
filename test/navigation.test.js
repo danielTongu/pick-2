@@ -157,8 +157,8 @@ async function startRoomView(basePath, mode, validIntent) {
             "const RoomController = FakeRoomController;"
         )
         .replace(
-            'const {GuideController} = await import("./controllers/GuideController.js");',
-            "const GuideController = class { initialize() {} };"
+            'const {FaqController} = await import("./controllers/FaqController.js");',
+            "const FaqController = class { initialize() {} };"
         )
         .replaceAll("export ", "");
     context.config = config;

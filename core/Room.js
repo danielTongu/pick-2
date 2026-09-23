@@ -9,8 +9,6 @@ import { TurnOrder } from "./TurnOrder.js";
 import { CardCollection } from "./CardCollection.js";
 import { Card } from "./Card.js";
 import { BotActor } from "./BotActor.js";
-import { TurnUtils } from "./TurnUtils.js";
-import { CardSortUtils } from "./CardSortUtils.js";
 
 /** Owns a Pick2 room, its membership, and all item rules. */
 export class Room extends Serializable {
@@ -48,21 +46,14 @@ export class Room extends Serializable {
         this._lastDiscardActorKey = null;
     }
 
-    /**
-     * @returns {Map<string, Actor>} Actors keyed by normalized identity.
-     */
-    get actors() {
-        return this.turnOrder.actors;
-    }
-
     /** Returns whether the room has no seated actors. */
     isEmpty() {
-        return this.turnOrder.isEmpty();
+        return this.turnOrder.actors.size === 0;
     }
 
     /** Returns whether actor capacity has been reached. */
     isFull() {
-        return this.turnOrder.size >= this.actorLimit;
+        return this.turnOrder.actors.size >= this.actorLimit;
     }
 
     /**
@@ -86,15 +77,6 @@ export class Room extends Serializable {
      */
     isRoundActive() {
         return this.state === Constants.ROOM_STATE.ACTIVE;
-    }
-
-    /**
-     * Returns whether the current lifecycle state locks actor membership.
-     *
-     * @returns {boolean} Whether membership is locked.
-     */
-    isMembershipLocked() {
-        return this.isRoundActive();
     }
 
     /**
@@ -178,7 +160,7 @@ export class Room extends Serializable {
             function joinOperation() {
                 const normalizedViewerKey = Room.#optionalText(viewerKey);
 
-                if (this.isMembershipLocked()) {
+                if (this.isRoundActive()) {
                     throw new UserNotification("Room already in progress.");
                 }
                 if (this.isFull()) {
@@ -426,10 +408,10 @@ export class Room extends Serializable {
                     const actor = this.turnOrder.get(actorName);
 
                     this.#assertCanAct(actor);
-                    this.#sortActorItems(actor, sortKey);
+                    actor.collection.sort(sortKey);
 
                     const usesPlayingRules =
-                        this.state === Constants.ROOM_STATE.ACTIVE && TurnUtils.hasTurnOwner(this.turnOrder.ownerKey);
+                        this.state === Constants.ROOM_STATE.ACTIVE && this.turnOrder.ownerKey !== null;
                     const drawCount = usesPlayingRules ? actor.drawAllowance : 1;
 
                     if (drawCount <= 0) {
@@ -473,9 +455,9 @@ export class Room extends Serializable {
                     const actor = this.turnOrder.get(actorName);
 
                     this.#assertCanAct(actor);
-                    this.#sortActorItems(actor, sortKey);
+                    actor.collection.sort(sortKey);
 
-                    if (this.state === Constants.ROOM_STATE.ACTIVE && TurnUtils.hasTurnOwner(this.turnOrder.ownerKey)) {
+                    if (this.state === Constants.ROOM_STATE.ACTIVE && this.turnOrder.ownerKey !== null) {
                         const remainingDrawAllowance = Math.max(0, actor.drawAllowance);
 
                         if (remainingDrawAllowance > 0) {
@@ -517,7 +499,7 @@ export class Room extends Serializable {
                     const item = new Card(value, suit);
 
                     this.#assertCanAct(actor);
-                    this.#sortActorItems(actor, sortKey);
+                    actor.collection.sort(sortKey);
                     this.#assertActorHasItem(actor, item);
                     this.#assertItemIsPlayable(item);
 
@@ -560,10 +542,10 @@ export class Room extends Serializable {
                 });
 
                 if (index === -1) {
-                    throw new UserNotification("Item " + identity.key + " is no longer in the play collection.");
+                    throw new UserNotification("Item " + identity.id + " is no longer in the play collection.");
                 }
 
-                this.#sortActorItems(actor, sortKey);
+                actor.collection.sort(sortKey);
                 const returned = this.takeItem(actor.key, "play", this.collections.play.items[index]);
                 actor.recordActivity();
                 this.recordActivity();
@@ -675,8 +657,7 @@ export class Room extends Serializable {
                 this.#resetRoundState();
             } else {
                 const isTurnOwnerRemoved =
-                    !TurnUtils.hasTurnOwner(this.turnOrder.ownerKey) ||
-                    TurnUtils.isTurnOwner(this.turnOrder.ownerKey, actor.key);
+                    this.turnOrder.ownerKey === null || this.turnOrder.ownerKey === actor.key;
 
                 if (isTurnOwnerRemoved) {
                     this.#advanceTurn(1, 1);
@@ -819,7 +800,7 @@ export class Room extends Serializable {
         ValidationUtils.instanceOf(destination, CardCollection, "Destination collection");
         const removed = source.remove(item);
         if (removed === null) {
-            throw new UserNotification("Item " + (item?.key ?? item) + " does not exist in the source collection.");
+            throw new UserNotification("Item " + (item?.id ?? item?.key ?? item) + " does not exist in the source collection.");
         }
 
         try {
@@ -899,18 +880,6 @@ export class Room extends Serializable {
     }
 
     /**
-
-     * Sorts a hand when a concrete ordering is requested.
-     * @param {Actor} actor - Owner of the hand.
-     * @param {string} sortKey - Requested ordering.
-     */
-    #sortActorItems(actor, sortKey) {
-        if (sortKey !== "none") {
-            actor.collection.sort(CardSortUtils.comparator(sortKey));
-        }
-    }
-
-    /**
      * Asserts an actor can perform the requested command.
      *
      * @param {Actor|null} actor - Acting actor.
@@ -926,8 +895,7 @@ export class Room extends Serializable {
 
         const isAnotherActorsTurn =
             this.state === Constants.ROOM_STATE.ACTIVE &&
-            TurnUtils.hasTurnOwner(this.turnOrder.ownerKey) &&
-            !TurnUtils.isTurnOwner(this.turnOrder.ownerKey, actor.key);
+            this.turnOrder.ownerKey !== null && this.turnOrder.ownerKey !== actor.key;
 
         if (isAnotherActorsTurn) {
             throw new UserNotification("Not your turn.");
@@ -969,7 +937,7 @@ export class Room extends Serializable {
         }
 
         if (!isFound) {
-            throw new UserNotification("Item " + item.key + " is no longer in your collection.");
+            throw new UserNotification("Item " + item.id + " is no longer in your collection.");
         }
     }
 
@@ -980,7 +948,7 @@ export class Room extends Serializable {
      */
     #assertItemIsPlayable(item) {
         const usesPlayingRules =
-            this.state === Constants.ROOM_STATE.ACTIVE && TurnUtils.hasTurnOwner(this.turnOrder.ownerKey);
+            this.state === Constants.ROOM_STATE.ACTIVE && this.turnOrder.ownerKey !== null;
 
         if (usesPlayingRules) {
             const turnOwner = this.turnOrder.requireOwner();
@@ -988,7 +956,7 @@ export class Room extends Serializable {
             const isLegal = item.isLegalOn(this.getTopItem(), this.declaredSuit, drawAllowance);
 
             if (!isLegal) {
-                throw new UserNotification("Item " + item.key + " cannot be played.");
+                throw new UserNotification("Item " + item.id + " cannot be played.");
             }
         }
     }
@@ -1034,17 +1002,17 @@ export class Room extends Serializable {
      * Finishes the game and determines winners.
      */
     #finishRound() {
-        let minimumScore = Infinity;
+        let minimumPenalty = Infinity;
 
         this.winners = [];
 
         for (const actor of this.turnOrder.actors.values()) {
             actor.drawAllowance = 1;
-            minimumScore = Math.min(minimumScore, actor.collection.score);
+            minimumPenalty = Math.min(minimumPenalty, actor.collection.penalty);
         }
 
         for (const actor of this.turnOrder.actors.values()) {
-            if (actor.collection.score === minimumScore) {
+            if (actor.collection.penalty === minimumPenalty) {
                 actor.state = Constants.ACTOR_STATE.WON;
                 this.winners.push(actor.name);
             } else {
@@ -1067,17 +1035,6 @@ export class Room extends Serializable {
      */
     static #optionalText(value) {
         return typeof value === "string" ? value.trim() : "";
-    }
-
-    /**
-     * Normalizes a room or actor-facing name.
-     *
-     * @param {*} value - Value.
-     * @returns {string} Normalized name.
-     * @throws {Error} When a value violates an internal room invariant.
-     */
-    static #normalizeRoomName(value) {
-        return ValidationUtils.namedString(value, "Room name", ValidationUtils.roomNameMaxLength);
     }
 
     /**
@@ -1105,6 +1062,8 @@ export class Room extends Serializable {
      * @throws {Error} When a value violates an internal room invariant.
      */
     static normalizeSuit(value) {
-        return Constants.normalizeStandardSuit(Room.#normalizeRoomName(value));
+        return Constants.normalizeStandardSuit(
+            ValidationUtils.namedString(value, "Room name", ValidationUtils.roomNameMaxLength)
+        );
     }
 }

@@ -2,7 +2,6 @@
 
 import { Constants } from "../../core/Constants.js";
 import { ValidationUtils } from "../../core/ValidationUtils.js";
-import { TurnUtils } from "../../core/TurnUtils.js";
 import { ViewController } from "./ViewController.js";
 import { AlertController } from "./AlertController.js";
 import { CountdownController } from "./CountdownController.js";
@@ -380,7 +379,7 @@ export class RoomController extends ViewController {
         const requiresSuitSelection =
             room.pending?.command === Constants.COMMANDS.DECLARE &&
             localPlayer !== null &&
-            TurnUtils.isTurnOwner(room.turnOrder?.ownerKey, localPlayer.key);
+            room.turnOrder?.ownerKey === localPlayer.key;
 
         if (requiresSuitSelection) {
             this.#suitController.show();

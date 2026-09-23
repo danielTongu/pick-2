@@ -1,4 +1,4 @@
-# Pick 2 Software Design and Maintenance Guide
+# Pick 2 Software Design and Maintenance Reference
 
 ## 1. Purpose and authority
 
@@ -7,7 +7,7 @@ It explains what the software must do and where a policy belongs without describ
 every private implementation detail.
 
 The document is normative where it uses **MUST**, **MUST NOT**, **SHOULD**, or **MAY**. When behavior changes, update
-this document, the README, the in-page guide, and focused tests in the same change.
+this document, the README, the in-page FAQ, and focused tests in the same change.
 
 Pick 2 has Direct and Hosted modes. Both modes expose the same Home and Room experiences, commands, core rules, response
 envelope, client data shape, and in-memory storage model. Their transport and configured Host policies differ.
@@ -16,7 +16,7 @@ envelope, client data shape, and in-memory storage model. Their transport and co
 
 - **Home** is the room directory and room-creation experience.
 - **Room** is both the active play/viewing page and the core domain object for one match.
-- **Card** is the Pick2 game piece and owns its identity, score, and rules.
+- **Card** is the Pick2 game piece and owns its identity, rank, and rules.
 - **Collection** is item storage. Its role comes from its owner and name: an actor hand, draw deck, or discard pile.
 - **Actor** is a seated participant whose collection and turn state are private where appropriate. User-facing copy may
   call an Actor a Player.
@@ -174,7 +174,7 @@ and verify its endpoint. When the client opens, `HomeController` sends `list`, s
 renders the directory through `RoomRowUtils`. Before navigating, it validates form input and `HomeView` stores the mode
 and complete `create`, `view`, or `join` admission intent in `ViewState`.
 
-`RoomView` restores that intent, constructs `RoomController` and `GuideController`, and opens the shared client. An
+`RoomView` restores that intent, constructs `RoomController` and `FaqController`, and opens the shared client. An
 unaccompanied initial Home snapshot is ignored on the Room page. On open, `RoomController` sends the saved intent:
 
 - `create`: `Host` validates admission, creates and registers the `Room`, attaches change and optional idle callbacks,
@@ -245,7 +245,7 @@ and publish a fresh authoritative snapshot, which the controller renders complet
   allowed by the core rules.
 - **active**: ordinary turn order and game legality apply. `pending` may describe a required game-specific decision
   without creating another lifecycle level.
-- **finished**: the round has ended and actor collections provide final scores. It remains observable until the next
+- **finished**: the round has ended and actor collections provide final penalties. It remains observable until the next
   authenticated actor command resumes waiting or a new round starts.
 
 State transitions MUST clear or establish the turn-owner cursor consistently. Starting a round establishes a valid
@@ -302,26 +302,26 @@ While playing, turn order, draw penalties, discard legality, skip/reverse effect
 authoritative core rules. A suit-changing ace moves the Room to pending until its owner declares a standard suit.
 
 While waiting with no turn owner, the waiting-state permissions apply and playing-only legality checks do not. A round
-finishes when a hand is emptied or the seven of hearts ends the round under its rule. Remaining hand scores determine
+finishes when a hand is emptied or the seven of hearts ends the round under its rule. Remaining hand penalties determine
 the winner or tied winners.
 
 While waiting, a Player may move cards freely in either direction between their hand and the discard pile, subject to
 membership and card-presence validation inside the Room operation queue. Finished Rooms expose the same controls; the
 first authenticated game command changes the Room to waiting before applying the requested transaction. These free
-transactions preserve card rotation, update score and activity, and do not consume draw allowance or apply playing-card
+transactions preserve card rotation, update penalty and activity, and do not consume draw allowance or apply playing-card
 effects. They are rejected while the Room is active unless the active-round rules specifically permit the command.
 
 Hand sorting is committed with the next draw, discard, return, or pass. Temporary browser sorting is not a server-side
 command for every selection. Drawing resets the temporary client sort to `none` so newly drawn cards are visibly distinct
 until the Player sorts again.
 
-All scoring MUST use the shared card-score policy in `Constants`; no UI or bot may calculate a competing score.
+All ranks MUST use the shared card-rank policy in `Constants`; no UI or bot may calculate a competing rank.
 
 ## 8. Automated Players
 
 Bots use the same legal command and card rules as human Players. Their strategy MAY use their own cards, public turn
 order, visible hand counts, card effects, and discard history. It MUST NOT inspect opponents' hidden card identities or
-private hand scores.
+private hand penalties.
 
 Because discarded cards may return to the deck when the discard pile is recycled, bot decisions MUST use the live public
 discard pile rather than a permanent assumption that a discarded card is unavailable.
@@ -399,13 +399,17 @@ preventing duplicated opening text.
 
 ## 12. Card data and interaction
 
-`core/Card.js` owns card identity, Pick2 scoring and special-card rules. `core/CardCollection.js` provides the
-collection used by hands and decks, including the canonical deck factory. Card presentation and artwork live in `ui/`.
+`core/Card.js` owns card identity, Pick2 ranking and special-card rules. `core/CardCollection.js` provides the
+collection used by hands and decks, including the canonical deck factory and instance sorting. Card presentation and
+artwork live in `ui/`.
 
-`Card` is immutable initial game data. Its ordinary `value`, `suit`, and `rotation` fields are validated during
-construction. Only `rank` and `score` need getters, since they are derived from identity. Create another `Card` to
-change its data. Rotation defaults to a random angle when omitted. `toJSON()` preserves the saved format
-`{value, suit, score, rotation}`.
+Each card has a `rank`; a collection's `penalty` is the sum of its card ranks. The actor with the lowest remaining
+penalty wins.
+
+`Card` is immutable initial game data. Its `value`, `suit`, and `rotation` fields are validated during construction;
+`rank` is calculated and stored once. Its `id` is derived from the frozen value and suit. Create another
+`Card` to change its data. Rotation defaults to a random angle when omitted. `toJSON()` preserves the saved format
+`{value, suit, rank, rotation}`.
 
 `PlayingCard` displays this data. Supplying a destination enables both user flipping and dragging; omitting it creates a
 static card:
@@ -413,11 +417,11 @@ static card:
 ```js
 const card = new Card("a", "spades", 15);
 const handCard = PlayingCard.create(card, discardPile);
-const guideCard = PlayingCard.create(card);
+const faqCard = PlayingCard.create(card);
 
 // Presentation can be updated programmatically for either kind.
-guideCard.isFaceUp = false;
-guideCard.rotation = null; // Let CSS choose the angle.
+faqCard.isFaceUp = false;
+faqCard.rotation = null; // Let CSS choose the angle.
 ```
 
 The destination must be an HTML element or `null`. It is stored privately for the lifetime of that element. There is no
@@ -429,7 +433,7 @@ Controllers recreate cards when room state changes.
 | Local hand while waiting or finished                  | Discard pile | Flip and drag    |
 | Local hand during an allowed playing turn             | Discard pile | Flip and drag    |
 | Discard pile while waiting or finished, with a Player | Local hand   | Flip and drag    |
-| Other discard states, spectators, guide, fan, results | None         | None             |
+| Other discard states, spectators, FAQ, fan, results   | None         | None             |
 
 Awaiting-decision and transport-busy states disable interaction. A suit-only declared-suit display always remains
 static. Waiting or finished Players may take any real card in the discard pile into their own hand; this is not
@@ -437,8 +441,8 @@ restricted to their own earlier discards.
 
 ### 12.1 Element properties and markup
 
-The element's `value` and `suit` getters read its presentation attributes. `rank` is calculated; `score` uses the
-supplied game score, falling back to natural rank. Both return `null` for suit-only cards. The `rotation` and `isFaceUp`
+The element's `value` and `suit` getters read its presentation attributes. `rank` uses the supplied game rank,
+falling back to the canonical rank. It returns `null` for suit-only cards. The `rotation` and `isFaceUp`
 setters validate changes and synchronize CSS or accessibility. `isDragging` reads the active drag state, with no
 separate stored boolean.
 
@@ -496,7 +500,7 @@ ordinary local variables are not APIs and do not require JSDoc. The architecture
 6. Preserve semantic markup, `data-*` state hooks, accessibility relationships, and the repository's CSS cascade
    standards.
 7. Add tests for valid behavior, expected user failures, and important internal contract failures.
-8. Update this document, the README, and the in-page guide whenever public behavior, policy, or operational behavior
+8. Update this document, the README, and the in-page FAQ whenever public behavior, policy, or operational behavior
    changes.
 
 ## 15. Operations

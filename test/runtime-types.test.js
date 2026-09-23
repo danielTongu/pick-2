@@ -31,11 +31,11 @@ test("CommandContext accumulates typed authentication and room state", () => {
         .attachSession(session)
         .attachRoom("test-room", room);
 
-    assert.equal(context.command, "start");
+    assert.equal(context.request.command, "start");
     assert.equal(context.tabId, "tab-1");
     assert.equal(context.session, session);
     assert.equal(context.room, room);
-    assert.equal(context.playerName, "Daniel");
+    assert.equal(context.session.playerName, "Daniel");
 });
 
 test("PeerSession owns transport state and RoomSession owns membership state", () => {
@@ -54,8 +54,8 @@ test("PeerSession owns transport state and RoomSession owns membership state", (
 
     assert.equal(peer.tabId, "tab-1");
     assert.deepEqual(published, [{ view: "home" }]);
-    assert.equal(session.isPlayer(), true);
-    assert.equal(session.belongsTo("test-room"), true);
+    assert.notEqual(session.playerName, null);
+    assert.equal(session.roomKey, "test-room");
     assert.equal(session.playerName, "Daniel");
 
     session.view();
@@ -64,7 +64,7 @@ test("PeerSession owns transport state and RoomSession owns membership state", (
     peer.terminate(1001, "Done");
     peer.clearAuthentication("tab-1");
 
-    assert.equal(session.isPlayer(), false);
+    assert.equal(session.playerName, null);
     assert.equal(peer.isOpen, false);
     assert.equal(peer.tabId, null);
     assert.deepEqual(published, [{ view: "home" }]);
@@ -97,15 +97,15 @@ test("CommandRouter owns built-in and fallback command dispatch", async () => {
     const received = [];
     const receiver = { name: "host" };
     const builtIn = function builtIn(context) {
-        received.push([this.name, context.command]);
+        received.push([this.name, context.request.command]);
     };
     const fallback = function fallback(context) {
-        received.push(["fallback", context.command]);
+        received.push(["fallback", context.request.command]);
     };
     const router = new CommandRouter({ list: builtIn }, fallback);
 
-    await router.dispatch(receiver, { command: "list" });
-    await router.dispatch(receiver, { command: "draw" });
+    await router.dispatch(receiver, { request: { command: "list" } });
+    await router.dispatch(receiver, { request: { command: "draw" } });
 
     assert.deepEqual(received, [
         ["host", "list"],

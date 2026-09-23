@@ -486,11 +486,11 @@ ul#opponent-list > li > div::after {
     content: "😂 You Lost!";
 }
 
-/* ---------- GAME GUIDE ---------- */
+/* ---------- FAQ ---------- */
 
-#game-guide {
+#game-faq {
     color: var(--ink);
-    font-size: large;
+    font-size: medium;
 }
 
 summary::-webkit-details-marker {
@@ -507,8 +507,12 @@ summary {
     cursor: pointer;
 }
 
-summary > span:first-child {
-    font-size: medium;
+summary > b {
+    color: var(--light-green);
+    font-family: var(--display-font);
+}
+
+summary > span {
     letter-spacing: -0.02em;
 }
 
@@ -519,20 +523,20 @@ summary::after {
     text-align: right;
 }
 
-#game-guide > summary {
+#game-faq > summary {
     grid-template-columns: auto 1fr;
     grid-template-areas: "header aside" "footer aside";
 }
 
-#game-guide > summary > b {
+#game-faq > summary > b {
     grid-area: header;
 }
 
-#game-guide > summary > span {
+#game-faq > summary > span {
     grid-area: footer;
 }
 
-#game-guide > summary::after {
+#game-faq > summary::after {
     grid-area: aside;
 }
 
@@ -540,23 +544,12 @@ details[open] > summary::after {
     content: "−";
 }
 
-details[open]:not(#game-guide) > summary,
+details[open]:not(#game-faq) > summary,
 summary:hover {
     background: var(--line);
 }
 
-summary > b {
-    color: var(--light-green);
-}
-
-summary > span,
-summary + div > article > span {
-    color: var(--gray);
-}
-
-#game-guide details > summary + div {
-    --line: rgba(255, 255, 255, 0.03);
-
+#game-faq details > summary + div {
     display: grid;
     grid-template-columns: 1fr;
     border: 3px solid var(--line);
@@ -570,11 +563,21 @@ summary + div > article {
     border: 3px solid var(--line);
 }
 
-#scores-tables table {
+summary + div > article > b {
+    color: var(--gray);
+}
+
+#ranks-tables > p {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 1rem;
+    border: 3px solid var(--line);
+}
+
+#ranks-tables table {
     --table-heading-padding: 8px 12px;
     --table-cell-padding: 8px 12px;
-    --table-border: 3px solid var(--black);
-    background: var(--line);
+    --table-border: 3px solid var(--line);
 }
 
 /* ---------- ANIMATION ---------- */
@@ -593,7 +596,7 @@ summary + div > article {
 /* ---------- RESPONSIVE ---------- */
 
 @media (min-width: 721px) {
-    #game-guide details > summary + div {
+    #game-faq details > summary + div {
         grid-template-columns: 1fr 1fr;
     }
 }

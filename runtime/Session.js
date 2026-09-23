@@ -110,21 +110,6 @@ export class RoomSession {
     }
 
     /**
-     * @returns {boolean} Whether this session occupies a player seat.
-     */
-    isPlayer() {
-        return this.playerName !== null;
-    }
-
-    /**
-     * @param {string} roomKey - Normalized Room key to compare.
-     * @returns {boolean} Whether this session belongs to the supplied Room.
-     */
-    belongsTo(roomKey) {
-        return this.roomKey === roomKey;
-    }
-
-    /**
      * @param {string} playerName - Seated player name.
      */
     join(playerName) {

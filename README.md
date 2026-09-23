@@ -56,7 +56,7 @@ request flow and file map.
 `CardCollection` supplies every card-storage role. Pick 2 owns its card, Room, actor, turn-order, runtime, and UI
 foundations directly, without single-use base layers.
 
-See the [Pick 2 software design and maintenance guide](docs/pick-2.md) for architecture, runtime flows, domain
+See the [Pick 2 software design and maintenance reference](docs/pick-2.md) for architecture, runtime flows, domain
 contracts, card interaction, testing, and operations.
 
 ## License and copyright

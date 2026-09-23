@@ -1,8 +1,7 @@
 "use strict";
 
-import { CardSortUtils } from "../../core/CardSortUtils.js";
+import { CardCollection } from "../../core/CardCollection.js";
 import { Constants } from "../../core/Constants.js";
-import { TurnUtils } from "../../core/TurnUtils.js";
 import { DomUtils } from "../utilities/DomUtils.js";
 import { PlayingCard } from "../PlayingCard.js";
 import { ViewController } from "./ViewController.js";
@@ -246,7 +245,7 @@ export class LocalPlayerController extends ViewController {
      * @param {Object} room - Authoritative room snapshot.
      */
     #renderRootState(actor, room) {
-        DomUtils.setBooleanState(this.root, "isTurnOwner", TurnUtils.isTurnOwner(room.turnOrder?.ownerKey, actor.key));
+        DomUtils.setBooleanState(this.root, "isTurnOwner", room.turnOrder?.ownerKey === actor.key);
         DomUtils.setBooleanState(this.root, "isWinner", actor.state === Constants.ACTOR_STATE.WON);
     }
 
@@ -278,7 +277,7 @@ export class LocalPlayerController extends ViewController {
         this.#passButton.disabled =
             room.pending !== null ||
             room.state !== Constants.ROOM_STATE.ACTIVE ||
-            !TurnUtils.isTurnOwner(room.turnOrder?.ownerKey, actor.key);
+            room.turnOrder?.ownerKey !== actor.key;
     }
 
     /**
@@ -289,7 +288,7 @@ export class LocalPlayerController extends ViewController {
      */
     #renderCards(actor, room, sortKey) {
         this.#handElement.replaceChildren();
-        const orderedCards = CardSortUtils.sorted(actor.collection.items, sortKey);
+        const orderedCards = new CardCollection(actor.collection.items).sorted(sortKey);
         const ownerKey = room.turnOrder?.ownerKey ?? null;
         const allowsFreeTransactions =
             room.state === Constants.ROOM_STATE.WAITING || room.state === Constants.ROOM_STATE.FINISHED;
@@ -297,7 +296,7 @@ export class LocalPlayerController extends ViewController {
             room.pending === null &&
             (allowsFreeTransactions ||
                 (room.state === Constants.ROOM_STATE.ACTIVE &&
-                    (!TurnUtils.hasTurnOwner(ownerKey) || TurnUtils.isTurnOwner(ownerKey, actor.key))));
+                    (!ownerKey || ownerKey === actor.key)));
         const destination = canDiscard ? DomUtils.require("#table-play-area > [data-is-drag-over]", HTMLElement) : null;
 
         for (let index = orderedCards.length - 1; index >= 0; index -= 1) {
@@ -324,8 +323,7 @@ export class LocalPlayerController extends ViewController {
 
         if (room.state === Constants.ROOM_STATE.ACTIVE) {
             const ownerKey = room.turnOrder?.ownerKey ?? null;
-            isDrawAllowed =
-                !TurnUtils.hasTurnOwner(ownerKey) || (isDrawAllowed && TurnUtils.isTurnOwner(ownerKey, actor.key));
+            isDrawAllowed = !ownerKey || (isDrawAllowed && ownerKey === actor.key);
         }
 
         return isDrawAllowed;

@@ -158,7 +158,7 @@ export class StateMapper {
                 name: actor.name,
                 collection: Object.freeze({
                     items: StateMapper.#toCards(collection.items),
-                    score: collection.score,
+                    penalty: collection.penalty,
                     sortKey: collection.sortKey ?? Constants.CARD.SORT_OPTIONS[0]
                 }),
                 drawAllowance: actor.drawAllowance,
@@ -179,7 +179,7 @@ export class StateMapper {
             return Object.freeze({
                 value: card.value,
                 suit: card.suit,
-                score: card.score,
+                rank: card.rank,
                 rotation: card.rotation
             });
         });

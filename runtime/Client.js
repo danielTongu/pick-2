@@ -84,7 +84,11 @@ export class Client {
      * @param {string} value - Card sort key.
      */
     set sortKey(value) {
-        this.#sortKey = ValidationUtils.requiredString(value, "Sort key");
+        const sortKey = ValidationUtils.requiredString(value, "Sort key");
+        if (!Constants.CARD.SORT_OPTIONS.includes(sortKey)) {
+            throw new Error(`Invalid card sort key: ${sortKey}`);
+        }
+        this.#sortKey = sortKey;
     }
 
     /**
@@ -142,13 +146,6 @@ export class Client {
                 }
             }) ?? false
         );
-    }
-
-    /**
-     * @param {Object} message - Normalized user notification.
-     */
-    showAlert(message) {
-        this.#controller?.handleNotification?.(message);
     }
 
     /**

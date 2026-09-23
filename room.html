@@ -88,65 +88,57 @@
                     </div>
                 </article>
             </section>
-            <details id="game-guide">
-                <summary id="guide-header">
-                    <b>How to play</b>
-                    <span>Learn the game in a minute, then open any section when you need a reminder.</span>
+            <details id="game-faq">
+                <summary id="faq-header">
+                    <b>FAQ</b>
+                    <span>Answers to common questions, plus quick card references.</span>
                 </summary>
                 <div>
                     <details>
                         <summary>
                             <b>01</b>
-                            <span>Quick start</span>
+                            <span>Getting started</span>
                         </summary>
                         <div>
                             <article>
-                                <b>Join the room</b>
+                                <b>How do I join a game?</b>
                                 <span>Select <em>Join</em> to take an open seat. Your hand and controls appear at the bottom.</span>
                             </article>
                             <article>
-                                <b>Try the controls</b>
+                                <b>What can I do before the round starts?</b>
                                 <span>Before the round, use + to add cards, select a card to flip it, or drag it to the discard pile.</span>
                             </article>
                             <article>
-                                <b>Start the round</b>
+                                <b>How does a round start?</b>
                                 <span>When at least two players are seated, select <em>Play</em>. Every hand refreshes with seven cards.</span>
                             </article>
                             <article>
-                                <b>Take your turn</b>
-                                <span>Match the top card by suit or value. Drag a card to play it, use + to draw, or select <em>Pass</em>.</span>
-                            </article>
-                            <article>
-                                <b>Arrange your hand</b>
+                                <b>How do I arrange my hand?</b>
                                 <span>Use <em>Sort</em> to arrange your cards. The selected order is saved when you move.</span>
-                            </article>
-                            <article>
-                                <b>Win the round</b>
-                                <span>Play your final card or the seven of hearts to end the round. The lowest remaining score wins.</span>
                             </article>
                         </div>
                     </details>
                     <details>
                         <summary>
                             <b>02</b>
-                            <span>Core rules</span>
+                            <span>Playing and winning</span>
                         </summary>
                         <div>
                             <article>
-                                <b>Match the discard</b>
-                                <span>Play the same suit or value as the top discard. Wild cards play at any time.</span>
+                                <b>Which card can I play?</b>
+                                <span>Match the top discard by suit or value, or play a wild card. Drag your card to the discard pile.</span>
                             </article>
                             <article>
-                                <b>Draw and pass</b>
+                                <b>Can I play after drawing?</b>
                                 <span>Draw your allowed cards. You may still play afterward; otherwise select <em>Pass</em>.</span>
                             </article>
                             <article>
-                                <b>Finish the game</b>
-                                <span>Play your final card, or the seven of hearts, to end the game.</span>
+                                <b>When does a round end?</b>
+                                <span>Play your final card or the seven of hearts to end the round.</span>
                             </article>
                             <article>
-                                <b>Lowest score wins</b>
-                                <span>The player with the lowest remaining hand score wins.</span>
+                                <b>Who wins?</b>
+                                <span>The player with the lowest remaining hand penalty wins.</span>
                             </article>
                         </div>
                     </details>
@@ -177,6 +169,11 @@
                                 <div class="playing-card-area" id="twos"></div>
                             </article>
                             <article>
+                                <b>Seven of hearts</b>
+                                <span>Ends the game immediately and triggers scoring.</span>
+                                <div class="playing-card-area" id="seven-of-hearts"></div>
+                            </article>
+                            <article>
                                 <b>Joker</b>
                                 <span>Stacks or adds a four-card draw penalty.</span>
                                 <div class="playing-card-area" id="jokers"></div>
@@ -186,25 +183,22 @@
                                 <span>Plays on any card and blocks a draw penalty.</span>
                                 <div class="playing-card-area" id="ace-of-spades"></div>
                             </article>
-                            <article>
-                                <b>Seven of hearts</b>
-                                <span>Ends the game immediately and triggers scoring.</span>
-                                <div class="playing-card-area" id="seven-of-hearts"></div>
-                            </article>
+
                             <article><!--purposely empty for balance--></article>
                         </div>
                     </details>
                     <details>
                         <summary>
                             <b>04</b>
-                            <span>Card scores</span>
+                            <span>How is my penalty calculated?</span>
                         </summary>
-                        <div id="scores-tables">
+                        <div id="ranks-tables">
+                            <p>Your penalty is the sum of the ranks of the cards left in your hand when the round ends. For example, a two (20) and a king (13) add up to 33 penalty. The lowest penalty wins.</p>
                             <table>
                                 <thead>
                                     <tr>
-                                        <th scope="col">Cards</th>
-                                        <th scope="col">Points</th>
+                                        <th scope="col">Card</th>
+                                        <th scope="col">Rank</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -233,8 +227,8 @@
                             <table>
                                 <thead>
                                     <tr>
-                                        <th scope="col">Cards</th>
-                                        <th scope="col">Points</th>
+                                        <th scope="col">Card</th>
+                                        <th scope="col">Rank</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -327,7 +321,7 @@
                                 <thead>
                                     <tr>
                                         <th scope="col">Player</th>
-                                        <th scope="col">Score</th>
+                                        <th scope="col">Penalty</th>
                                         <th scope="col">Items</th>
                                         <th scope="col">Status</th>
                                     </tr>
@@ -348,14 +342,13 @@
                 </aside>
                 <nav id="app-footer-navigation" aria-label="Footer navigation">
                     <a href="#app-header">Back to top ↑</a>
-                    <a id="room-guide-link" href="#game-guide">How to play</a>
+                    <a id="room-faq-link" href="#game-faq">FAQ</a>
                 </nav>
                 <aside id="app-footer-note">
                     <div>
                         <time id="copyright-year" datetime="2026"></time>
                         <span>Pick2. All rights reserved</span>
                     </div>
-                    <div>Direct and hosted play</div>
                 </aside>
             </footer>
         </main>

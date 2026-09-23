@@ -116,7 +116,7 @@ export class Host {
      * @param {Room} room - Room whose Players should no longer be monitored.
      */
     static #stopIdleMonitoring(room) {
-        for (const player of room.actors.values()) {
+        for (const player of room.turnOrder.actors.values()) {
             player.stopIdleMonitoring();
         }
     }
@@ -149,10 +149,6 @@ export class Host {
      *
      * @returns {Promise<void>} Resolves when shutdown completes.
      */
-    async shutdown() {
-        await this.#shutdown();
-    }
-
     /** Removes expired rate-limit entries. */
     maintain() {
         this.#rateLimit.prune(5 * 60 * 1000);
@@ -161,7 +157,7 @@ export class Host {
     /** Creates configured Rooms and their initial bot players. */
     async #initializeRooms() {
         for (const roomConfig of this.#game.constants.DEFAULT_ROOMS) {
-            const roomKey = this.#normalizeRoomKey(roomConfig.roomName);
+            const roomKey = Actor.normalizeKey(roomConfig.roomName);
             const room = this.#registerRoom(roomConfig.roomName, roomConfig.playerLimit, roomKey);
 
             await this.#addBotActors(room, roomConfig.botCount, null);
@@ -191,16 +187,6 @@ export class Host {
 
             index += 1;
         }
-    }
-
-    /**
-     * Builds a normalized key from a name.
-     *
-     * @param {string} name - Display room name to normalize for lookup.
-     * @returns {string} Normalized key.
-     */
-    #normalizeRoomKey(name) {
-        return Actor.normalizeKey(name);
     }
 
     /**
@@ -465,37 +451,6 @@ export class Host {
     }
 
     /**
-     * Finds a room session by player name.
-     *
-     * @param {string} roomKey - Normalized room lookup key.
-     * @param {string} playerName - Display name of the seated actor.
-     * @returns {RoomSession|null} Matching session.
-     */
-    #findSessionByPlayer(roomKey, playerName) {
-        return this.#sessions.findPlayer(roomKey, playerName);
-    }
-
-    /**
-     * Finds a room session by peer.
-     *
-     * @param {PeerSession} peer - Connected transport peer.
-     * @returns {RoomSession|null} Matching session.
-     */
-    #findSessionByPeer(peer) {
-        return this.#sessions.findPeer(peer);
-    }
-
-    /**
-     * Checks whether a captured room session is still current.
-     *
-     * @param {RoomSession} session - Captured session.
-     * @returns {boolean} True when still current.
-     */
-    #isCurrentSession(session) {
-        return this.#sessions.isCurrent(session);
-    }
-
-    /**
      * Moves an idle player back to viewing state.
      *
      * @param {string} roomKey - Normalized room lookup key.
@@ -504,13 +459,13 @@ export class Host {
      */
     async #moveIdlePlayerToView(roomKey, playerName) {
         const room = this.#roomsByKey.get(roomKey) ?? null;
-        const session = this.#findSessionByPlayer(roomKey, playerName);
+        const session = this.#sessions.findPlayer(roomKey, playerName);
 
         if (room !== null && session !== null) {
             const removedPlayer = await room.moveActorToView(playerName, session.tabId);
 
             if (removedPlayer !== null) {
-                if (this.#isCurrentSession(session)) {
+                if (this.#sessions.isCurrent(session)) {
                     session.view();
 
                     this.#publishRoomState(
@@ -601,15 +556,8 @@ export class Host {
      */
     #scheduleRoomClosureIfEmpty(roomKey) {
         if (this.#isRoomEmpty(roomKey)) {
-            this.#roomLifecycle.schedule(roomKey, Constants.MAX_IDLE_MS, this.#closeRoomAfterIdle.bind(this));
+            this.#roomLifecycle.schedule(roomKey, Constants.MAX_IDLE_MS, this.#closeRoomIfNoPlayersRemain.bind(this));
         }
-    }
-
-    /**
-     * @param {string} roomKey - Normalized key of the Room scheduled for closure.
-     */
-    #closeRoomAfterIdle(roomKey) {
-        this.#closeRoomIfNoPlayersRemain(roomKey);
     }
 
     /**
@@ -704,7 +652,7 @@ export class Host {
             const request = HostRequest.parse(rawRequest);
             const context = new CommandContext(peer, request);
 
-            this.#rateLimit.enforceConnection(peer, context.command, 75);
+            this.#rateLimit.enforceConnection(peer, context.request.command, 75);
             await this.#routeCommand(context);
         } catch (error) {
             if (error instanceof UserNotification) {
@@ -742,7 +690,7 @@ export class Host {
         peer.markClosed();
         this.#unregisterHomePeer(peer);
 
-        const session = this.#findSessionByPeer(peer);
+        const session = this.#sessions.findPeer(peer);
 
         if (session !== null) {
             const room = this.#roomsByKey.get(session.roomKey) ?? null;
@@ -835,7 +783,7 @@ export class Host {
      * @returns {Promise<void>}
      */
     async #list(context) {
-        if (this.#findSessionByPeer(context.peer) !== null) {
+        if (this.#sessions.findPeer(context.peer) !== null) {
             throw new UserNotification("Leave the current room before returning Home.");
         }
 
@@ -851,10 +799,11 @@ export class Host {
      */
     async #create(context) {
         context.identifyTab();
-        const { data, peer, tabId } = context;
+        const { peer, tabId } = context;
+        const { data } = context.request;
         const roomName = ValidationUtils.requiredString(data.roomName, "Room name");
         const playerName = ValidationUtils.requiredString(data.playerName, "Player name");
-        const roomKey = this.#normalizeRoomKey(roomName);
+        const roomKey = Actor.normalizeKey(roomName);
         const playerLimit = this.#normalizePlayerLimit(data.playerLimit);
 
         this.#rateLimit.enforcePlayerThrottle(tabId, Constants.COMMANDS.CREATE, 500);
@@ -906,7 +855,7 @@ export class Host {
         this.#requireRoomContext(context, 300);
         const { peer, tabId, roomKey, room, session } = context;
 
-        if (session !== null && !session.belongsTo(roomKey)) {
+        if (session !== null && session.roomKey !== roomKey) {
             throw new UserNotification("Leave the current room before viewing another room.");
         }
 
@@ -926,16 +875,17 @@ export class Host {
      */
     async #join(context) {
         this.#requireRoomContext(context, 500);
-        const { data, peer, tabId, roomKey, room, session } = context;
+        const { peer, tabId, roomKey, room, session } = context;
+        const { data } = context.request;
         const playerName = ValidationUtils.requiredString(data.playerName, "Player name");
 
         this.#assertPlayerNameAvailable(room, playerName);
 
-        if (session !== null && !session.belongsTo(roomKey)) {
+        if (session !== null && session.roomKey !== roomKey) {
             throw new UserNotification("Leave the current room before joining another room.");
         }
 
-        if (session?.isPlayer()) {
+        if (session !== null && session.playerName !== null) {
             throw new UserNotification("You already joined this room.");
         }
 
@@ -949,7 +899,7 @@ export class Host {
 
         const currentClient = this.#sessions.get(tabId);
 
-        if (currentClient !== null && currentClient.peer === peer && currentClient.belongsTo(roomKey)) {
+        if (currentClient !== null && currentClient.peer === peer && currentClient.roomKey === roomKey) {
             currentClient.join(player.name);
             this.#publishRoomState(peer, room, player.name);
             this.#publishPlayerWelcome(peer, player.name);
@@ -969,7 +919,7 @@ export class Host {
         const session = this.#sessions.get(context.tabId);
         context.attachSession(session);
 
-        this.#rateLimit.enforcePlayerThrottle(context.tabId, context.command, throttleMs);
+        this.#rateLimit.enforcePlayerThrottle(context.tabId, context.request.command, throttleMs);
 
         if (session !== null && session.peer !== context.peer) {
             throw new UserNotification("Your connection expired. Rejoin the room.");
@@ -985,8 +935,8 @@ export class Host {
      * @returns {CommandContext} Resolved room context.
      */
     #requireDataRoom(context) {
-        const roomName = ValidationUtils.requiredString(context.data.roomName, "Room name");
-        const roomKey = this.#normalizeRoomKey(roomName);
+        const roomName = ValidationUtils.requiredString(context.request.data.roomName, "Room name");
+        const roomKey = Actor.normalizeKey(roomName);
 
         return context.attachRoom(roomKey, this.#requireRoomByKey(roomKey));
     }
@@ -1050,7 +1000,7 @@ export class Host {
     #requireThrottledClient(context, throttleMs) {
         this.#requireClient(context);
 
-        this.#rateLimit.enforcePlayerThrottle(context.tabId, context.command, throttleMs);
+        this.#rateLimit.enforcePlayerThrottle(context.tabId, context.request.command, throttleMs);
 
         return context;
     }
@@ -1066,7 +1016,7 @@ export class Host {
         this.#requireClient(context);
         const session = context.session;
 
-        if (!session.isPlayer()) {
+        if (session.playerName === null) {
             throw new UserNotification("Join the room before making a move.");
         }
 
@@ -1090,10 +1040,10 @@ export class Host {
     #requireThrottledPlayerRoom(context, playerThrottleMs, roomThrottleMs) {
         this.#requirePlayerRoom(context);
 
-        this.#rateLimit.enforcePlayerThrottle(context.tabId, context.command, playerThrottleMs);
+        this.#rateLimit.enforcePlayerThrottle(context.tabId, context.request.command, playerThrottleMs);
 
         if (roomThrottleMs !== null) {
-            this.#rateLimit.enforceRoomThrottle(context.roomKey, context.command, roomThrottleMs);
+            this.#rateLimit.enforceRoomThrottle(context.roomKey, context.request.command, roomThrottleMs);
         }
 
         return context;
@@ -1117,16 +1067,16 @@ export class Host {
      * @returns {Promise<void>}
      */
     async #handleGameCommand(context) {
-        const limits = this.#game.commands[context.command];
+        const limits = this.#game.commands[context.request.command];
         if (limits === undefined) {
-            throw new UserNotification(`Unknown command: ${context.command}`);
+            throw new UserNotification(`Unknown command: ${context.request.command}`);
         }
         this.#requireThrottledPlayerRoom(context, limits.player, limits.room);
         const notification = await this.#game.execute(
             context.room,
-            context.playerName,
-            context.command,
-            context.data
+            context.session?.playerName ?? null,
+            context.request.command,
+            context.request.data
         );
         if (notification !== null) {
             this.#publishNotification(context.peer, notification.status, notification.title, notification.message);
@@ -1153,7 +1103,7 @@ export class Host {
      *
      * @returns {Promise<void>} Resolves when shutdown completes.
      */
-    async #shutdown() {
+    async shutdown() {
         await this.#ready;
 
         this.#roomLifecycle.clear();

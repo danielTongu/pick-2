@@ -6,16 +6,6 @@ import { Serializable } from "./Serializable.js";
 /** Immutable validated card identity shared by rules, collections, bots, and snapshots.*/
 export class Card extends Serializable {
     /**
-     * @type {string} Stable card identity.
-     */
-    #id;
-
-    /**
-     * @type {number} Card score.
-     */
-    #score;
-
-    /**
      * Creates a validated card.
      *
      * @param {string} value - Card value.
@@ -30,8 +20,8 @@ export class Card extends Serializable {
         Card.#validateIdentity(normalizedValue, normalizedSuit);
         super();
 
-        this.#id = `${normalizedValue}-${normalizedSuit}`;
-        this.#score = Constants.getCardScore(normalizedValue, normalizedSuit);
+        Object.defineProperty(this, "rank", { value: Constants.getCardRank(normalizedValue, normalizedSuit) });
+
         this.value = normalizedValue;
         this.suit = normalizedSuit;
         this.rotation = Card.#normalizeRotation(rotation);
@@ -40,63 +30,10 @@ export class Card extends Serializable {
     }
 
     /**
-     * @returns {string} Stable card identity.
+     * @returns {string} Stable identity derived from the card's frozen value and suit.
      */
     get id() {
-        return this.#id;
-    }
-
-    /**
-     * @returns {string} Stable item key used by Room messages and commands.
-     */
-    get key() {
-        return this.#id;
-    }
-
-    /**
-     * @returns {number} Pick2 score.
-     */
-    get score() {
-        return this.#score;
-    }
-
-    /**
-
-     * Returns whether another card has the same identity.
-     * @param {*} source - Candidate card to compare.
-     * @returns {boolean} Whether the identities match.
-     */
-    equals(source) {
-        return source instanceof Card && source.id === this.id;
-    }
-
-    /**
-     * @returns {string} Stable card identity.
-     */
-    toString() {
-        return this.id;
-    }
-
-    /**
-
-     * Serializes this card with its derived score when requested.
-     * @param {string[]|string|null} [include] - Fields to include, or null for all fields.
-     * @param {string[]} [exclude] - Fields to omit.
-     * @returns {Object} Card snapshot.
-     */
-    toJSON(include = null, exclude = []) {
-        const fields = typeof include === "string" ? null : include;
-        const snapshot = super.toJSON(fields, exclude);
-
-        if (!exclude.includes("score") && (fields === null || fields.includes("score"))) snapshot.score = this.score;
-        return snapshot;
-    }
-
-    /**
-     * @returns {number} Natural rank derived from the card value.
-     */
-    get rank() {
-        return Constants.getCardValue(this.value).rank;
+        return `${this.value}-${this.suit}`;
     }
 
     /**
@@ -122,6 +59,26 @@ export class Card extends Serializable {
         }
 
         return card;
+    }
+
+    /**
+     * Compares game rank while preserving stable order for ties.
+     * @param {Card} left - First card.
+     * @param {Card} right - Second card.
+     * @returns {number} Comparator result.
+     */
+    static compareByRank(left, right) {
+        return left.rank - right.rank;
+    }
+
+    /**
+     * Compares suit, then game rank.
+     * @param {Card} left - First card.
+     * @param {Card} right - Second card.
+     * @returns {number} Comparator result.
+     */
+    static compareBySuit(left, right) {
+        return String(left.suit).localeCompare(String(right.suit)) || left.rank - right.rank;
     }
 
     /**
@@ -200,6 +157,28 @@ export class Card extends Serializable {
         }
 
         return rotation;
+    }
+
+    /**
+     * @returns {string} Stable card identity.
+     */
+    toString() {
+        return this.id;
+    }
+
+    /**
+
+     * Serializes this card with its derived rank when requested.
+     * @param {string[]|string|null} [include] - Fields to include, or null for all fields.
+     * @param {string[]} [exclude] - Fields to omit.
+     * @returns {Object} Card snapshot.
+     */
+    toJSON(include = null, exclude = []) {
+        const fields = typeof include === "string" ? null : include;
+        const snapshot = super.toJSON(fields, exclude);
+
+        if (!exclude.includes("rank") && (fields === null || fields.includes("rank"))) snapshot.rank = this.rank;
+        return snapshot;
     }
 
     /**
@@ -328,7 +307,7 @@ export class Card extends Serializable {
      *
      * Rules:
      * - No top discard: any card is legal.
-     * - Active draw penalty: only draw cards may be stacked, and only with an equal or higher rank.
+     * - Active draw penalty: only draw cards may be stacked, and only with an equal or higher natural value.
      * - Declared suit: any card matching the declared suit, any ace, or any joker may be played.
      * - Otherwise: normal compatibility rules apply.
      *
@@ -345,7 +324,10 @@ export class Card extends Serializable {
             const top = Card.from(topDiscard);
 
             if (drawAllowance > 1) {
-                isLegal = (this.isDrawCard() && this.rank >= top.rank) || this.isAceOfSpades();
+                isLegal = (
+                    this.isDrawCard() &&
+                    Constants.getCardValue(this.value).rank >= Constants.getCardValue(top.value).rank
+                ) || this.isAceOfSpades();
             } else if (declaredSuit) {
                 isLegal = this.suit === declaredSuit || this.isAce() || this.isDrawFour();
             } else {

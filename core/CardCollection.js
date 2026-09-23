@@ -49,11 +49,11 @@ export class CardCollection extends Serializable {
     }
 
     /**
-     * @returns {number} Sum of finite item scores.
+     * @returns {number} Sum of finite card ranks owed as a penalty.
      */
-    get score() {
-        return this.items.reduce(function totalScore(total, item) {
-            return total + (Number.isFinite(item.score) ? item.score : 0);
+    get penalty() {
+        return this.items.reduce(function totalPenalty(total, item) {
+            return total + (Number.isFinite(item.rank) ? item.rank : 0);
         }, 0);
     }
 
@@ -125,7 +125,7 @@ export class CardCollection extends Serializable {
     takeMany(count) {
         ValidationUtils.nonNegativeInteger(count, "Take count");
         const taken = [];
-        while (taken.length < count && !this.isEmpty()) {
+        while (taken.length < count && this.items.length > 0) {
             taken.push(this.take());
         }
         return taken;
@@ -165,17 +165,24 @@ export class CardCollection extends Serializable {
     }
 
     /**
-
-     * Sorts this collection in place and returns it.
-     * @param {function(Card, Card): number} compare - Card comparator.
+     * Sorts this collection in place by a supported card order.
+     * @param {string} [sortKey] - Card order, or "none" to keep the current order.
      * @returns {CardCollection} This collection.
      */
-    sort(compare) {
-        if (typeof compare !== "function") {
-            throw new Error("Sort compare must be a function.");
-        }
-        this.items.sort(compare);
+    sort(sortKey = "none") {
+        if (sortKey !== "none") this.items.sort(this.#comparator(sortKey));
         return this;
+    }
+
+    /**
+     * Returns sorted card references without changing this collection.
+     * @param {string} [sortKey] - Card order, or "none" to keep the current order.
+     * @returns {Card[]} Ordered copy.
+     */
+    sorted(sortKey = "none") {
+        const cards = [...this.items];
+        if (sortKey !== "none") cards.sort(this.#comparator(sortKey));
+        return cards;
     }
 
     /** Randomizes this collection in place and returns it. */
@@ -192,22 +199,17 @@ export class CardCollection extends Serializable {
         return [...this.items];
     }
 
-    /** Returns whether no items are stored. */
-    isEmpty() {
-        return this.items.length === 0;
-    }
-
     *[Symbol.iterator]() {
         yield* this.items;
     }
 
-    /** Serializes items and their current score total. */
+    /** Serializes items and their current penalty total. */
     toJSON() {
         return {
             items: this.items.map(function serialize(item) {
                 return item.toJSON();
             }),
-            score: this.score
+            penalty: this.penalty
         };
     }
 
@@ -222,5 +224,20 @@ export class CardCollection extends Serializable {
         return this.items.findIndex(function matches(entry) {
             return entry.id === target;
         });
+    }
+
+    /**
+     * Resolves a comparator for a supported card order.
+     * @param {string} sortKey - Requested card order.
+     * @returns {function(Card, Card): number} Comparator.
+     */
+    #comparator(sortKey) {
+        const comparators = {
+            rank: Card.compareByRank,
+            suit: Card.compareBySuit
+        };
+        const compare = comparators[sortKey];
+        if (typeof compare !== "function") throw new Error(`Invalid card sort key: ${sortKey}`);
+        return compare;
     }
 }

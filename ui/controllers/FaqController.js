@@ -4,13 +4,13 @@ import { Constants } from "../../core/Constants.js";
 import { DomUtils } from "../../ui/utilities/DomUtils.js";
 import { PlayingCard } from "../PlayingCard.js";
 
-/** Initializes the game guide and shared card controls. */
-export class GuideController {
-    /** Initializes guide content derived from canonical game constants. */
+/** Initializes the FAQ and shared card controls. */
+export class FaqController {
+    /** Initializes FAQ content derived from canonical game constants. */
     initialize() {
-        GuideController.#renderSortOptions();
-        GuideController.#renderScores();
-        GuideController.#renderSpecialCards();
+        FaqController.#renderSortOptions();
+        FaqController.#renderRanks();
+        FaqController.#renderSpecialCards();
     }
 
     /** Renders canonical hand-sort options. */
@@ -28,12 +28,12 @@ export class GuideController {
         select.replaceChildren(...options);
     }
 
-    /** Renders canonical score examples. */
-    static #renderScores() {
-        for (const cell of DomUtils.require("#scores-tables", HTMLElement).querySelectorAll(
+    /** Renders canonical rank examples. */
+    static #renderRanks() {
+        for (const cell of DomUtils.require("#ranks-tables", HTMLElement).querySelectorAll(
             "td[data-card-value][data-card-suit]"
         )) {
-            cell.textContent = String(Constants.getCardScore(cell.dataset.cardValue, cell.dataset.cardSuit));
+            cell.textContent = String(Constants.getCardRank(cell.dataset.cardValue, cell.dataset.cardSuit));
         }
     }
 
@@ -42,13 +42,13 @@ export class GuideController {
         const { VALUE, SUIT } = Constants.CARD;
         const suits = [SUIT.CLUBS, SUIT.DIAMONDS, SUIT.HEARTS, SUIT.SPADES];
         const groups = {
-            eights: GuideController.#createCards(VALUE.EIGHT.id, suits),
-            jacks: GuideController.#createCards(VALUE.JACK.id, suits),
-            "aces-except-spades": GuideController.#createCards(VALUE.ACE.id, [SUIT.CLUBS, SUIT.DIAMONDS, SUIT.HEARTS]),
-            twos: GuideController.#createCards(VALUE.TWO.id, suits),
-            jokers: GuideController.#createCards(VALUE.JOKER.id, [SUIT.BLACK, SUIT.RED]),
-            "ace-of-spades": GuideController.#createCards(VALUE.ACE.id, [SUIT.SPADES]),
-            "seven-of-hearts": GuideController.#createCards(VALUE.SEVEN.id, [SUIT.HEARTS])
+            eights: FaqController.#createCards(VALUE.EIGHT.id, suits),
+            jacks: FaqController.#createCards(VALUE.JACK.id, suits),
+            "aces-except-spades": FaqController.#createCards(VALUE.ACE.id, [SUIT.CLUBS, SUIT.DIAMONDS, SUIT.HEARTS]),
+            twos: FaqController.#createCards(VALUE.TWO.id, suits),
+            jokers: FaqController.#createCards(VALUE.JOKER.id, [SUIT.BLACK, SUIT.RED]),
+            "ace-of-spades": FaqController.#createCards(VALUE.ACE.id, [SUIT.SPADES]),
+            "seven-of-hearts": FaqController.#createCards(VALUE.SEVEN.id, [SUIT.HEARTS])
         };
 
         for (const [id, group] of Object.entries(groups)) {

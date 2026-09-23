@@ -10,7 +10,7 @@ export class Actor extends Serializable {
     /**
      * @type {Function|null} Callback invoked with this actor after its idle window expires.
      */
-    #idleHandler = null;
+    onIdle = null;
 
     /**
      * @type {*|null} Active idle timeout identifier.
@@ -30,7 +30,7 @@ export class Actor extends Serializable {
     constructor(name, initialState = null) {
         super();
 
-        this.name = Actor.normalizeName(name);
+        this.name = ValidationUtils.namedString(name, "Actor name", ValidationUtils.actorNameMaxLength);
         this.key = Actor.normalizeKey(this.name);
         this.createdAt = Date.now();
         this.lastActiveAt = this.createdAt;
@@ -48,17 +48,6 @@ export class Actor extends Serializable {
     }
 
     /**
-     * Normalizes actor name.
-     *
-     * @param {*} value - Raw actor name.
-     * @returns {string} Normalized name.
-     * @throws {Error} When the supplied actor identity cannot be normalized.
-     */
-    static normalizeName(value) {
-        return ValidationUtils.namedString(value, "Actor name", ValidationUtils.actorNameMaxLength);
-    }
-
-    /**
      * Normalizes stable actor key.
      *
      * @param {*} value - Raw actor name or key.
@@ -73,15 +62,6 @@ export class Actor extends Serializable {
     }
 
     /**
-     * Sets idle callback.
-     *
-     * @param {Function|null} callback - Idle callback.
-     */
-    set onIdle(callback) {
-        this.#idleHandler = typeof callback === "function" ? callback : null;
-    }
-
-    /**
      * Updates activity timestamp and restarts idle timer when enabled.
      *
      * @returns {number} Last active timestamp.
@@ -90,7 +70,7 @@ export class Actor extends Serializable {
         this.lastActiveAt = Date.now();
         this.#clearIdleTimeout();
 
-        if (this.#idleHandler !== null) {
+        if (this.onIdle !== null) {
             this.#idleTimeoutId = globalThis.setTimeout(this.#handleIdleTimeout.bind(this), Constants.MAX_IDLE_MS);
         }
 
@@ -113,8 +93,8 @@ export class Actor extends Serializable {
     #handleIdleTimeout() {
         this.#idleTimeoutId = null;
 
-        if (this.#idleHandler !== null) {
-            this.#idleHandler(this);
+        if (this.onIdle !== null) {
+            this.onIdle(this);
         }
     }
 
@@ -123,7 +103,7 @@ export class Actor extends Serializable {
      */
     stopIdleMonitoring() {
         this.#clearIdleTimeout();
-        this.#idleHandler = null;
+        this.onIdle = null;
     }
 
     /** Restores collection and game-provided round state. */

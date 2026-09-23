@@ -45,24 +45,10 @@ export class CommandContext {
     }
 
     /**
-     * @returns {string} Canonical command name.
-     */
-    get command() {
-        return this.request.command;
-    }
-
-    /**
-     * @returns {Object} Canonical command payload.
-     */
-    get data() {
-        return this.request.data;
-    }
-
-    /**
      * @returns {CommandContext} This resolved context.
      */
     identifyTab() {
-        this.tabId = ValidationUtils.requiredString(this.data.tabId, "tabId");
+        this.tabId = ValidationUtils.requiredString(this.request.data.tabId, "tabId");
         return this;
     }
 
@@ -86,12 +72,6 @@ export class CommandContext {
         return this;
     }
 
-    /**
-     * @returns {string|null} Authenticated seated-player name.
-     */
-    get playerName() {
-        return this.session?.playerName ?? null;
-    }
 }
 
 
@@ -114,7 +94,7 @@ export class CommandRouter {
      * @returns {Promise<void>}
      */
     async dispatch(receiver, context) {
-        const handler = this.handlers[context.command] ?? this.fallback;
+        const handler = this.handlers[context.request.command] ?? this.fallback;
         await handler.call(receiver, context);
     }
 }

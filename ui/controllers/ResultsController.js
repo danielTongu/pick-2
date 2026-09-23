@@ -183,7 +183,7 @@ export class ResultsController extends ViewController {
         DomUtils.setBooleanState(row, "isWinner", actor.state === Constants.ACTOR_STATE.WON);
 
         row.appendChild(this.#createStatsCell(actor.name));
-        row.appendChild(this.#createStatsCell(String(actor.collection.score)));
+        row.appendChild(this.#createStatsCell(String(actor.collection.penalty)));
         row.appendChild(this.#createStatsCell(String(actor.collection.itemCount ?? actor.collection.items.length)));
         row.appendChild(this.#createStatsCell(actor.state === Constants.ACTOR_STATE.WON ? "Winner" : "Lost"));
 

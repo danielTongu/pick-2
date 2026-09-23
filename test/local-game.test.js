@@ -56,7 +56,7 @@ for (const mode of ["direct", "hosted"]) {
         const player = result.turnOrder.actors.find((entry) => entry.name === "Alice");
         assert.equal(player.collection.items.length, 1);
         assert.deepEqual(player.collection.items[0], card);
-        assert.equal(player.collection.score, card.score);
+        assert.equal(player.collection.penalty, card.rank);
         assert.equal(
             result.collections.play.items.some((entry) => entry.value === card.value && entry.suit === card.suit),
             false
@@ -227,6 +227,9 @@ test("Client adds shared fields to every endpoint request", () => {
     const statuses = [];
     const dataEvents = [];
     client.sortKey = "rank";
+    assert.throws(() => {
+        client.sortKey = "value";
+    }, /Invalid card sort key/);
     client.open(
         new ClientEvents(
             { handleData() {} },
@@ -314,7 +317,7 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.match(homeTemplate, /id="list-panel"/);
     assert.doesNotMatch(homeTemplate, /id="(?:request-mode-control|list-panel)" hidden/);
     assert.match(homeTemplate, /<tbody id="list-table-body">[\s\S]*?class="empty-row"/);
-    assert.doesNotMatch(homeMarkup, /id="game-guide"/);
+    assert.doesNotMatch(homeMarkup, /id="game-faq"/);
     assert.match(gameHtml, /data-game-region="view"/);
     assert.doesNotMatch(gameHtml, /pick-2-shared-root/);
     assert.match(homeTemplate, /<section\s+[^>]*id="network-connection-view"[^>]*hidden\s*>/);
@@ -332,10 +335,15 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
         /id="player-hand"[\s\S]*?<span class="playing-card-area" data-is-drag-over="false"><\/span>/
     );
     assert.doesNotMatch(gameHtml, /id="local-player-region"/);
-    assert.match(gameHtml, /<details id="game-guide">/);
-    assert.doesNotMatch(gameHtml, /<details id="game-guide" open>/);
-    assert.match(gameHtml, /id="room-guide-link" href="#game-guide"/);
-    assert.doesNotMatch(gameHtml, /data-game-region="guide"|id="guide-section"/);
+    assert.match(gameHtml, /<details id="game-faq">/);
+    assert.doesNotMatch(gameHtml, /<details id="game-faq" open>/);
+    assert.match(gameHtml, /<b>FAQ<\/b>/);
+    assert.match(gameHtml, /<b>Which card can I play\?<\/b>/);
+    assert.match(gameHtml, /<b>Who wins\?<\/b>/);
+    assert.match(gameHtml, /How is my penalty calculated\?/);
+    assert.match(gameHtml, /two \(20\) and a king \(13\) add up to 33 penalty/);
+    assert.match(gameHtml, /id="room-faq-link" href="#game-faq">FAQ<\/a>/);
+    assert.doesNotMatch(gameHtml, /data-game-region="faq"|id="faq-section"/);
     assert.match(gameHtml, /<tr class="placeholder-row"[^>]*>[\s\S]*?<td>--<\/td>/);
     assert.doesNotMatch(gameHtml, /id="room-mode-label"|id="connection-status-indicator"/);
     assert.match(homeHtml, /src="main\.js"/);
@@ -356,7 +364,7 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.match(homeDecoration, /new Card\(VALUE\.EIGHT\.id, SUIT\.DIAMONDS, 0\)/);
     assert.match(homeDecoration, /new Card\(VALUE\.JACK\.id, SUIT\.SPADES, 0\)/);
     assert.match(homeDecoration, /new Card\(VALUE\.ACE\.id, SUIT\.HEARTS, 0\)/);
-    assert.match(homeDecoration, /\.sort\(compareCardScores\)/);
+    assert.match(homeDecoration, /\.sort\(compareCardRanks\)/);
     assert.match(homeDecoration, /PlayingCard\.create\(card\)/);
     assert.match(homeDecoration, /element\.rotation = null/);
     assert.match(roomPageHtml, /src="main\.js"/);

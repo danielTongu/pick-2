@@ -52,30 +52,15 @@ class NetworkProbe {
      */
     #start(resolve) {
         this.#resolve = resolve;
-        this.#timer = globalThis.setTimeout(this.#handleTimeout.bind(this), Constants.NETWORK_CONNECTION_TIMEOUT_MS);
+        this.#timer = globalThis.setTimeout(this.#finish.bind(this, false), Constants.NETWORK_CONNECTION_TIMEOUT_MS);
 
         try {
             this.#socket = new WebSocket(this.#networkUrl);
-            this.#socket.addEventListener("open", this.#handleOpen.bind(this), { once: true });
-            this.#socket.addEventListener("error", this.#handleError.bind(this), { once: true });
+            this.#socket.addEventListener("open", this.#finish.bind(this, true), { once: true });
+            this.#socket.addEventListener("error", this.#finish.bind(this, false), { once: true });
         } catch (_error) {
             this.#finish(false);
         }
-    }
-
-    /** Settles the probe successfully after a WebSocket opens. */
-    #handleOpen() {
-        this.#finish(true);
-    }
-
-    /** Settles the probe unsuccessfully after a socket error. */
-    #handleError() {
-        this.#finish(false);
-    }
-
-    /** Settles the probe unsuccessfully when its bounded wait expires. */
-    #handleTimeout() {
-        this.#finish(false);
     }
 
     /**

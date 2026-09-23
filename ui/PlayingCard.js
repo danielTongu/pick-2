@@ -154,13 +154,6 @@ export class PlayingCard extends HTMLElement {
     }
 
     /**
-     * @returns {boolean} Whether this card accepts player interaction.
-     */
-    get isInteractive() {
-        return this.destination !== null;
-    }
-
-    /**
      * Initializes structure and behavior when connected.
      */
     connectedCallback() {
@@ -216,17 +209,10 @@ export class PlayingCard extends HTMLElement {
     }
 
     /**
-     * @returns {number|null} Derived rank, or null for a suit-only card.
+     * @returns {number|null} Supplied game rank, or null for a suit-only card.
      */
     get rank() {
-        return this.value ? Constants.getCardValue(this.value).rank : null;
-    }
-
-    /**
-     * @returns {number|null} Supplied game score (natural rank by default), or null for a suit-only card.
-     */
-    get score() {
-        return this.value ? Number(this.dataset.score ?? this.rank) : null;
+        return this.value ? Number(this.dataset.rank ?? Constants.getCardRank(this.value, this.suit)) : null;
     }
 
     /**
@@ -289,10 +275,10 @@ export class PlayingCard extends HTMLElement {
 
         this.dataset.value = data.value;
         this.dataset.suit = data.suit;
-        if (Number.isFinite(card.score)) {
-            this.dataset.score = String(card.score);
+        if (Number.isFinite(card.rank)) {
+            this.dataset.rank = String(card.rank);
         } else {
-            delete this.dataset.score;
+            delete this.dataset.rank;
         }
 
         this.rotation = rotation;

@@ -8,14 +8,13 @@ import { Constants } from "../core/Constants.js";
 
 const { VALUE, SUIT } = Constants.CARD;
 
-test("card properties protect identity and derive rank and score", () => {
+test("card properties protect identity and derive rank", () => {
     const card = new Card(" A ", " SPADES ", 15);
     assert.equal(card.value, VALUE.ACE.id);
     assert.equal(card.suit, SUIT.SPADES);
-    assert.equal(card.rank, VALUE.ACE.rank);
-    assert.equal(card.score, 50);
+    assert.equal(card.rank, 50);
 
-    for (const property of ["value", "suit", "rank", "score", "rotation"]) {
+    for (const property of ["value", "suit", "rank", "rotation"]) {
         assert.throws(() => {
             card[property] = 0;
         }, TypeError);
@@ -28,17 +27,27 @@ test("card properties protect identity and derive rank and score", () => {
     }
 });
 
+test("card comparators order rank and suit", () => {
+    const twoClubs = new Card("2", "clubs", 0);
+    const threeClubs = new Card("3", "clubs", 0);
+    const threeHearts = new Card("3", "hearts", 0);
+
+    assert.ok(Card.compareByRank(twoClubs, threeClubs) > 0);
+    assert.equal(Card.compareByRank(threeClubs, threeHearts), 0);
+    assert.ok(Card.compareBySuit(threeClubs, threeHearts) < 0);
+});
+
 test("card accessors preserve snapshots, filters, and round trips", () => {
     const card = new Card(VALUE.TWO.id, SUIT.CLUBS, 15);
-    const snapshot = { value: "2", suit: "clubs", score: 20, rotation: 15 };
+    const snapshot = { value: "2", suit: "clubs", rank: 20, rotation: 15 };
     assert.deepEqual(card.toJSON(), snapshot);
     assert.deepEqual(JSON.parse(JSON.stringify(card)), snapshot);
     assert.deepEqual(JSON.parse(JSON.stringify({ card })), { card: snapshot });
-    assert.deepEqual(card.toJSON(["value", "score"], ["score"]), { value: "2" });
+    assert.deepEqual(card.toJSON(["value", "rank"], ["rank"]), { value: "2" });
     assert.deepEqual(Card.from(snapshot).toJSON(), snapshot);
     assert.deepEqual(Card.from(card).toJSON(), snapshot);
-    assert.equal(Card.from({ ...snapshot, rank: -1, score: -1 }).score, 20);
-    assert.equal(Card.from(snapshot).rank, VALUE.TWO.rank);
+    assert.equal(Card.from({ ...snapshot, rank: -1 }).rank, 20);
+    assert.equal(Card.from(snapshot).rank, 20);
     for (const property of ["isFaceUp", "isDraggable", "isDragging"]) {
         assert.equal(property in card, false);
     }
@@ -114,12 +123,12 @@ test("cards validate standard cards and joker suits", () => {
     assert.throws(() => new Card(VALUE.KING.id, SUIT.RED), /Invalid card suit/);
 });
 
-test("special cards use the expected scores", () => {
-    assert.equal(new Card(VALUE.TWO.id, SUIT.CLUBS).score, 20);
-    assert.equal(new Card(VALUE.SEVEN.id, SUIT.HEARTS).score, 30);
-    assert.equal(new Card(VALUE.ACE.id, SUIT.SPADES).score, 50);
-    assert.equal(new Card(VALUE.JOKER.id, SUIT.BLACK).score, 40);
-    assert.equal(new Card(VALUE.KING.id, SUIT.DIAMONDS).score, 13);
+test("special cards use the expected ranks", () => {
+    assert.equal(new Card(VALUE.TWO.id, SUIT.CLUBS).rank, 20);
+    assert.equal(new Card(VALUE.SEVEN.id, SUIT.HEARTS).rank, 30);
+    assert.equal(new Card(VALUE.ACE.id, SUIT.SPADES).rank, 50);
+    assert.equal(new Card(VALUE.JOKER.id, SUIT.BLACK).rank, 40);
+    assert.equal(new Card(VALUE.KING.id, SUIT.DIAMONDS).rank, 13);
 });
 
 test("the canonical deck contains nineteen special-rule cards", () => {
@@ -137,12 +146,12 @@ test("the canonical deck contains nineteen special-rule cards", () => {
     assert.equal(specialCards.filter((card) => card.value === VALUE.JOKER.id).length, 2);
 });
 
-test("card scores come from the shared constants source", () => {
-    assert.equal(Constants.getCardScore(VALUE.TWO.id, SUIT.HEARTS), Constants.CARD.SCORE.TWO);
-    assert.equal(Constants.getCardScore(VALUE.SEVEN.id, SUIT.HEARTS), Constants.CARD.SCORE.SEVEN_OF_HEARTS);
-    assert.equal(Constants.getCardScore(VALUE.ACE.id, SUIT.SPADES), Constants.CARD.SCORE.ACE_OF_SPADES);
-    assert.equal(Constants.getCardScore(VALUE.JOKER.id, SUIT.RED), Constants.CARD.SCORE.JOKER);
-    assert.equal(Constants.getCardScore(VALUE.QUEEN.id, SUIT.CLUBS), VALUE.QUEEN.rank);
+test("card ranks come from the shared constants source", () => {
+    assert.equal(Constants.getCardRank(VALUE.TWO.id, SUIT.HEARTS), Constants.CARD.RANK.TWO);
+    assert.equal(Constants.getCardRank(VALUE.SEVEN.id, SUIT.HEARTS), Constants.CARD.RANK.SEVEN_OF_HEARTS);
+    assert.equal(Constants.getCardRank(VALUE.ACE.id, SUIT.SPADES), Constants.CARD.RANK.ACE_OF_SPADES);
+    assert.equal(Constants.getCardRank(VALUE.JOKER.id, SUIT.RED), Constants.CARD.RANK.JOKER);
+    assert.equal(Constants.getCardRank(VALUE.QUEEN.id, SUIT.CLUBS), VALUE.QUEEN.rank);
 });
 
 test("emoji constants provide a reusable silly group", () => {

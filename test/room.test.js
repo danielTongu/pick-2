@@ -11,7 +11,6 @@ import { BotActor } from "../core/BotActor.js";
 import { TurnOrder } from "../core/TurnOrder.js";
 import { Room } from "../core/Room.js";
 import { StateMapper } from "../core/StateMapper.js";
-import { TurnUtils } from "../core/TurnUtils.js";
 
 function stopIdleMonitoring(room) {
     for (const player of room.turnOrder.actors.values()) {
@@ -25,7 +24,7 @@ test("waiting players can return a discard without changing turn or draw allowan
     const alice = await room.joinActor("Alice");
     await room.drawItems("Alice");
     const card = alice.collection.items[0];
-    const score = alice.collection.score;
+    const penalty = alice.collection.penalty;
     await room.playItem("Alice", card.value, card.suit);
     const allowance = alice.drawAllowance;
     const turnOwner = room.turnOrder.ownerKey;
@@ -35,7 +34,7 @@ test("waiting players can return a discard without changing turn or draw allowan
     };
     const returned = await room.returnItem("Alice", card.value, card.suit);
     assert.deepEqual(returned.toJSON(), card.toJSON());
-    assert.equal(alice.collection.score, score);
+    assert.equal(alice.collection.penalty, penalty);
     assert.equal(alice.collection.has(card), true);
     assert.equal(
         room.collections.play.items.some((entry) => entry.id === card.id),
@@ -46,7 +45,7 @@ test("waiting players can return a discard without changing turn or draw allowan
     assert.equal(room.state, Constants.ROOM_STATE.WAITING);
     assert.equal(changes, 1);
     await assert.rejects(room.returnItem("Alice", card.value, card.suit), /no longer in the play collection/);
-    assert.equal(alice.collection.score, score);
+    assert.equal(alice.collection.penalty, penalty);
 });
 
 test("discard returns reject every non-waiting state and nonmembers without mutations", async (t) => {
@@ -86,9 +85,9 @@ test("concurrent returns award a discard once and preserve the other cards' orde
     assert.deepEqual(room.collections.play.items, [cards[0], cards[2]]);
     assert.deepEqual(
         alice.collection.items.map((card) => card.value),
-        ["2", "k", "a"]
+        ["k", "2", "a"]
     );
-    assert.equal(alice.collection.score, 83);
+    assert.equal(alice.collection.penalty, 83);
     assert.equal(bob.collection.items.length, 0);
 });
 
@@ -125,21 +124,18 @@ async function createPlayingSession(t, playerNames = ["Alice", "Bob", "Casey"]) 
     return room;
 }
 
-test("room lifecycle predicates describe active and membership-locked states", () => {
+test("room lifecycle predicate describes active state", () => {
     const room = new Room("Lifecycle Game", 2);
 
     assert.equal(room.isRoundActive(), false);
-    assert.equal(room.isMembershipLocked(), false);
 
     for (const state of [Constants.ROOM_STATE.ACTIVE]) {
         room.state = state;
         assert.equal(room.isRoundActive(), true);
-        assert.equal(room.isMembershipLocked(), true);
     }
 
     room.state = Constants.ROOM_STATE.FINISHED;
     assert.equal(room.isRoundActive(), false);
-    assert.equal(room.isMembershipLocked(), false);
 });
 
 test("a completed round resumes waiting without resetting its cards", async (t) => {
@@ -288,8 +284,7 @@ test("waiting rooms have no turn owner and allow every player to draw or discard
     assert.equal(room.state, Constants.ROOM_STATE.WAITING);
     assert.equal(room.turnOrder.owner, null);
     assert.equal(room.turnOrder.ownerKey, null);
-    assert.equal(TurnUtils.hasTurnOwner(room.turnOrder.ownerKey), false);
-    assert.equal(TurnUtils.isTurnOwner(room.turnOrder.ownerKey, alice.key), false);
+    assert.notEqual(room.turnOrder.ownerKey, alice.key);
     assert.throws(() => room.turnOrder.requireOwner(), /Turn owner is not assigned/);
     assert.equal(alice.collection.items.length, 0);
     assert.equal(bob.collection.items.length, 0);
@@ -338,8 +333,7 @@ test("starting a round deals seven cards and selects an ordinary discard", async
     assert.equal(room.collections.play.items.length, 1);
     assert.equal(room.getTopItem().isSpecial(), false);
     assert.equal(room.turnOrder.owner === null, false);
-    assert.equal(TurnUtils.hasTurnOwner(room.turnOrder.ownerKey), true);
-    assert.equal(TurnUtils.isTurnOwner(room.turnOrder.ownerKey, room.turnOrder.requireOwner().key), true);
+    assert.equal(room.turnOrder.ownerKey, room.turnOrder.requireOwner().key);
 
     for (const player of room.turnOrder.actors.values()) {
         assert.equal(player.collection.items.length, Constants.INITIAL_ITEM_COUNT);
@@ -481,7 +475,7 @@ test("special discards apply skip, reverse, draw, suit, and room-ending effects"
     await finishSession.playItem("Alice", Constants.CARD.VALUE.SEVEN.id, Constants.CARD.SUIT.HEARTS);
     assert.equal(finishSession.state, Constants.ROOM_STATE.FINISHED);
     assert.equal(finishSession.winners.includes("Alice"), true);
-    assert.equal(finishSession.turnOrder.get("Bob").collection.score, 13);
+    assert.equal(finishSession.turnOrder.get("Bob").collection.penalty, 13);
 });
 
 test("game input validation rejects invalid player limit and suit", async (t) => {
@@ -504,7 +498,7 @@ test("a room commits the selected card order when the player moves", async (t) =
         { value: "8", suit: "spades" }
     ]);
 
-    await room.passTurn("Alice", "value");
+    await room.passTurn("Alice", "rank");
 
     assert.deepEqual(player.collection.toArray().map(String), ["3-hearts", "8-spades", "k-clubs"]);
 });
@@ -671,10 +665,10 @@ test("AI treats a visible one-card count as a threat without reading the hidden 
             return Reflect.get(target, property, receiver);
         }
     });
-    Object.defineProperty(nextPlayer.collection, "score", {
+    Object.defineProperty(nextPlayer.collection, "penalty", {
         configurable: true,
         get() {
-            throw new Error("AI inspected a hidden opponent score.");
+            throw new Error("AI inspected a hidden opponent penalty.");
         }
     });
     turnOrder.add(ai);
@@ -1250,7 +1244,7 @@ test("AI starts pressuring an opponent before they reach one card", async (t) =>
     assert.equal(discardedCard.id, "2-hearts");
 });
 
-test("AI releases seven of hearts only when its public score estimate is favorable", async (t) => {
+test("AI releases seven of hearts only when its public penalty estimate is favorable", async (t) => {
     const ai = new BotActor("Bot");
     const opponent = new Player("Alice", { drawAllowance: 1 });
     const otherOpponent = new Player("Casey", { drawAllowance: 1 });
@@ -1290,10 +1284,10 @@ test("AI releases seven of hearts only when its public score estimate is favorab
                 return Reflect.get(target, property, receiver);
             }
         });
-        Object.defineProperty(hiddenOpponent.collection, "score", {
+        Object.defineProperty(hiddenOpponent.collection, "penalty", {
             configurable: true,
             get() {
-                throw new Error("AI inspected a hidden opponent score.");
+                throw new Error("AI inspected a hidden opponent penalty.");
             }
         });
     }
