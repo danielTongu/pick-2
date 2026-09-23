@@ -228,7 +228,7 @@ ul#opponent-list > li > div::after {
 }
 
 ul#opponent-list > li > div::before {
-    width: 50%;
+    width: 60%;
     aspect-ratio: 1;
     border-radius: 50%;
 }
