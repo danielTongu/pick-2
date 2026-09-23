@@ -42,12 +42,12 @@ export class Constants {
     /** Canonical notification headings and messages shown by the game and room interfaces. */
     static NOTIFICATIONS = Object.freeze({
         VIEWER_WELCOME: Object.freeze({
-            title: "Welcome to Pick 2!",
-            message: "You’re viewing the room.\nSelect JOIN to take an open seat and enter the game."
+            title: "Welcome In!",
+            message: "You’re viewing the room you selected.\nSelect JOIN to participate."
         }),
         PLAYER_WELCOME: Object.freeze({
             title: "Welcome",
-            message: "You have a seat in the room.\nFor more info, see the FAQ below the green panel.\n\nGood luck!"
+            message: "You are now a participant.\nScroll & get to know your environment.\n\nGood luck!"
         }),
         MOVED_TO_VIEWING: Object.freeze({ title: "Moved to viewing", message: "You were idle." }),
         ROOM_CLOSED: Object.freeze({ title: "Room closed", message: "No players remain." }),
