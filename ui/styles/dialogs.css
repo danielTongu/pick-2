@@ -268,6 +268,8 @@
 }
 
 #selected-player-items {
+    --card-area-font-size: 1em;
+
     overflow-x: auto;
     overflow-y: hidden;
     background: color-mix(in srgb, var(--cyan) 17%, transparent);
