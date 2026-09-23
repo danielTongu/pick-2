@@ -47,7 +47,7 @@ export class Constants {
         }),
         PLAYER_WELCOME: Object.freeze({
             title: "Welcome",
-            message: "You have a seat in the room.\nOpen HOW TO PLAY below for controls and rules.\n\nGood luck!"
+            message: "You have a seat in the room.\nFor more info, see the FAQ below the green panel.\n\nGood luck!"
         }),
         MOVED_TO_VIEWING: Object.freeze({ title: "Moved to viewing", message: "You were idle." }),
         ROOM_CLOSED: Object.freeze({ title: "Room closed", message: "No players remain." }),
