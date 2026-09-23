@@ -81,6 +81,11 @@
     align-items: center;
 }
 
+.hero > :last-child > aside:first-child {
+    min-width: 0;
+    container-type: inline-size;
+}
+
 .eyebrow,
 .section-kicker {
     color: var(--gray);
@@ -109,7 +114,7 @@
 .hero h2 {
     margin: 0 0 1rem;
     font-family: var(--display-font);
-    font-size: 5rem;
+    font-size: clamp(1.75rem, 11cqi, 5rem);
     font-weight: 500;
     line-height: 0.82;
     letter-spacing: -0.066em;
