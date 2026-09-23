@@ -22,6 +22,7 @@
    ======================================== */
 
 .dialog-panel {
+    min-width: min(271px, 100%);
     max-width: 94vw;
     max-height: 94vh;
 
@@ -37,11 +38,6 @@
         0 24px 70px color-mix(in srgb, var(--black) 50%, transparent),
         0 0 34px color-mix(in srgb, var(--accent) 26%, transparent);
     animation: slideUp 0.3s ease;
-}
-
-.dialog-panel-large {
-    max-height: 90vh;
-    overflow-y: auto;
 }
 
 .dialog-panel > header {
@@ -328,21 +324,6 @@
 @media (min-width: 37rem) {
     #suit-selection-panel {
         grid-template-columns: repeat(4, minmax(7rem, 1fr));
-    }
-}
-
-@media (min-width: 40rem) {
-    .dialog-overlay {
-        font-size: larger;
-    }
-
-    .dialog-panel > header > h1 {
-        font-size: xx-large;
-    }
-
-    .dialog-panel-large {
-        width: 100%;
-        max-width: 980px;
     }
 }
 
