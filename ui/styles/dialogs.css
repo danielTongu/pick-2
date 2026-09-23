@@ -5,6 +5,8 @@
 .dialog-overlay {
     --accent: var(--blue);
 
+    font-size: medium;
+    overflow: auto;
     position: fixed;
     inset: 0;
     z-index: 1000;
@@ -23,8 +25,7 @@
 
 .dialog-panel {
     min-width: min(271px, 100%);
-    max-width: 94vw;
-    max-height: 94vh;
+    max-width: min(94vw, 100%);
 
     text-align: center;
     display: grid;
@@ -212,19 +213,24 @@
         transform 0.2s ease;
 }
 
-#suit-selection-panel label:hover {
-    border-color: var(--accent);
+#suit-selection-panel input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+#suit-selection-panel label:hover:after,
+#suit-selection-panel label:has(input:checked):after {
+    content: attr(data-suit);
+    position: absolute;
+    bottom:0;
+    z-index: 1000;
+    text-transform: uppercase;
 }
 
 #suit-selection-panel label:has(input:focus-visible) {
     outline: 3px solid var(--accent);
     outline-offset: 3px;
-}
-
-#suit-selection-panel input {
-    position: absolute;
-    opacity: 0;
-    pointer-events: none;
 }
 
 #suit-selection-panel label[data-suit="hearts"],
@@ -240,7 +246,7 @@
 
 #suit-selection-panel label > span {
     display: block;
-    font-size: xxx-large;
+    font-size: 6rem;
     line-height: 1;
 }
 
