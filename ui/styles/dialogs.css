@@ -60,6 +60,7 @@
 }
 
 .dialog-panel > header > p:last-of-type {
+    color: var(--gray);
 }
 
 .dialog-panel > section {
