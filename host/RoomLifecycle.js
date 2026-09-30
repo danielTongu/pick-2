@@ -1,6 +1,6 @@
 "use strict";
 
-/** Owns deferred room-lifecycle work and its timer resources. */
+/** Owns deferred Host room-lifecycle work and its timer resources. */
 export class RoomLifecycle {
 
     /**

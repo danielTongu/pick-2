@@ -62,7 +62,7 @@ export class Card extends Serializable {
     }
 
     /**
-     * Compares game rank while preserving stable order for ties.
+     * Compares card rank while preserving stable order for ties.
      * @param {Card} left - First card.
      * @param {Card} right - Second card.
      * @returns {number} Comparator result.
@@ -72,7 +72,7 @@ export class Card extends Serializable {
     }
 
     /**
-     * Compares suit, then game rank.
+     * Compares suit, then card rank.
      * @param {Card} left - First card.
      * @param {Card} right - Second card.
      * @returns {number} Comparator result.
@@ -182,11 +182,11 @@ export class Card extends Serializable {
     }
 
     /**
-     * Returns whether this is the seven of hearts, which immediately ends a round.
+     * Returns whether this is the seven of hearts, which immediately ends a match.
      *
-     * @returns {boolean} True when this card ends the game.
+     * @returns {boolean} True when this card ends the match.
      */
-    isRoundEndingCard() {
+    isMatchEndingCard() {
         return this.value === Constants.CARD.VALUE.SEVEN.id && this.suit === Constants.CARD.SUIT.HEARTS;
     }
 
@@ -251,7 +251,7 @@ export class Card extends Serializable {
      */
     isSpecial() {
         return (
-            this.isRoundEndingCard() ||
+            this.isMatchEndingCard() ||
             this.value === Constants.CARD.VALUE.TWO.id ||
             this.value === Constants.CARD.VALUE.EIGHT.id ||
             this.value === Constants.CARD.VALUE.JACK.id ||
@@ -261,15 +261,15 @@ export class Card extends Serializable {
     }
 
     /**
-     * Applies player-count-sensitive skip semantics for eights and jacks.
+     * Applies actor-count-sensitive skip semantics for eights and jacks.
      *
-     * @param {number} playerCount - Number of players.
+     * @param {number} actorCount - Number of actors.
      * @returns {boolean} True when this card skips.
      */
-    isSkip(playerCount) {
+    isSkip(actorCount) {
         return (
             this.value === Constants.CARD.VALUE.EIGHT.id ||
-            (this.value === Constants.CARD.VALUE.JACK.id && playerCount === 2)
+            (this.value === Constants.CARD.VALUE.JACK.id && actorCount === 2)
         );
     }
 
@@ -285,21 +285,21 @@ export class Card extends Serializable {
     /**
      * Returns whether a jack reverses a circle containing more than two actors.
      *
-     * @param {number} playerCount - Number of players.
+     * @param {number} actorCount - Number of actors.
      * @returns {boolean} True when this card reverses direction.
      */
-    isReverse(playerCount) {
-        return this.value === Constants.CARD.VALUE.JACK.id && playerCount > 2;
+    isReverse(actorCount) {
+        return this.value === Constants.CARD.VALUE.JACK.id && actorCount > 2;
     }
 
     /**
      * Returns whether this discard empties the hand or invokes the seven-of-hearts rule.
      *
      * @param {number} remaining - Remaining cards.
-     * @returns {boolean} True when playing this card ends the Game.
+     * @returns {boolean} True when playing this card ends the match.
      */
-    isRoundEndingMove(remaining) {
-        return remaining === 0 || this.isRoundEndingCard();
+    isMatchEndingMove(remaining) {
+        return remaining === 0 || this.isMatchEndingCard();
     }
 
     /**

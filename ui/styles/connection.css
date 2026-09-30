@@ -1,0 +1,280 @@
+/* ----- HOSTED CONNECTION ----- */
+
+#connection-view {
+    --connection-accent: var(--orange);
+
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    min-height: 620px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-content: center;
+    gap: 30px;
+    padding: 42px 0;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink);
+}
+
+.connection-panel-header {
+    display: grid;
+    gap: 12px;
+    min-width: 0;
+    max-width: 680px;
+}
+
+#connection-title {
+    font-family: var(--display-font);
+    font-size: xxx-large;
+    font-weight: 400;
+    line-height: 0.92;
+    letter-spacing: -0.055em;
+    color: var(--connection-accent);
+}
+
+#connection-title::before {
+    display: block;
+}
+
+#connection-view[data-status="connecting"] #connection-title::before {
+    content: "Checking hosted connection";
+}
+
+#connection-view[data-status="connected"] #connection-title::before {
+    content: "Hosted connection available";
+}
+
+#connection-view[data-status="error"] #connection-title::before {
+    content: "Hosted connection unavailable";
+}
+
+#connection-view[data-status="unconfigured"] #connection-title::before {
+    content: "No hosted connection configured";
+}
+
+#connection-message {
+    margin: 0;
+    color: var(--gray);
+    font-size: medium;
+    line-height: 1.65;
+}
+
+#connection-message::before {
+    display: block;
+}
+
+#connection-message[data-detail]:not([data-detail=""])::after {
+    display: block;
+    margin-top: 8px;
+    content: attr(data-detail);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow-wrap: anywhere;
+}
+
+#connection-view[data-status="connecting"] #connection-message::before {
+    content: "Checking configured and same-origin WebSocket endpoints.";
+}
+
+#connection-view[data-status="connected"] #connection-message::before {
+    content: "The WebSocket endpoint accepted the availability probe. Loading rooms.";
+}
+
+#connection-view[data-status="error"] #connection-message::before {
+    content: "The WebSocket probe failed. Check the endpoint address and try again.";
+}
+
+#connection-view[data-status="unconfigured"] #connection-message::before {
+    content: "Enter a server origin or WebSocket URL to use Hosted mode.";
+}
+
+#connection-form {
+    display: grid;
+    gap: 12px;
+    width: min(100%, 760px);
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: color-mix(in srgb, var(--dark-green) 78%, var(--black));
+    box-shadow: var(--shadow);
+}
+
+#connection-form > label {
+    font-weight: 750;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.connection-field {
+    display: grid;
+    gap: 10px;
+}
+
+.connection-actions {
+    display: grid;
+    gap: 10px;
+}
+
+#connection-origin {
+    width: 100%;
+    min-width: 0;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--dark-green) 90%, var(--black));
+    color: var(--connection-accent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+#connection-origin::placeholder {
+    color: inherit;
+}
+
+#connection-help {
+    margin: 0;
+    color: var(--gray);
+    line-height: 1.5;
+}
+
+#connection-connect-button {
+    --button-background: var(--connection-accent);
+    --button-color: var(--black);
+}
+
+#connection-connect-button:disabled {
+    opacity: 0.68;
+}
+
+#connection-direct-link {
+    min-height: 44px;
+    display: grid;
+    place-items: center;
+    padding: var(--control-padding);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--black);
+    color: var(--light-green);
+    font-weight: 700;
+    text-align: center;
+}
+
+#connection-diagnostics {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+    gap: 12px;
+    width: min(100%, 760px);
+    min-width: 0;
+    margin: 0;
+}
+
+#connection-diagnostics > div {
+    min-width: 0;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+}
+
+#connection-diagnostics dt {
+    color: var(--gray);
+    font-size: small;
+    text-transform: uppercase;
+}
+
+#connection-diagnostics dd {
+    margin: 6px 0 0;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    overflow-wrap: anywhere;
+}
+
+.connection-status {
+    position: absolute;
+    right: 8%;
+    top: 38%;
+    pointer-events: none;
+    opacity: 0.28;
+}
+
+#connection-indicator {
+    display: grid;
+    width: clamp(120px, 15vw, 210px);
+    aspect-ratio: 1;
+    place-items: center;
+    border: 1px solid color-mix(in srgb, var(--connection-accent) 52%, transparent);
+    border-radius: 50%;
+    color: var(--connection-accent);
+    box-shadow:
+        0 0 24px color-mix(in srgb, var(--connection-accent) 16%, transparent),
+        0 0 82px color-mix(in srgb, var(--connection-accent) 22%, transparent);
+}
+
+#connection-indicator::before {
+    content: "";
+    width: 30%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: currentColor;
+    box-shadow: 0 0 28px currentColor;
+}
+
+#connection-indicator {
+    animation: connection-pulse 1.4s ease-in-out infinite alternate;
+}
+
+#connection-view[data-status="error"],
+#connection-view[data-status="unconfigured"] {
+    --connection-accent: var(--red);
+}
+
+@keyframes connection-pulse {
+    to {
+        transform: scale(1.04);
+        box-shadow:
+            0 0 0 38px color-mix(in srgb, var(--connection-accent) 3%, transparent),
+            0 0 105px color-mix(in srgb, var(--connection-accent) 25%, transparent);
+    }
+}
+
+@media (max-width: 720px) {
+    #connection-view {
+        min-height: 0;
+        gap: 24px;
+        padding: 32px 0;
+    }
+
+    .connection-status {
+        display: none;
+    }
+}
+
+@media (max-width: 520px) {
+    #app-header {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+    }
+
+    #app-header > aside {
+        justify-self: start;
+    }
+
+    #connection-title {
+        font-size: clamp(2rem, 11vw, 3rem);
+    }
+
+    #connection-form {
+        padding: 16px;
+    }
+}
+
+@media (min-width: 721px) {
+    #connection-view {
+        padding: 80px clamp(30px, 8vw, 110px);
+    }
+
+    .connection-actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #connection-indicator {
+        width: clamp(150px, 21vw, 250px);
+    }
+}

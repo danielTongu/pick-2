@@ -34,15 +34,17 @@
                                 <tr>
                                     <th scope="col">Room</th>
                                     <th scope="col">Status</th>
-                                    <th scope="col">Players</th>
+                                    <th scope="col">Knockout</th>
+                                    <th scope="col">Actors</th>
                                     <th scope="col">Viewers</th>
-                                    <th scope="col">Player limit</th>
+                                    <th scope="col">Actor limit</th>
                                     <th scope="col">Last active</th>
                                     <th scope="col">Created</th>
                                 </tr>
                             </thead>
                             <tbody id="info-table-body">
                                 <tr class="placeholder-row" aria-label="Room details loading">
+                                    <td>--</td>
                                     <td>--</td>
                                     <td>--</td>
                                     <td>--</td>
@@ -60,29 +62,29 @@
                         <button id="room-invite-button" type="button" hidden>Invite</button>
                     </nav>
                 </header>
-                <article data-game-region="view" aria-label="Room table" data-mode="direct" data-state="waiting">
-                    <ul id="opponent-list" aria-label="Other players"></ul>
+                <article data-game-region="view" aria-label="Room table" data-connection-mode="direct" data-state="waiting">
+                    <ul id="opponent-list" aria-label="Other actors"></ul>
                     <div id="table-play-area">
                         <span class="playing-card-area" data-is-drag-over="false" aria-label="Discard pile"></span>
                     </div>
-                    <div id="actor-region" aria-label="Your player area" data-is-turn-owner="false" data-is-winner="false">
-                        <header id="player-summary" aria-live="polite" aria-atomic="true">
-                            <span data-actor-name="" id="player-status"></span>
+                    <div id="actor-region" aria-label="Your play area" data-is-turn-owner="false" data-is-winner="false">
+                        <header id="actor-summary" aria-live="polite" aria-atomic="true">
+                            <span data-actor-name="" id="actor-status"></span>
                             <span data-item-count="0"></span>
                         </header>
-                        <section id="player-hand">
+                        <section id="actor-hand">
                             <button id="draw-button" type="button" aria-label="Draw card" disabled>
                                 <span data-draw-allowance="0"></span>
                             </button>
-                            <span class="playing-card-area" data-is-drag-over="false"></span>
+                            <span class="playing-card-area"></span>
                         </section>
-                        <aside id="player-idle-warning">You may be removed after <em data-idle-seconds="30">seconds</em> of inactivity.</aside>
-                        <footer id="player-commands" role="group">
+                        <aside id="actor-idle-warning">You may be removed after <em data-idle-seconds="30">seconds</em> of inactivity.</aside>
+                        <footer id="actor-commands" role="group">
                             <label id="sort-control">
                                 <span>Sort</span>
                                 <select id="sort-key-select"></select>
                             </label>
-                            <button id="room-play-button" type="button">Play</button>
+                            <button id="room-play-button" type="button" data-mode="choose">Play</button>
                             <button id="turn-pass-button" type="button">Pass</button>
                         </footer>
                     </div>
@@ -105,12 +107,12 @@
                                 <span>Select <em>Join</em> to take an open seat. Your hand and controls appear at the bottom.</span>
                             </article>
                             <article>
-                                <b>What can I do before the round starts?</b>
-                                <span>Before the round, use + to add cards, select a card to flip it, or drag it to the discard pile.</span>
+                                <b>What can I do before the match starts?</b>
+                                <span>Before the match, use + to add cards, select a card to flip it, or drag it to the discard pile.</span>
                             </article>
                             <article>
-                                <b>How does a round start?</b>
-                                <span>When at least two players are seated, select <em>Play</em>. Every hand refreshes with seven cards.</span>
+                                <b>How does a match start?</b>
+                                <span>When at least two actors are seated, select <em>Play</em>. Choose Yes for Knockout or No for one match. Every hand refreshes with seven cards.</span>
                             </article>
                             <article>
                                 <b>How do I arrange my hand?</b>
@@ -133,12 +135,12 @@
                                 <span>Draw your allowed cards. You may still play afterward; otherwise select <em>Pass</em>.</span>
                             </article>
                             <article>
-                                <b>When does a round end?</b>
-                                <span>Play your final card or the seven of hearts to end the round.</span>
+                                <b>When does a match end?</b>
+                                <span>Play your final card or the seven of hearts to end the match.</span>
                             </article>
                             <article>
                                 <b>Who wins?</b>
-                                <span>The player with the lowest remaining hand penalty wins.</span>
+                                <span>In one match, the lowest remaining hand penalty wins. In Knockout, actors tied for the highest penalty leave after matches with three or more actors; the final one-on-one match decides the result.</span>
                             </article>
                         </div>
                     </details>
@@ -150,12 +152,12 @@
                         <div>
                             <article>
                                 <b>Eight</b>
-                                <span>Skips the next player.</span>
+                                <span>Skips the next actor.</span>
                                 <div class="playing-card-area" id="eights"></div>
                             </article>
                             <article>
                                 <b>Jack</b>
-                                <span>Reverses direction with three or more players.</span>
+                                <span>Reverses direction with three or more actors.</span>
                                 <div class="playing-card-area" id="jacks"></div>
                             </article>
                             <article>
@@ -193,7 +195,7 @@
                             <span>How is my penalty calculated?</span>
                         </summary>
                         <div id="ranks-tables">
-                            <p>Your penalty is the sum of the ranks of the cards left in your hand when the round ends. For example, a two (20) and a king (13) add up to 33 penalty. The lowest penalty wins.</p>
+                            <p>Your penalty is the sum of the ranks of the cards left in your hand when the match ends. For example, a two (20) and a king (13) add up to 33 penalty. The lowest penalty wins.</p>
                             <table>
                                 <thead>
                                     <tr>
@@ -280,6 +282,21 @@
                     <button id="countdown-ok-button">OK</button>
                 </div>
             </aside>
+            <aside id="play-dialog" class="dialog-overlay" data-state="closed" aria-labelledby="play-dialog-title" aria-describedby="play-dialog-description">
+                <div class="dialog-panel">
+                    <header><h1 id="play-dialog-title">Play</h1></header>
+                    <section id="play-dialog-description">
+                        <p>Start a <strong>Knockout</strong>?</p>
+                        <p><strong>Yes:</strong> Play successive matches. With three or more actors, everyone tied for the highest penalty is eliminated after each match. The next match starts after a short delay, or a qualified actor can press Play sooner. One survivor wins; no survivors means a tie. At two actors, a regular match decides the result.</p>
+                        <p><strong>No:</strong> Play one match. The actor or actors with the lowest penalty win.</p>
+                    </section>
+                    <footer>
+                        <button id="play-knockout-button" type="button">Yes</button>
+                        <button id="play-one-button" type="button">No</button>
+                        <button id="play-cancel-button" type="button">Cancel</button>
+                    </footer>
+                </div>
+            </aside>
             <aside id="suit-selection-dialog" class="dialog-overlay" aria-labelledby="suit-selection-title" aria-describedby="suit-selection-description" hidden>
                 <div class="dialog-panel">
                     <header>
@@ -315,21 +332,21 @@
                 <div class="dialog-panel">
                     <header><h1 id="results-message">Message</h1></header>
                     <section id="message-output">
-                        <p>Statistics for this game</p>
+                        <p id="results-context">Statistics for this game</p>
                         <div id="stats-panel">
-                            <table id="player-stats-table">
+                            <table id="actor-stats-table">
                                 <thead>
                                     <tr>
-                                        <th scope="col">Player</th>
+                                        <th scope="col">Actor</th>
                                         <th scope="col">Penalty</th>
                                         <th scope="col">Items</th>
                                         <th scope="col">Status</th>
                                     </tr>
                                 </thead>
-                                <tbody id="player-stats-body"></tbody>
+                                <tbody id="actor-stats-body"></tbody>
                             </table>
                         </div>
-                        <div id="selected-player-items" class="playing-card-area"></div>
+                        <div id="selected-actor-items" class="playing-card-area"></div>
                     </section>
                     <button id="results-dismiss-button">dismiss</button>
                 </div>

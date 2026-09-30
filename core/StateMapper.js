@@ -49,15 +49,19 @@ export class StateMapper {
      */
     static toRoomInfo(source) {
         const room = typeof source?.toJSON === "function" ? source.toJSON() : (source ?? {});
-        const actorCount = room.turnOrder?.actorCount;
+        const match = room.match ?? {};
+        const actorCount = match.turnOrder?.actorCount;
 
         return Object.freeze({
             name: room.name,
-            state: room.state,
-            turnOrder: Object.freeze({
-                actorCount: Number.isInteger(actorCount)
-                    ? actorCount
-                    : StateMapper.collectionCount(room.turnOrder?.actors)
+            match: Object.freeze({
+                state: match.state,
+                isKnockout: match.isKnockout === true,
+                turnOrder: Object.freeze({
+                    actorCount: Number.isInteger(actorCount)
+                        ? actorCount
+                        : StateMapper.collectionCount(match.turnOrder?.actors)
+                })
             }),
             actorLimit: room.actorLimit,
             viewers: StateMapper.collectionCount(room.viewers),
@@ -101,16 +105,22 @@ export class StateMapper {
         return Object.freeze({
             localActorName: actorName,
             ...StateMapper.toRoomInfo(state),
-            turnOrder: StateMapper.#toTurnOrder(state),
-            collections: Object.freeze({
-                play: Object.freeze({ items: StateMapper.#toPlayedCards(state) }),
-                draw: Object.freeze({
-                    itemCount: Array.isArray(state.collections?.draw?.items) ? state.collections.draw.items.length : 0
-                })
+            match: Object.freeze({
+                state: state.match.state,
+                turnOrder: StateMapper.#toTurnOrder(state.match),
+                collections: Object.freeze({
+                    play: Object.freeze({ items: StateMapper.#toPlayedCards(state.match) }),
+                    draw: Object.freeze({
+                        itemCount: Array.isArray(state.match.collections?.draw?.items)
+                            ? state.match.collections.draw.items.length : 0
+                    })
+                }),
+                isKnockout: state.match.isKnockout === true,
+                isKnockoutComplete: state.match.isKnockoutComplete === true,
+                nextMatchAvailable: state.match.nextMatchAvailable === true,
+                pending: state.match.pending ?? null,
+                declaredSuit: state.match.declaredSuit ?? null
             }),
-            winners: Array.isArray(state.winners) ? [...state.winners] : [],
-            pending: state.pending ?? null,
-            declaredSuit: state.declaredSuit ?? null
         });
     }
 

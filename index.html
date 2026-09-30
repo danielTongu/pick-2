@@ -4,7 +4,7 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <title>Play Pick 2 Online | Card Game</title>
-        <meta name="description" content="Play Pick 2 online: match suits or values, use special cards, and empty your hand in direct or hosted multiplayer rooms." />
+        <meta name="description" content="Play Pick 2 online: match suits or values, use special cards, and empty your hand in direct or hosted rooms with multiple actors." />
 
         <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
         <link rel="canonical" href="https://danieltongu.github.io/pick-2/" />
@@ -13,12 +13,12 @@
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Pick 2" />
         <meta property="og:title" content="Play Pick 2 Online | Card Game" />
-        <meta property="og:description" content="Play Pick 2 online: match suits or values, use special cards, and empty your hand in direct or hosted multiplayer rooms." />
+        <meta property="og:description" content="Play Pick 2 online: match suits or values, use special cards, and empty your hand in direct or hosted rooms with multiple actors." />
         <meta property="og:url" content="https://danieltongu.github.io/pick-2/" />
         <meta property="og:locale" content="en_US" />
         <meta name="twitter:card" content="summary" />
         <meta name="twitter:title" content="Play Pick 2 Online | Card Game" />
-        <meta name="twitter:description" content="Play Pick 2 online: match suits or values, use special cards, and empty your hand in direct or hosted multiplayer rooms." />
+        <meta name="twitter:description" content="Play Pick 2 online: match suits or values, use special cards, and empty your hand in direct or hosted rooms with multiple actors." />
         <meta name="game-server-origin" content="" />
 
         <link rel="stylesheet" href="ui/styles/base.css" />
@@ -33,7 +33,7 @@
                 "@type": "WebApplication",
                 "name": "Pick 2",
                 "url": "https://danieltongu.github.io/pick-2/",
-                "description": "Play Pick 2 online: match suits or values, use special cards, and empty your hand in direct or hosted multiplayer rooms.",
+                "description": "Play Pick 2 online: match suits or values, use special cards, and empty your hand in direct or hosted rooms with multiple actors.",
                 "applicationCategory": "GameApplication",
                 "operatingSystem": "Any",
                 "browserRequirements": "Requires JavaScript and a modern web browser.",
@@ -87,8 +87,8 @@
                         <form id="registration-form">
                             <div id="field-group">
                                 <label>
-                                    <span>Player name</span>
-                                    <input id="player-name-input" autocomplete="nickname" minlength="2" maxlength="24" required placeholder="What should we call you?" />
+                                    <span>Actor name</span>
+                                    <input id="actor-name-input" autocomplete="nickname" minlength="2" maxlength="24" required placeholder="What should we call you?" />
                                 </label>
                                 <label>
                                     <span>Room name</span>
@@ -96,7 +96,7 @@
                                 </label>
                                 <label>
                                     <span>Seats</span>
-                                    <input id="player-limit-input" type="number" min="2" max="4" value="4" required />
+                                    <input id="actor-limit-input" type="number" min="2" max="4" value="4" required />
                                 </label>
                             </div>
                             <footer>
@@ -139,44 +139,23 @@
                                     <tr>
                                         <th scope="col">Room</th>
                                         <th scope="col">Status</th>
-                                        <th scope="col">Players</th>
+                                        <th scope="col">Knockout</th>
+                                        <th scope="col">Actors</th>
                                         <th scope="col">Viewers</th>
-                                        <th scope="col">Player limit</th>
+                                        <th scope="col">Actor limit</th>
                                         <th scope="col">Last active</th>
                                         <th scope="col">Created</th>
                                     </tr>
                                 </thead>
                                 <tbody id="list-table-body">
                                     <tr class="empty-row">
-                                        <td colspan="7"><span class="empty-state-mark" aria-hidden="true"></span>No rooms available.</td>
+                                        <td colspan="8"><span class="empty-state-mark" aria-hidden="true"></span>No rooms available.</td>
                                     </tr>
                                 </tbody>
                             </table>
                         </div>
                     </aside>
                 </article>
-            </section>
-            <section id="network-connection-view" data-status="connecting" aria-labelledby="network-connection-title" hidden>
-                <header class="network-panel-header">
-                    <span class="section-kicker">Hosted mode</span>
-                    <h2 id="network-connection-title"></h2>
-                    <p id="network-connection-message" aria-live="polite"></p>
-                </header>
-                <form id="network-connection-form">
-                    <label for="network-connection-origin">Network host address</label>
-                    <div class="network-connection-field">
-                        <input id="network-connection-origin" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://play.example.com" aria-describedby="network-connection-help" />
-                        <button id="network-connection-connect-button" type="submit" disabled>Connecting…</button>
-                    </div>
-                    <p id="network-connection-help">
-                        <span>Provide the server origin or WebSocket URL. </span>
-                        <span>Pick 2</span>
-                        <span> will resolve the WebSocket endpoint.</span>
-                    </p>
-                </form>
-                <aside class="network-connection-status" aria-hidden="true">
-                    <i id="network-connection-indicator" aria-hidden="true"></i>
-                </aside>
             </section>
             <aside id="alert-dialog" class="dialog-overlay" data-status="info" aria-labelledby="alert-title" aria-describedby="alert-message" hidden>
                 <div class="dialog-panel">
@@ -195,6 +174,7 @@
                     <div>Match cards. Make moves.</div>
                 </aside>
                 <nav id="app-footer-navigation" aria-label="Footer navigation">
+                    <a href="./connection.html">Connection settings</a>
                     <a href="#app-header">Back to top ↑</a>
                 </nav>
                 <aside id="app-footer-note">

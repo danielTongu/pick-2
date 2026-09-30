@@ -3,13 +3,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { CommandContext, CommandRouter, HostRequest } from "../runtime/Command.js";
-import { Endpoint, EndpointEvents } from "../runtime/Transport.js";
-import { PeerChannel } from "../runtime/Transport.js";
-import { PeerSession, RoomSession } from "../runtime/Session.js";
-import { SessionRegistry } from "../runtime/Session.js";
-import { RoomLifecycle } from "../runtime/RoomLifecycle.js";
-import { WebSocketEndpoint } from "../runtime/Transport.js";
+import { HostRequestContext } from "../host/HostRequestContext.js";
+import { HostRequest } from "../host/HostRequest.js";
+import { View } from "../ui/View.js";
+import { HostConnection } from "../host/HostConnection.js";
+import { RoomMembership } from "../host/RoomMembership.js";
+import { ConnectionRegistry } from "../host/ConnectionRegistry.js";
+import { RoomLifecycle } from "../host/RoomLifecycle.js";
 
 test("HostRequest validates one canonical command shape", () => {
     const request = HostRequest.parse({ command: "join", data: { tabId: "tab-1" } });
@@ -20,97 +20,91 @@ test("HostRequest validates one canonical command shape", () => {
     assert.throws(() => HostRequest.parse({ command: "" }), /Command/);
 });
 
-test("CommandContext accumulates typed authentication and room state", () => {
-    const channel = new PeerChannel(() => {}, () => {});
-    const peer = new PeerSession("peer-1", channel);
+test("HostRequestContext accumulates typed authentication and room state", () => {
+    const connection = new HostConnection("connection-1", () => {}, () => {}, async function receive() {}, async function close() {});
     const request = HostRequest.parse({ command: "start", data: { tabId: "tab-1" } });
-    const session = new RoomSession("tab-1", peer, "test-room", "Daniel");
+    const membership = new RoomMembership("tab-1", connection, "test-room", "Daniel");
     const room = { name: "Test Room" };
-    const context = new CommandContext(peer, request)
+    const context = new HostRequestContext(connection, request)
         .identifyTab()
-        .attachSession(session)
+        .attachMembership(membership)
         .attachRoom("test-room", room);
 
     assert.equal(context.request.command, "start");
     assert.equal(context.tabId, "tab-1");
-    assert.equal(context.session, session);
+    assert.equal(context.membership, membership);
     assert.equal(context.room, room);
-    assert.equal(context.session.playerName, "Daniel");
+    assert.equal(context.membership.actorName, "Daniel");
 });
 
-test("PeerSession owns transport state and RoomSession owns membership state", () => {
+test("HostConnection owns transport state and RoomMembership owns membership state", () => {
     const published = [];
     const terminated = [];
-    const channel = new PeerChannel(
+    const connection = new HostConnection("connection-1",
         (response) => published.push(response),
-        (code, reason) => terminated.push({ code, reason })
-    );
-    const peer = new PeerSession("peer-1", channel);
-    const session = new RoomSession("tab-1", peer, "test-room", null);
+        (code, reason) => terminated.push({ code, reason }),
+        async function receive() {}, async function close() {});
+    const membership = new RoomMembership("tab-1", connection, "test-room", null);
 
-    peer.authenticate("tab-1");
-    peer.publish({ view: "home" });
-    session.join("Daniel");
+    connection.authenticate("tab-1");
+    connection.publish({ view: "home" });
+    membership.join("Daniel");
 
-    assert.equal(peer.tabId, "tab-1");
+    assert.equal(connection.tabId, "tab-1");
     assert.deepEqual(published, [{ view: "home" }]);
-    assert.notEqual(session.playerName, null);
-    assert.equal(session.roomKey, "test-room");
-    assert.equal(session.playerName, "Daniel");
+    assert.notEqual(membership.actorName, null);
+    assert.equal(membership.roomKey, "test-room");
+    assert.equal(membership.actorName, "Daniel");
 
-    session.view();
-    peer.markClosed();
-    peer.publish({ view: "room" });
-    peer.terminate(1001, "Done");
-    peer.clearAuthentication("tab-1");
+    membership.view();
+    connection.markClosed();
+    connection.publish({ view: "room" });
+    connection.terminate(1001, "Done");
+    connection.clearAuthentication("tab-1");
 
-    assert.equal(session.playerName, null);
-    assert.equal(peer.isOpen, false);
-    assert.equal(peer.tabId, null);
+    assert.equal(membership.actorName, null);
+    assert.equal(connection.isOpen, false);
+    assert.equal(connection.tabId, null);
     assert.deepEqual(published, [{ view: "home" }]);
     assert.deepEqual(terminated, [{ code: 1001, reason: "Done" }]);
 });
 
-test("SessionRegistry owns Home subscriptions and room membership indexes", () => {
-    const registry = new SessionRegistry();
-    const channel = new PeerChannel(() => {}, () => {});
-    const peer = registry.createPeer(channel);
+test("ConnectionRegistry owns Home subscriptions and room membership indexes", () => {
+    const registry = new ConnectionRegistry();
+    const connection = registry.createConnection(() => {}, () => {}, async function receive() {}, async function close() {});
 
-    registry.subscribeHome(peer);
-    const session = registry.register("tab-1", peer, "test-room", null);
+    registry.subscribeHome(connection);
+    const membership = registry.register("tab-1", connection, "test-room", null);
 
-    assert.deepEqual(registry.homePeers(), []);
-    assert.equal(registry.get("tab-1"), session);
-    assert.deepEqual(registry.inRoom("test-room"), [session]);
-    assert.equal(registry.findPeer(peer), session);
+    assert.deepEqual(registry.homeConnections(), []);
+    assert.equal(registry.get("tab-1"), membership);
+    assert.deepEqual(registry.inRoom("test-room"), [membership]);
+    assert.equal(registry.findConnection(connection), membership);
 
-    session.join("Daniel");
-    assert.equal(registry.findPlayer("test-room", "Daniel"), session);
-    assert.equal(registry.isCurrent(session), true);
+    membership.join("Daniel");
+    assert.equal(registry.findActor("test-room", "Daniel"), membership);
+    assert.equal(registry.isCurrent(membership), true);
 
-    assert.equal(registry.unregister("tab-1", peer), session);
+    assert.equal(registry.unregister("tab-1", connection), membership);
     assert.equal(registry.get("tab-1"), null);
     assert.deepEqual(registry.inRoom("test-room"), []);
 });
 
-test("CommandRouter owns built-in and fallback command dispatch", async () => {
+test("one HostConnection handles transport requests and owns room membership", async () => {
     const received = [];
-    const receiver = { name: "host" };
-    const builtIn = function builtIn(context) {
-        received.push([this.name, context.request.command]);
-    };
-    const fallback = function fallback(context) {
-        received.push(["fallback", context.request.command]);
-    };
-    const router = new CommandRouter({ list: builtIn }, fallback);
+    const closed = [];
+    const registry = new ConnectionRegistry();
+    const connection = registry.createConnection(function send() {}, function disconnect() {},
+        async function receive(current, request) { received.push([current, request]); },
+        async function close(current) { closed.push(current); });
+    const membership = registry.register("tab-1", connection, "test-room", "Alice");
 
-    await router.dispatch(receiver, { request: { command: "list" } });
-    await router.dispatch(receiver, { request: { command: "draw" } });
+    await connection.receive({ command: "draw" });
+    await connection.close();
 
-    assert.deepEqual(received, [
-        ["host", "list"],
-        ["fallback", "draw"]
-    ]);
+    assert.equal(membership.connection, connection);
+    assert.deepEqual(received, [[connection, { command: "draw" }]]);
+    assert.deepEqual(closed, [connection]);
 });
 
 test("RoomLifecycle replaces, cancels, and clears pending room work", () => {
@@ -126,11 +120,12 @@ test("RoomLifecycle replaces, cancels, and clears pending room work", () => {
     assert.equal(lifecycle.hasPending("room-two"), false);
 });
 
-test("mechanism-specific infrastructure extends the default APIs", () => {
-    assert.equal(new WebSocketEndpoint("ws://example.test") instanceof Endpoint, true);
+test("View validates its hosted URL", () => {
+    const view = new View(new URL("https://example.test/room.html"));
+    assert.throws(() => view.connect("", null), /WebSocket URL/);
 });
 
-test("direct and WebSocket connections share explicit close behavior", async (t) => {
+test("local and hosted View connections close explicitly", async (t) => {
     const originalWebSocket = globalThis.WebSocket;
     const directRequests = [];
     const statuses = [];
@@ -157,15 +152,8 @@ test("direct and WebSocket connections share explicit close behavior", async (t)
         else globalThis.WebSocket = originalWebSocket;
     });
 
-    const events = new EndpointEvents(
-        () => {},
-        (status, label) => statuses.push({ status, label }),
-        () => {},
-        () => {
-            closes += 1;
-        }
-    );
-    const direct = new Endpoint({
+    const direct = new View(new URL("https://example.test/room.html"));
+    direct.connect({
         accept() {
             return {
                 receive(request) {
@@ -174,17 +162,19 @@ test("direct and WebSocket connections share explicit close behavior", async (t)
                 close() {}
             };
         }
-    }).open(events);
+    }, null, (status, label) => statuses.push({ status, label }));
 
-    direct.request({ command: "list", data: {} });
-    direct.close();
+    direct.request("list", {});
+    direct.disconnect();
     await Promise.resolve();
 
-    const network = new WebSocketEndpoint("ws://example.test").open(events);
-    network.close(1000, "Done");
+    const hosted = new View(new URL("https://example.test/room.html"));
+    hosted.connect("ws://example.test", {handleClientClose() { closes += 1; }},
+        (status, label) => statuses.push({ status, label }));
+    hosted.disconnect();
 
     assert.deepEqual(directRequests, []);
-    assert.equal(closes, 2);
+    assert.equal(closes, 1);
     assert.deepEqual(statuses.filter((entry) => entry.status === "disconnected"), [
         { status: "disconnected", label: "Closed" },
         { status: "disconnected", label: "Closed" }

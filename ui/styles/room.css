@@ -115,7 +115,7 @@
     display: none;
 }
 
-/* player: 3 rows (opponents, table, actor) */
+/* actor: 3 rows (opponents, table, actor) */
 [data-game-region="act"] {
     --play-area-rows:
         minmax(var(--card-height-min), 0.2fr)
@@ -311,9 +311,9 @@ ul#opponent-list > li > div::after {
     overflow: hidden;
 }
 
-/* ---------- PLAYER SUMMARY ---------- */
+/* ---------- ACTOR SUMMARY ---------- */
 
-#player-summary {
+#actor-summary {
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
@@ -323,67 +323,64 @@ ul#opponent-list > li > div::after {
     font-weight: 600;
 }
 
-#player-status {
+#actor-status {
     border-right: 1px solid var(--line);
 }
 
-#player-summary > span:last-child {
+#actor-summary > span:last-child {
     opacity: 0.7;
 }
 
-#player-summary > [data-item-count]::after {
+#actor-summary > [data-item-count]::after {
     content: "card count: " attr(data-item-count);
 }
 
-/* ---------- PLAYER HAND ---------- */
+/* ---------- ACTOR HAND ---------- */
 
-#player-hand {
+#actor-hand {
     container-type: size;
-    display: grid;
-    grid-template-columns: auto max-content;
-    align-items: center;
-    justify-content: center;
-    gap: var(--player-hand-gap, var(--container-spacing));
-    min-width: 0;
-    min-height: 0;
     overflow-x: auto;
     overflow-y: hidden;
+
+    display: grid;
+    grid-template-columns: auto max-content;
+    gap: var(--card-gap);
+    align-items: center;
 }
 
-#player-hand > [data-is-drag-over] {
+#draw-button {
+    margin-left: 5px;
+}
+
+#actor-hand > .playing-card-area {
+    margin-right: 4px;
     width: max-content;
     min-width: 0;
     min-height: 0;
     container-type: normal;
 }
 
-#player-hand > [data-is-drag-over="true"] {
-    outline: 1px dashed var(--cyan);
-    outline-offset: -1px;
-}
+/* ---------- ACTOR IDLE WARNING AND COMMANDS ---------- */
 
-/* ---------- PLAYER IDLE WARNING AND COMMANDS ---------- */
-
-#player-idle-warning {
+#actor-idle-warning {
     margin: 0;
     text-align: center;
     text-wrap: wrap;
 }
 
-#player-idle-warning em {
+#actor-idle-warning em {
     font-style: normal;
     font-weight: 700;
 }
 
-#player-commands {
+#actor-commands {
     --button-radius: 0.9rem;
     --button-padding: 1rem;
     --button-border: 3px solid var(--dark-green);
     --button-background: var(--green);
 
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fit, minmax(133px, 1fr));
     font-size: larger;
 }
 
@@ -459,7 +456,7 @@ ul#opponent-list > li > div::after {
     border-color: var(--gold) !important;
 }
 
-[data-game-region="act"][data-mode="direct"] #player-idle-warning {
+[data-game-region="act"][data-connection-mode="direct"] #actor-idle-warning {
     display: none;
 }
 
@@ -469,20 +466,20 @@ ul#opponent-list > li > div::after {
     content: attr(data-idle-seconds) " ";
 }
 
-[data-state] #player-status::before {
+[data-state] #actor-status::before {
     content: attr(data-actor-name);
     text-transform: capitalize;
 }
 
-[data-state="active"] > [data-is-turn-owner="true"] #player-status::before {
+[data-state="active"] > [data-is-turn-owner="true"] #actor-status::before {
     content: "your turn";
 }
 
-[data-state="finished"] > [data-is-winner="true"] #player-status::before {
+[data-state="finished"] > [data-is-winner="true"] #actor-status::before {
     content: "🏆 You Won!";
 }
 
-[data-state="finished"] > [data-is-winner="false"] #player-status::before {
+[data-state="finished"] > [data-is-winner="false"] #actor-status::before {
     content: "😂 You Lost!";
 }
 

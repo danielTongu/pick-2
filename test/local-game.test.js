@@ -1,4 +1,3 @@
-import { Game } from "../core/Game.js";
 ("use strict");
 
 import assert from "node:assert/strict";
@@ -6,19 +5,13 @@ import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { Constants } from "../core/Constants.js";
-import { Client } from "../runtime/Client.js";
-import { ClientEvents } from "../runtime/Client.js";
-import { Host } from "../runtime/Host.js";
-import { PeerChannel } from "../runtime/Transport.js";
+import { View } from "../ui/View.js";
+import { Host } from "../host/Host.js";
+import { HostConnection } from "../host/HostConnection.js";
 
-function createPeer(host, tabId = "test-tab") {
+function createConnection(host, tabId = "test-tab") {
     const responses = [];
-    const connection = host.accept(
-        new PeerChannel(
-            (response) => responses.push(response),
-            () => {}
-        )
-    );
+    const connection = host.accept((response) => responses.push(response), () => {});
     return {
         connection,
         responses,
@@ -38,34 +31,21 @@ function latestGame(responses) {
 }
 
 for (const mode of ["direct", "hosted"]) {
-    test(`${mode} returns use authenticated membership and broadcast the updated hand`, async (t) => {
-        const host = new Host(mode, 0, false, new Game());
+    test(`${mode} rejects the removed discard-to-hand command`, async (t) => {
+        const host = new Host(mode, 0, false);
         t.after(() => host.shutdown());
-        const owner = createPeer(host, "owner");
-        const viewer = createPeer(host, "viewer");
-        await owner.request(Constants.COMMANDS.CREATE, { roomName: "Return Flow", playerName: "Alice", playerLimit: 2 });
-        await viewer.request(Constants.COMMANDS.VIEW, { roomName: "Return Flow" });
+        const owner = createConnection(host, "owner");
+        await owner.request(Constants.COMMANDS.CREATE, { roomName: "Discard Flow", actorName: "Alice", actorLimit: 2 });
         const drawn = latestGame(await owner.request(Constants.COMMANDS.DRAW));
-        const card = drawn.turnOrder.actors.find((player) => player.name === "Alice").collection.items[0];
-        await owner.request(Constants.COMMANDS.DISCARD, { card });
+        const card = drawn.match.turnOrder.actors.find((actor) => actor.name === "Alice").collection.items[0];
+        const discarded = latestGame(await owner.request(Constants.COMMANDS.DISCARD, { card }));
+        assert.equal(discarded.match.collections.play.items.length, 1);
 
-        const rejected = await viewer.request(Constants.COMMANDS.RETURN, { card, playerName: "Alice" });
-        assert.match(rejected.findLast((response) => response.message)?.message.message ?? "", /Join the room/);
-        const spectatorStart = viewer.responses.length;
-        const result = latestGame(await owner.request(Constants.COMMANDS.RETURN, { card, playerName: "Someone Else" }));
-        const player = result.turnOrder.actors.find((entry) => entry.name === "Alice");
-        assert.equal(player.collection.items.length, 1);
-        assert.deepEqual(player.collection.items[0], card);
-        assert.equal(player.collection.penalty, card.rank);
-        assert.equal(
-            result.collections.play.items.some((entry) => entry.value === card.value && entry.suit === card.suit),
-            false
-        );
-        const spectator = latestGame(viewer.responses.slice(spectatorStart));
-        assert.ok(spectator);
-        assert.equal(spectator.localActorName, null);
-        assert.equal(spectator.turnOrder.actors.find((entry) => entry.name === "Alice").collection.items.length, 1);
-        assert.deepEqual(spectator.collections.play.items, result.collections.play.items);
+        const rejected = await owner.request("return", { card });
+        assert.match(rejected.findLast((response) => response.message)?.message.message ?? "", /Unknown command/);
+        const current = latestGame(await owner.request(Constants.COMMANDS.LIST)) ?? discarded;
+        assert.equal(current.match.turnOrder.actors.find((actor) => actor.name === "Alice").collection.items.length, 0);
+        assert.deepEqual(current.match.collections.play.items[0], card);
     });
 }
 
@@ -85,10 +65,10 @@ function readJavaScriptSources(directory) {
     return sources;
 }
 
-test("Host seeds configured bot players and leaves every remaining seat open", async () => {
-    const host = new Host("direct", 0, false, new Game());
-    const peer = createPeer(host);
-    const home = (await peer.request(Constants.COMMANDS.LIST)).findLast(
+test("Host seeds configured bot actors and leaves every remaining seat open", async () => {
+    const host = new Host("direct", 0, false);
+    const connection = createConnection(host);
+    const home = (await connection.request(Constants.COMMANDS.LIST)).findLast(
         (response) => response.view === Constants.VIEWS.HOME
     ).data;
 
@@ -96,59 +76,59 @@ test("Host seeds configured bot players and leaves every remaining seat open", a
         home.rooms.map((room) => ({
             name: room.name,
             actorLimit: room.actorLimit,
-            actorCount: room.turnOrder.actorCount
+            actorCount: room.match.turnOrder.actorCount
         })),
-        Constants.DEFAULT_ROOMS.map(({ roomName, playerLimit, botCount }) => ({
+        Constants.DEFAULT_ROOMS.map(({ roomName, actorLimit, botCount }) => ({
             name: roomName,
-            actorLimit: playerLimit,
+            actorLimit: actorLimit,
             actorCount: botCount
         }))
     );
-    assert.equal(home.mode, "direct");
+    assert.equal(home.connectionMode, "direct");
     assert.equal(home.capabilities.botFill, false);
-    await peer.connection.close();
+    await connection.connection.close();
     await host.shutdown();
 });
 
 test("a custom local game fills its open seats with bots immediately", async () => {
-    const host = new Host("direct", "fill", false, new Game());
-    const peer = createPeer(host);
-    const responses = await peer.request(Constants.COMMANDS.CREATE, {
+    const host = new Host("direct", "fill", false);
+    const connection = createConnection(host);
+    const responses = await connection.request(Constants.COMMANDS.CREATE, {
         roomName: "Local Game",
-        playerName: "Daniel",
-        playerLimit: 4
+        actorName: "Daniel",
+        actorLimit: 4
     });
     const game = latestGame(responses);
 
-    assert.equal(game.turnOrder.actorCount, 4);
+    assert.equal(game.match.turnOrder.actorCount, 4);
     assert.equal(game.localActorName, "Daniel");
     assert.deepEqual(
-        game.turnOrder.actors.map((player) => player.name),
+        game.match.turnOrder.actors.map((actor) => actor.name),
         ["Daniel", ...Constants.DIRECT_OPPONENT_NAMES]
     );
-    await peer.connection.close();
+    await connection.connection.close();
     await host.shutdown();
 });
 
 test("the shared Host rejects every join while a room is playing", async () => {
-    const host = new Host("hosted", 0, false, new Game());
-    const owner = createPeer(host, "owner");
-    const guest = createPeer(host, "guest");
-    const lateGuest = createPeer(host, "late");
+    const host = new Host("hosted", 0, false);
+    const owner = createConnection(host, "owner");
+    const guest = createConnection(host, "guest");
+    const lateGuest = createConnection(host, "late");
 
     await owner.request(Constants.COMMANDS.CREATE, {
         roomName: "Network Game",
-        playerName: "Daniel",
-        playerLimit: 3
+        actorName: "Daniel",
+        actorLimit: 3
     });
     await guest.request(Constants.COMMANDS.JOIN, {
         roomName: "Network Game",
-        playerName: "Casey"
+        actorName: "Casey"
     });
     await owner.request(Constants.COMMANDS.START);
     const rejected = await lateGuest.request(Constants.COMMANDS.JOIN, {
         roomName: "Network Game",
-        playerName: "Jordan"
+        actorName: "Jordan"
     });
 
     assert.match(rejected.findLast((response) => response.message)?.message?.message ?? "", /in progress/i);
@@ -158,19 +138,41 @@ test("the shared Host rejects every join while a room is playing", async () => {
     await host.shutdown();
 });
 
-test("a player can leave a hosted room while it is playing", async () => {
-    const host = new Host("hosted", 0, false, new Game());
-    const owner = createPeer(host, "owner");
-    const guest = createPeer(host, "guest");
+test("Host returns one connection and rejects another connection claiming its tab", async (t) => {
+    const host = new Host("hosted", 0, false);
+    t.after(function stopHost() { return host.shutdown(); });
+    const owner = createConnection(host, "shared-tab");
+    const other = createConnection(host, "shared-tab");
+
+    assert.equal(owner.connection instanceof HostConnection, true);
+    await owner.request(Constants.COMMANDS.CREATE, {
+        roomName: "Owned Room", actorName: "Alice", actorLimit: 2
+    });
+    const rejected = await other.request(Constants.COMMANDS.VIEW, { roomName: "Owned Room" });
+
+    assert.match(rejected.findLast(function findError(response) {
+        return response.message?.status === Constants.STATUS.ERROR;
+    })?.message?.message ?? "", /connection expired/i);
+    assert.equal(owner.connection.isOpen, true);
+
+    await owner.connection.close();
+    assert.equal(owner.connection.isOpen, false);
+    await other.connection.close();
+});
+
+test("an actor can leave a hosted room while it is playing", async () => {
+    const host = new Host("hosted", 0, false);
+    const owner = createConnection(host, "owner");
+    const guest = createConnection(host, "guest");
 
     await owner.request(Constants.COMMANDS.CREATE, {
         roomName: "Active Room",
-        playerName: "Daniel",
-        playerLimit: 3
+        actorName: "Daniel",
+        actorLimit: 3
     });
     await guest.request(Constants.COMMANDS.JOIN, {
         roomName: "Active Room",
-        playerName: "Casey"
+        actorName: "Casey"
     });
     await owner.request(Constants.COMMANDS.START);
 
@@ -181,25 +183,25 @@ test("a player can leave a hosted room while it is playing", async () => {
     const activeRoom = home.data.rooms.find((room) => room.name === "Active Room");
 
     assert.ok(activeRoom);
-    assert.equal(activeRoom.turnOrder.actorCount, 1);
+    assert.equal(activeRoom.match.turnOrder.actorCount, 1);
     await owner.connection.close();
     await guest.connection.close();
     await host.shutdown();
 });
 
 test("Host retains a custom room in memory after its creator leaves", async () => {
-    const host = new Host("direct", "fill", false, new Game());
-    const peer = createPeer(host, "owner");
+    const host = new Host("direct", "fill", false);
+    const connection = createConnection(host, "owner");
 
-    await peer.request(Constants.COMMANDS.CREATE, {
+    await connection.request(Constants.COMMANDS.CREATE, {
         roomName: "Saved Game",
-        playerName: "Daniel",
-        playerLimit: 3
+        actorName: "Daniel",
+        actorLimit: 3
     });
-    const home = (await peer.request(Constants.COMMANDS.LEAVE)).findLast(
+    const home = (await connection.request(Constants.COMMANDS.LEAVE)).findLast(
         (response) => response.view === Constants.VIEWS.HOME
     ).data;
-    await peer.connection.close();
+    await connection.connection.close();
 
     assert.equal(
         home.rooms.some((room) => room.name === "Saved Game"),
@@ -208,62 +210,109 @@ test("Host retains a custom room in memory after its creator leaves", async () =
     await host.shutdown();
 });
 
-test("Client adds shared fields to every endpoint request", () => {
-    let callbacks;
+test("View adds shared fields to every local Host request", async () => {
+    let publish;
     let request;
-    const endpoint = {
-        open(nextCallbacks) {
-            callbacks = nextCallbacks;
+    const host = {
+        accept(send) {
+            publish = send;
             return {
-                request(nextRequest) {
-                    request = nextRequest;
-                    return true;
-                },
+                receive(nextRequest) { request = nextRequest; },
                 close() {}
             };
         }
     };
-    const client = new Client(endpoint);
+    const view = new View(new URL("https://example.test/room.html"));
     const statuses = [];
     const dataEvents = [];
-    client.sortKey = "rank";
+    view.sortKey = "rank";
     assert.throws(() => {
-        client.sortKey = "value";
+        view.sortKey = "value";
     }, /Invalid card sort key/);
-    client.open(
-        new ClientEvents(
-            { handleData() {} },
-            (status) => statuses.push(status),
-            (view, data) => dataEvents.push({ view, data })
-        )
-    );
+    view.connect(host, { handleData() {} },
+        (status) => statuses.push(status),
+        (name, data) => dataEvents.push({ view: name, data }));
 
-    assert.equal(client.request(Constants.COMMANDS.CREATE, { roomName: "Test" }), true);
+    assert.equal(view.request(Constants.COMMANDS.CREATE, { roomName: "Test" }), true);
+    await Promise.resolve();
     assert.equal(request.command, Constants.COMMANDS.CREATE);
     assert.equal(request.data.roomName, "Test");
     assert.equal(request.data.sortKey, "rank");
     assert.equal(typeof request.data.tabId, "string");
 
-    callbacks.status("reconnecting", "Reconnecting…");
-    callbacks.receive({ view: Constants.VIEWS.ROOM, message: null, data: { version: 2 } });
-    assert.deepEqual(statuses, ["reconnecting"]);
+    publish({ view: Constants.VIEWS.ROOM, message: null, data: { version: 2 } });
+    await Promise.resolve();
+    assert.deepEqual(statuses, ["connecting", "connected"]);
     assert.deepEqual(dataEvents, [{ view: Constants.VIEWS.ROOM, data: { version: 2 } }]);
 });
 
+test("View switches local and hosted connections without replaying old local work", async (t) => {
+    const originalWebSocket = globalThis.WebSocket;
+    const sent = [];
+    class FakeWebSocket {
+        static OPEN = 1;
+        constructor() { this.readyState = FakeWebSocket.OPEN; }
+        addEventListener() {}
+        send(message) { sent.push(JSON.parse(message)); }
+        close() { this.readyState = 3; }
+    }
+    globalThis.WebSocket = FakeWebSocket;
+    t.after(() => {
+        if (originalWebSocket === undefined) delete globalThis.WebSocket;
+        else globalThis.WebSocket = originalWebSocket;
+    });
+
+    const localRequests = [];
+    let oldHostShutdowns = 0;
+    let publishOld;
+    let disconnectOld;
+    const oldHost = { accept(send, disconnect) {
+        publishOld = send;
+        disconnectOld = disconnect;
+        return { receive(request) { localRequests.push(["old", request]); }, close() {} };
+    }, shutdown() { oldHostShutdowns += 1; } };
+    const newHost = { accept() {
+        return { receive(request) { localRequests.push(["new", request]); }, close() {} };
+    } };
+    const received = [];
+    const view = new View(new URL("https://example.test/room.html"));
+    view.sortKey = "rank";
+    view.connect(oldHost, { handleData(_name, data) { received.push(data); } });
+    view.request("list", {});
+    view.connect("ws://example.test", null);
+    assert.equal(oldHostShutdowns, 1);
+    publishOld({ view: Constants.VIEWS.ROOM, data: { stale: true } });
+    disconnectOld();
+    await Promise.resolve();
+    assert.deepEqual(localRequests, []);
+    assert.deepEqual(received, []);
+
+    assert.equal(view.request("list", {}), true);
+    assert.equal(sent[0].data.sortKey, "rank");
+    view.connect(newHost, null);
+    view.request("list", {});
+    await Promise.resolve();
+    assert.deepEqual(localRequests.map(([source]) => source), ["new"]);
+    view.disconnect();
+});
+
 test("browser and Node runtime import graphs stay separate", () => {
-    const host = readFileSync(new URL("../runtime/Host.js", import.meta.url), "utf8");
-    const transport = readFileSync(new URL("../runtime/Transport.js", import.meta.url), "utf8");
+    const host = readFileSync(new URL("../host/Host.js", import.meta.url), "utf8");
+    const transport = readFileSync(new URL("../ui/View.js", import.meta.url), "utf8");
     const view = readFileSync(new URL("../ui/View.js", import.meta.url), "utf8");
-    const hostedServer = readFileSync(new URL("../runtime/WebSocketGateway.js", import.meta.url), "utf8");
+    const hostedServer = readFileSync(new URL("../server.js", import.meta.url), "utf8");
 
     assert.doesNotMatch(host, /from ["'](?:node:|express|ws)/);
     assert.doesNotMatch(host, /\b(?:document|localStorage|sessionStorage|WebSocket)\b/);
     assert.doesNotMatch(transport, /from ["'](?:node:|express|ws)/);
-    assert.match(view, /from "\.\.\/runtime\/Host\.js"/);
-    assert.match(hostedServer, /from "\.\/Host\.js"/);
+    assert.match(view, /from "\.\.\/host\/Host\.js"/);
+    assert.match(hostedServer, /from "\.\/host\/Host\.js"/);
     assert.match(hostedServer, /from "node:/);
     assert.match(hostedServer, /from "ws"/);
-    assert.match(hostedServer, /from "\.\/Transport\.js"/);
+    assert.doesNotMatch(hostedServer, /class HostedServer/);
+    assert.match(hostedServer, /function startServer\(port\)/);
+    assert.match(hostedServer, /async function stopServer\(\)/);
+    assert.doesNotMatch(hostedServer, /ConnectionChannel/);
 });
 
 test("application source uses explicit, named control flow", () => {
@@ -271,7 +320,7 @@ test("application source uses explicit, named control flow", () => {
         readFileSync(new URL("../ui/View.js", import.meta.url), "utf8"),
         readFileSync(new URL("../main.js", import.meta.url), "utf8"),
         readJavaScriptSources(new URL("../core/", import.meta.url)).join("\n"),
-        readJavaScriptSources(new URL("../runtime/", import.meta.url)).join("\n"),
+        readJavaScriptSources(new URL("../host/", import.meta.url)).join("\n"),
         readJavaScriptSources(new URL("../ui/", import.meta.url)).join("\n")
     ].join("\n");
 
@@ -288,7 +337,7 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     const main =
         readFileSync(new URL("../ui/View.js", import.meta.url), "utf8") +
         readFileSync(new URL("../main.js", import.meta.url), "utf8");
-    const network = readFileSync(new URL("../runtime/WebSocketGateway.js", import.meta.url), "utf8");
+    const network = readFileSync(new URL("../server.js", import.meta.url), "utf8");
     const homeCss = readFileSync(new URL("../ui/styles/home.css", import.meta.url), "utf8");
 
     assert.match(homeHtml, /<body data-game="pick2" data-page="home">/);
@@ -320,21 +369,22 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.doesNotMatch(homeMarkup, /id="game-faq"/);
     assert.match(gameHtml, /data-game-region="view"/);
     assert.doesNotMatch(gameHtml, /pick-2-shared-root/);
-    assert.match(homeTemplate, /<section\s+[^>]*id="network-connection-view"[^>]*hidden\s*>/);
-    assert.match(gameHtml, /data-game-region="view"[^>]+data-mode="direct"[^>]+data-state="waiting"/);
+    assert.doesNotMatch(homeTemplate, /id="connection-view"/);
+    assert.match(readFileSync(new URL("../connection.html", import.meta.url), "utf8"), /id="connection-view"/);
+    assert.match(gameHtml, /data-game-region="view"[^>]+data-connection-mode="direct"[^>]+data-state="waiting"/);
     assert.match(gameHtml, /data-is-turn-owner="false"[^>]+data-is-winner="false"/);
     assert.match(
         gameHtml,
-        /id="player-summary"[\s\S]*?<span data-actor-name="" id="player-status"><\/span>[\s\S]*?<span data-item-count="0"><\/span>/
+        /id="actor-summary"[\s\S]*?<span data-actor-name="" id="actor-status"><\/span>[\s\S]*?<span data-item-count="0"><\/span>/
     );
-    assert.match(gameHtml, /id="player-hand"/);
+    assert.match(gameHtml, /id="actor-hand"/);
     assert.match(gameHtml, /id="table-play-area"[\s\S]*?data-is-drag-over="false"/);
-    assert.match(gameHtml, /id="player-hand"[\s\S]*?data-is-drag-over="false"/);
     assert.match(
         gameHtml,
-        /id="player-hand"[\s\S]*?<span class="playing-card-area" data-is-drag-over="false"><\/span>/
+        /id="actor-hand"[\s\S]*?<span class="playing-card-area"><\/span>/
     );
-    assert.doesNotMatch(gameHtml, /id="local-player-region"/);
+    assert.doesNotMatch(gameHtml, /<span class="playing-card-area" data-is-drag-over="false"><\/span>/);
+    assert.doesNotMatch(gameHtml, /id="local-actor-region"/);
     assert.match(gameHtml, /<details id="game-faq">/);
     assert.doesNotMatch(gameHtml, /<details id="game-faq" open>/);
     assert.match(gameHtml, /<b>FAQ<\/b>/);
@@ -347,7 +397,7 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.match(gameHtml, /<tr class="placeholder-row"[^>]*>[\s\S]*?<td>--<\/td>/);
     assert.doesNotMatch(gameHtml, /id="room-mode-label"|id="connection-status-indicator"/);
     assert.match(homeHtml, /src="main\.js"/);
-    assert.doesNotMatch(homeMarkup, /network-connection\.js/);
+    assert.doesNotMatch(homeMarkup, /connection\.js/);
     assert.match(homeTemplate, /<aside>\s*<span data-game-preview aria-hidden="true"><\/span>\s*<\/aside>/);
     assert.match(
         homeTemplate,
@@ -382,20 +432,20 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.doesNotMatch(homeMarkup + gameHtml, /<caption\b/);
     assert.match(homeTemplate, /<button id="enter-button">Enter room<\/button>/);
     assert.match(homeTemplate, /<button id="alert-ok-button">OK<\/button>/);
-    assert.match(gameHtml, /<button id="room-play-button" type="button">Play<\/button>/);
+    assert.match(gameHtml, /<button id="room-play-button" type="button" data-mode="choose">Play<\/button>/);
     assert.match(gameHtml, /<button id="room-invite-button" type="button" hidden>Invite<\/button>/);
     assert.match(gameHtml, /<button id="countdown-ok-button">OK<\/button>/);
     assert.match(gameHtml, /<button id="suit-selection-timeout-button">timeout<\/button>/);
     assert.match(gameHtml, /<button id="suit-selection-submit-button">Submit<\/button>/);
     assert.match(gameHtml, /<button id="results-dismiss-button">dismiss<\/button>/);
     assert.doesNotMatch(homeHtml + gameHtml, /id="(?:quick-start|core-rules|special-cards)"/);
-    assert.match(main, /new Endpoint\(new Host\("direct", "fill", false, new this\.Game\(\)\)\)/);
-    assert.match(main, /new WebSocketEndpoint/);
+    assert.match(main, /new Host\("direct", "fill", false\)/);
+    assert.match(main, /this\.connect\(target, this\.#controller/);
+    assert.match(main, /ViewState\.getHostedUrl\(\)/);
     assert.match(main, /new HomeView\(roomUrl\)/);
     assert.match(main, /new RoomView\(homeUrl\)/);
     assert.match(network, /app\.use\(express\.static\(repositoryPath\)\)/);
-    assert.match(network, /path\.join\(path\.dirname\(fileURLToPath\(import\.meta\.url\)\), "\.\."\)/);
-    assert.doesNotMatch(network, /"\.\.\/\.\."/);
+    assert.match(network, /path\.dirname\(fileURLToPath\(import\.meta\.url\)\)/);
     assert.doesNotMatch(network, /network\/index\.html/);
     assert.doesNotMatch(network, /\["\/network", "\/network\/", "\/network\/index\.html"\]/);
     assert.doesNotMatch(network, /response\.redirect\([^)]*\/(?:room|game)/);
@@ -404,8 +454,8 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
 
 test("the finished dialog opens once per finish and clears for a new game", () => {
     const controller = readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8");
-    const playerController = readFileSync(
-        new URL("../ui/controllers/LocalPlayerController.js", import.meta.url),
+    const actorController = readFileSync(
+        new URL("../ui/controllers/LocalActorController.js", import.meta.url),
         "utf8"
     );
     const resultsController = readFileSync(new URL("../ui/controllers/ResultsController.js", import.meta.url), "utf8");
@@ -416,17 +466,33 @@ test("the finished dialog opens once per finish and clears for a new game", () =
     );
     assert.match(
         controller,
-        /localPlayer === null \|\| nextState !== Constants\.ROOM_STATE\.FINISHED[\s\S]*?#resultsController\.hide\(\)/
+        /nextState !== Constants\.ROOM_STATE\.FINISHED[\s\S]*?#resultsController\.hide\(\)/
     );
     assert.match(
         resultsController,
         /hide\(\)\s*\{[\s\S]*?#actors = \[\];[\s\S]*?#statsBody\.replaceChildren\(\);[\s\S]*?#selectedActorItems\.replaceChildren\(\);[\s\S]*?super\.hide\(\)/
     );
     assert.match(
-        playerController,
-        /ROOM_STATE\.WAITING \|\| room\.state === Constants\.ROOM_STATE\.FINISHED[\s\S]*?return true;/
+        actorController,
+        /ROOM_STATE\.WAITING \|\|[\s\S]*?ROOM_STATE\.FINISHED && !room\.match\.isKnockout[\s\S]*?return true;/
     );
-    assert.match(controller, /allowsFreeTransactions[\s\S]*?ROOM_STATE\.FINISHED/);
+    assert.doesNotMatch(controller, /#handleCardReturn|COMMANDS\.RETURN/);
+});
+
+test("Play offers a knockout choice and room tables show the selected mode", () => {
+    const roomHtml = readFileSync(new URL("../room.html", import.meta.url), "utf8");
+    const homeHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+    const rowHtml = readFileSync(new URL("../ui/templates/room-row.html", import.meta.url), "utf8");
+    const rowController = readFileSync(new URL("../ui/utilities/RoomRowUtils.js", import.meta.url), "utf8");
+
+    assert.match(roomHtml, /Start a <strong>Knockout<\/strong>\?/);
+    assert.match(roomHtml, /id="play-knockout-button" type="button">Yes<\/button>/);
+    assert.match(roomHtml, /id="play-one-button" type="button">No<\/button>/);
+    assert.match(roomHtml, /<th scope="col">Knockout<\/th>/);
+    assert.match(homeHtml, /<th scope="col">Knockout<\/th>/);
+    assert.match(rowHtml, /data-knockout="no"/);
+    assert.match(rowController, /source\.match\.isKnockout === true \? Constants\.KNOCKOUT_VALUE\.YES : Constants\.KNOCKOUT_VALUE\.NO/);
+    assert.match(rowController, /data\.knockout === Constants\.KNOCKOUT_VALUE\.YES \? "Yes" : "No"/);
 });
 
 test("the shared table stylesheet owns foundational row states", () => {
@@ -483,13 +549,13 @@ test("responsive styles are mobile-first with one tablet and desktop stage", () 
     assert.match(baseCss, /#app-footer\s*\{/);
 });
 
-test("page controllers depend on Client vocabulary rather than runtime services", () => {
+test("page controllers depend on View rather than runtime services", () => {
     const homeController = readFileSync(new URL("../ui/controllers/HomeController.js", import.meta.url), "utf8");
     const gameController = readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8");
 
     for (const source of [homeController, gameController]) {
         assert.doesNotMatch(source, /Static|ConnectionService|LocalGameService|ServerSessionController/);
-        assert.match(source, /this\.client/);
+        assert.match(source, /this\.view/);
     }
 
     assert.match(homeController, /row\.addEventListener\("click"/);
@@ -500,7 +566,7 @@ test("page controllers depend on Client vocabulary rather than runtime services"
     assert.match(homeController, /cell\.textContent = "No rooms available\."/);
     assert.match(homeController, /for \(const input of \[this\.#directModeInput, this\.#hostedModeInput\]\)/);
     assert.match(homeController, /input\.value/);
-    assert.match(homeController, /registrationMode === "join" && !isGameListed/);
+    assert.match(homeController, /registrationMode === "join" && !isRoomListed/);
     assert.match(homeController, /Constants\.NOTIFICATIONS\.ROOM_NOT_FOUND/);
     assert.match(gameController, /this\.room === null && !this\.#isLeaving/);
 });
@@ -523,26 +589,26 @@ test("the shared game preserves touch-friendly card presentation", () => {
         readFileSync(new URL("../ui/styles/room.css", import.meta.url), "utf8");
     const gameCss = readFileSync(new URL("../ui/styles/room.css", import.meta.url), "utf8");
     const homeCss = readFileSync(new URL("../ui/styles/home.css", import.meta.url), "utf8");
-    const controller = readFileSync(new URL("../ui/controllers/LocalPlayerController.js", import.meta.url), "utf8");
-    assert.match(controller, /"#player-hand > \[data-is-drag-over\]", HTMLSpanElement/);
+    const controller = readFileSync(new URL("../ui/controllers/LocalActorController.js", import.meta.url), "utf8");
+    assert.match(controller, /"#actor-hand > \.playing-card-area", HTMLSpanElement/);
     assert.match(controller, /this\.root, "\[data-actor-name\]", HTMLSpanElement/);
     assert.match(controller, /this\.root, "\[data-item-count\]", HTMLSpanElement/);
     assert.match(controller, /this\.root, "\[data-draw-allowance\]", HTMLSpanElement/);
     assert.match(controller, /querySelector\("\[data-idle-seconds\]"\)/);
-    assert.doesNotMatch(controller, /"#player-status"|"#draw-button > span"|"#player-idle-warning > em"/);
+    assert.doesNotMatch(controller, /"#actor-status"|"#draw-button > span"|"#actor-idle-warning > em"/);
 
     assert.doesNotMatch(html, /id="card-size-range"/);
     assert.match(cardCss, /--card-height:\s*max\(100cqh, var\(--card-height-min\)\)/);
     assert.match(cardCss, /\.playing-card-drag-handle\s*\{[\s\S]*?width:\s*100%/);
     assert.match(gameCss, /@keyframes turn-owner-border-strobe/);
     assert.match(homeCss, /\.toggle-switch > label:has\(input:checked\) > span/);
-    assert.match(controller, /this\.#gameRegion\.dataset\.gameRegion = "act"/);
-    assert.match(controller, /this\.#gameRegion\.dataset\.gameRegion = "view"/);
-    assert.match(controller, /this\.#playerStatus\.dataset\.actorName = actor\.name \?\? ""/);
-    assert.match(controller, /this\.#playerStatus\.dataset\.actorName = ""/);
-    assert.doesNotMatch(html + controller + gameCss, /data-is-player-view|isPlayerView/);
+    assert.match(controller, /this\.#playRegion\.dataset\.gameRegion = "act"/);
+    assert.match(controller, /this\.#playRegion\.dataset\.gameRegion = "view"/);
+    assert.match(controller, /this\.#actorStatus\.dataset\.actorName = actor\.name \?\? ""/);
+    assert.match(controller, /this\.#actorStatus\.dataset\.actorName = ""/);
+    assert.doesNotMatch(html + controller + gameCss, /data-is-actor-view|isActorView/);
     assert.match(html, /id="opponent-list"[\s\S]*?id="table-play-area"[\s\S]*?id="actor-region"/);
-    assert.match(html, /<ul id="opponent-list" aria-label="Other players"><\/ul>/);
+    assert.match(html, /<ul id="opponent-list" aria-label="Other actors"><\/ul>/);
     assert.doesNotMatch(html, /id="opponent-list"[^>]*role=/);
     assert.match(
         readFileSync(new URL("../ui/templates/opponent.html", import.meta.url), "utf8"),
@@ -555,14 +621,14 @@ test("the shared game preserves touch-friendly card presentation", () => {
     assert.match(gameCss, /\[data-game-region="view"\]\s*\{[\s\S]*?--play-area-rows:/);
     assert.match(gameCss, /\[data-game-region="view"\] #actor-region\s*\{[\s\S]*?display:\s*none/);
     assert.doesNotMatch(gameCss, /\[data-game-region="view"\][^{]*#table-play-area[^{]*\{[^}]*--card-height/);
-    assert.match(gameCss, /\[data-game-region="act"\]\[data-mode="direct"\] #player-idle-warning/);
+    assert.match(gameCss, /\[data-game-region="act"\]\[data-connection-mode="direct"\] #actor-idle-warning/);
     assert.match(
         readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8"),
-        /playRegion\.dataset\.mode = room\.mode/
+        /playRegion\.dataset\.connectionMode = room\.connectionMode/
     );
     assert.doesNotMatch(
         readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8"),
         /idleWarning\.hidden/
     );
-    assert.doesNotMatch(controller, /#local-player|isTurnBound/);
+    assert.doesNotMatch(controller, /#local-actor|isTurnBound/);
 });

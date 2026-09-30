@@ -19,6 +19,9 @@ export class CountdownController extends ViewController {
      */
     #remainingSecondsOutput;
 
+    /** @type {HTMLElement} Configurable start message. */
+    #description;
+
     /**
      * Creates a countdown overlay controller.
      *
@@ -28,6 +31,7 @@ export class CountdownController extends ViewController {
     constructor(selector) {
         super(selector);
         this.#remainingSecondsOutput = DomUtils.requireChild(this.root, "#countdown-value", HTMLElement);
+        this.#description = DomUtils.requireChild(this.root, "#countdown-description", HTMLElement);
         this.bindDismissButton("#countdown-ok-button");
     }
 
@@ -35,12 +39,14 @@ export class CountdownController extends ViewController {
      * Shows the countdown overlay.
      *
      * @param {number} seconds - Countdown duration.
+     * @param {string} message - One or Knockout start message.
      */
-    show(seconds) {
+    show(seconds, message = "Game starting") {
         let remaining = CountdownController.#normalizeSeconds(seconds);
 
         this.#stopCountdown();
         this.#renderRemainingSeconds(remaining);
+        this.#description.textContent = message;
 
         super.show();
 

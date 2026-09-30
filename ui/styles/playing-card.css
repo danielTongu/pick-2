@@ -70,6 +70,7 @@ playing-card,
     --plus-length: calc(var(--card-width) * 0.5);
     --plus-length-hover: calc(var(--card-width) * 0.7);
     --plus-thickness: calc(var(--card-width) * 0.035);
+    --button-padding: 5px;
 
     position: relative;
     display: inline-block;

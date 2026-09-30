@@ -48,7 +48,7 @@ function undocumentedDeclarations(source) {
 test("all application imports resolve from the Pick2 root", () => {
     const files = [
         ...sources(new URL("core/", root)),
-        ...sources(new URL("runtime/", root)),
+        ...sources(new URL("host/", root)),
         ...sources(new URL("ui/", root)),
         new URL("main.js", root),
         new URL("server.js", root)
@@ -65,7 +65,7 @@ test("all application imports resolve from the Pick2 root", () => {
 test("application classes, fields, methods, and functions have adjacent JSDoc", () => {
     const files = [
         ...sources(new URL("core/", root)),
-        ...sources(new URL("runtime/", root)),
+        ...sources(new URL("host/", root)),
         ...sources(new URL("ui/", root)),
         new URL("main.js", root),
         new URL("server.js", root)

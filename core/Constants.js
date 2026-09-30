@@ -7,11 +7,19 @@ export class Constants {
     /** @type {number} Transition countdown length. */
     static COUNTDOWN_SECONDS = 5;
 
+    /** Delay for the next Knockout match and for restoring sidelined Bots. */
+    static KNOCKOUT_TRANSITION_DELAY_MS = 5000;
+
     /** @type {number} Hosted connection attempt timeout. */
-    static NETWORK_CONNECTION_TIMEOUT_MS = 3 * 1000;
+    static CONNECTION_PROBE_TIMEOUT_MS = 3 * 1000;
+
+    /** Connection page data-status values. */
+    static CONNECTION_STATUS = Object.freeze({
+        CONNECTING: "connecting", CONNECTED: "connected", ERROR: "error", UNCONFIGURED: "unconfigured"
+    });
 
     /** @type {number} Default maximum actors per room. */
-    static ROOM_PLAYER_LIMIT = 4;
+    static ROOM_ACTOR_LIMIT = 4;
 
     /** @type {number} Default number of cards dealt to each actor. */
     static INITIAL_ITEM_COUNT = 7;
@@ -30,11 +38,20 @@ export class Constants {
     /** @type {Readonly<Record<string, string>>} Room lifecycle states. */
     static ROOM_STATE = Object.freeze({ WAITING: "waiting", ACTIVE: "active", FINISHED: "finished" });
 
-    /** @type {Readonly<Record<string, string>>} Actor round states. */
-    static ACTOR_STATE = Object.freeze({ READY: "ready", ACTIVE: "active", WON: "won", LOST: "lost" });
+    /** @type {Readonly<Record<string, string>>} Actor match states. */
+    static ACTOR_STATE = Object.freeze({ READY: "ready", ACTIVE: "active", WON: "won", LOST: "lost", QUALIFIED: "qualified", ELIMINATED: "eliminated" });
+
+    /** Room-table Knockout column values. */
+    static KNOCKOUT_VALUE = Object.freeze({ YES: "yes", NO: "no" });
+
+    /** Play button presentation states. */
+    static PLAY_BUTTON_MODE = Object.freeze({ CHOOSE: "choose", NEXT_MATCH: "next-match" });
+
+    /** Play choice dialog's data-state values. */
+    static PLAY_DIALOG_STATE = Object.freeze({ OPEN: "open", CLOSED: "closed" });
 
     /** @type {Readonly<Record<string, string>>} Application views.*/
-    static VIEWS = Object.freeze({ HOME: "home", ROOM: "room" });
+    static VIEWS = Object.freeze({ HOME: "home", ROOM: "room", CONNECTION: "connection" });
 
     /** @type {Readonly<Record<string, string>>} Top-level response fields. */
     static RESPONSE_KEYS = Object.freeze({ VIEW: "view", MESSAGE: "message", DATA: "data" });
@@ -45,12 +62,12 @@ export class Constants {
             title: "welcome in!",
             message: "You’re viewing the room you selected.\nClick the JOIN button to participate."
         }),
-        PLAYER_WELCOME: Object.freeze({
+        ACTOR_WELCOME: Object.freeze({
             title: "welcome",
-            message: "You are now a participant.\nSee FAQ for the game guide.\n\nGood luck!"
+            message: "You are now an actor.\nSee FAQ for the game guide.\n\nGood luck!"
         }),
         MOVED_TO_VIEWING: Object.freeze({ title: "Moved to viewing", message: "You were idle." }),
-        ROOM_CLOSED: Object.freeze({ title: "Room closed", message: "No players remain." }),
+        ROOM_CLOSED: Object.freeze({ title: "Room closed", message: "No actors remain." }),
         INVITE_COPIED: Object.freeze({
             title: "Invite copied",
             message: "Paste the room link wherever you want to share it."
@@ -74,9 +91,9 @@ export class Constants {
 
     /** Default rooms available in Direct and Hosted registries.*/
     static DEFAULT_ROOMS = Object.freeze([
-        Object.freeze({ roomName: "Default-S0", playerLimit: 4, botCount: 3 }),
-        Object.freeze({ roomName: "Default-S1", playerLimit: 4, botCount: 2 }),
-        Object.freeze({ roomName: "Default-S2", playerLimit: 4, botCount: 1 })
+        Object.freeze({ roomName: "Default-R0", actorLimit: 4, botCount: 3 }),
+        Object.freeze({ roomName: "Default-R1", actorLimit: 4, botCount: 2 }),
+        Object.freeze({ roomName: "Default-R2", actorLimit: 4, botCount: 1 })
     ]);
 
     /** Emoji groups used by room messages. */
@@ -84,7 +101,7 @@ export class Constants {
         silly: this.#createEmojiGroup(["😈", "😂", "😝", "🙃", "🤪"])
     });
 
-    /** @type {Readonly<Record<string,string>>} Canonical request command names accepted by Host and Game. */
+    /** @type {Readonly<Record<string,string>>} Canonical request command names accepted by Host. */
     static COMMANDS = Object.freeze({
         LIST: "list",
         CREATE: "create",
@@ -95,7 +112,6 @@ export class Constants {
         DRAW: "draw",
         PASS: "pass",
         DISCARD: "discard",
-        RETURN: "return",
         DECLARE: "declare"
     });
 

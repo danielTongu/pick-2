@@ -6,7 +6,7 @@ import { Actor } from "./Actor.js";
 import { ValidationUtils } from "./ValidationUtils.js";
 import { Constants } from "./Constants.js";
 
-/** Owns ordered membership and the cursor for a turn-based game. */
+/** Owns ordered membership and the cursor for a match. */
 export class TurnOrder extends Serializable {
     /** Creates an empty, forward-moving turn order with no owner. */
     constructor() {
@@ -149,7 +149,7 @@ export class TurnOrder extends Serializable {
         return this.direction;
     }
 
-    /** Clears round ownership, restores direction, and resets every actor. */
+    /** Clears match ownership, restores direction, and resets every actor. */
     reset() {
         this.ownerKey = null;
         this.direction = 1;
@@ -161,7 +161,8 @@ export class TurnOrder extends Serializable {
     /** Aligns non-final actor states with current turn ownership. */
     #synchronizeActorStates() {
         for (const actor of this.actors.values()) {
-            if (actor.state !== Constants.ACTOR_STATE.WON && actor.state !== Constants.ACTOR_STATE.LOST) {
+            if (actor.state !== Constants.ACTOR_STATE.WON && actor.state !== Constants.ACTOR_STATE.LOST &&
+                actor.state !== Constants.ACTOR_STATE.QUALIFIED && actor.state !== Constants.ACTOR_STATE.ELIMINATED) {
                 actor.state = actor.key === this.ownerKey ? Constants.ACTOR_STATE.ACTIVE : Constants.ACTOR_STATE.READY;
             }
         }

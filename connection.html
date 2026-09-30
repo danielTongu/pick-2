@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <title>Connect to a Pick 2 Host</title>
+        <meta name="description" content="Connect to a hosted Pick 2 game." />
+        <meta name="robots" content="noindex, nofollow" />
+        <meta name="game-server-origin" content="" />
+        <link rel="stylesheet" href="./ui/styles/base.css" />
+        <link rel="stylesheet" href="./ui/styles/connection.css" />
+    </head>
+    <body data-game="pick2" data-page="connection">
+        <main class="site-shell">
+            <header id="app-header">
+                <h1>
+                    <a id="app-home-link" href="./index.html?mode=direct" aria-label="Pick 2 Home">
+                        <span class="brand-mark">P2</span>
+                        <span class="brand-copy">Pick 2<small>Match cards. Make moves.</small></span>
+                    </a>
+                </h1>
+                <aside data-status="connecting" aria-live="polite">
+                    <span id="connection-status-label">Connecting…</span>
+                </aside>
+            </header>
+            <section id="connection-view" data-status="connecting" aria-labelledby="connection-title">
+                <header class="connection-panel-header">
+                    <span class="section-kicker">Hosted mode</span>
+                    <h2 id="connection-title"></h2>
+                    <p id="connection-message" aria-live="polite"></p>
+                </header>
+                <form id="connection-form">
+                    <label for="connection-origin">Hosted address</label>
+                    <div class="connection-field">
+                        <input id="connection-origin" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://play.example.com" aria-describedby="connection-help" />
+                    </div>
+                    <p id="connection-help">
+                        <span>Provide the server origin or WebSocket URL. Pick 2 will resolve the WebSocket endpoint.</span>
+                    </p>
+                    <div class="connection-actions">
+                        <button id="connection-connect-button" type="submit" disabled>Connecting…</button>
+                        <a id="connection-direct-link" href="./index.html?mode=direct">Use Direct mode</a>
+                    </div>
+                </form>
+                <dl id="connection-diagnostics" aria-label="Connection diagnostics">
+                    <div><dt>Transport</dt><dd>WebSocket</dd></div>
+                    <div><dt>Endpoint</dt><dd><output id="connection-endpoint">Not selected</output></dd></div>
+                    <div><dt>Attempt</dt><dd><output id="connection-attempt">—</output></dd></div>
+                    <div><dt>Probe time</dt><dd><output id="connection-duration">—</output></dd></div>
+                    <div><dt>Timeout</dt><dd><output id="connection-timeout">—</output></dd></div>
+                    <div><dt>Failure</dt><dd><output id="connection-failure">None</output></dd></div>
+                </dl>
+                <aside class="connection-status" aria-hidden="true">
+                    <i id="connection-indicator" aria-hidden="true"></i>
+                </aside>
+            </section>
+            <footer id="app-footer">
+                <aside id="app-footer-brand">
+                    <strong>Pick 2</strong>
+                    <div>Match cards. Make moves.</div>
+                </aside>
+                <nav id="app-footer-navigation" aria-label="Footer navigation">
+                    <a href="#app-header">Back to top ↑</a>
+                </nav>
+                <aside id="app-footer-note">
+                    <div><time id="copyright-year" datetime="2026"></time> Pick 2. All rights reserved</div>
+                </aside>
+            </footer>
+        </main>
+        <script type="module" src="./main.js"></script>
+    </body>
+</html>

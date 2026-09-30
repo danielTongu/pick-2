@@ -154,7 +154,6 @@ export class DomUtils {
      */
     static show(element) {
         DomUtils.assertElement(element);
-
         element.hidden = false;
     }
 
@@ -165,7 +164,6 @@ export class DomUtils {
      */
     static hide(element) {
         DomUtils.assertElement(element);
-
         element.hidden = true;
     }
 
@@ -176,7 +174,6 @@ export class DomUtils {
      */
     static empty(element) {
         DomUtils.assertElement(element);
-
         element.replaceChildren();
     }
 
@@ -187,7 +184,6 @@ export class DomUtils {
      */
     static remove(element) {
         DomUtils.assertElement(element);
-
         element.remove();
     }
 
@@ -200,7 +196,6 @@ export class DomUtils {
      */
     static setBooleanState(element, name, isEnabled) {
         DomUtils.assertElement(element);
-
         element.dataset[name] = String(ValidationUtils.boolean(isEnabled, "Dataset state value"));
     }
 }

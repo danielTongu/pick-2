@@ -13,9 +13,9 @@ export class ViewController {
     root;
 
     /**
-     * @type {import("../../runtime/Client.js").Client|null} Client assigned by the owning page lifecycle.
+     * @type {import("../View.js").View|null} Owning browser view.
      */
-    client;
+    view;
 
     /**
      * Creates a controller for one view root.
@@ -25,7 +25,7 @@ export class ViewController {
      */
     constructor(target) {
         this.root = DomUtils.require(target, HTMLElement);
-        this.client = null;
+        this.view = null;
     }
 
     /** Updates the shared copyright date on the current page. */

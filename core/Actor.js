@@ -5,7 +5,7 @@ import { Serializable } from "./Serializable.js";
 import { ValidationUtils } from "./ValidationUtils.js";
 import { CardCollection } from "./CardCollection.js";
 
-/** Owns one seated actor’s identity, hand, round state, activity, and idle timer. */
+/** Owns one seated actor’s identity, hand, match state, activity, and idle timer. */
 export class Actor extends Serializable {
     /**
      * @type {Function|null} Callback invoked with this actor after its idle window expires.
@@ -18,14 +18,14 @@ export class Actor extends Serializable {
     #idleTimeoutId = null;
 
     /**
-     * @type {Object|null} Game-owned fields restored for each round.
+     * @type {Object|null} Match-owned fields restored for each match.
      */
     #initialState = null;
 
     /**
-     * Creates an actor with private card storage and resettable game state.
+     * Creates an actor with private card storage and resettable match state.
      * @param {string} name - Display name.
-     * @param {Object|null} initialState - Game-owned reset values.
+     * @param {Object|null} initialState - Match-owned reset values.
      */
     constructor(name, initialState = null) {
         super();
@@ -106,7 +106,7 @@ export class Actor extends Serializable {
         this.onIdle = null;
     }
 
-    /** Restores collection and game-provided round state. */
+    /** Restores collection and match-provided state. */
     reset() {
         if (this.collection instanceof CardCollection) {
             this.collection.clear();

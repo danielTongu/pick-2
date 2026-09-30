@@ -51,17 +51,18 @@ test("indexable pages expose aligned search, social, canonical, and structured m
     }
 });
 
-test("the dynamic Room is excluded from search indexing and the sitemap", () => {
-    const html = readFileSync(new URL("room.html", root), "utf8");
+test("dynamic Room and Connection pages are excluded from search indexing and the sitemap", () => {
     const sitemap = readFileSync(new URL("sitemap.xml", root), "utf8");
-
-    assert.equal(metadataContent(html, "name", "robots"), "noindex, nofollow");
-    assert.doesNotMatch(html, /rel="canonical"/);
-    assert.doesNotMatch(sitemap, /room\.html/);
+    for (const page of ["room.html", "connection.html"]) {
+        const html = readFileSync(new URL(page, root), "utf8");
+        assert.equal(metadataContent(html, "name", "robots"), "noindex, nofollow");
+        assert.doesNotMatch(html, /rel="canonical"/);
+        assert.doesNotMatch(sitemap, new RegExp(page.replace(".", "\\.")));
+    }
 });
 
 test("Home and Room resolve their local assets and navigation under a subdirectory", () => {
-    for (const page of ["index.html", "room.html"]) {
+    for (const page of ["index.html", "room.html", "connection.html"]) {
         const html = readFileSync(new URL(page, root), "utf8");
         for (const [, target] of html.matchAll(/(?:src|href)="([^"]+)"/g)) {
             if (/^(?:https?:|#)/.test(target)) continue;
@@ -80,6 +81,7 @@ async function startRoomView(basePath, mode, validIntent) {
     const state = { redirects: [], errors: [], cleared: false, closed: false, notice: null };
     const storedValues = new Map([
         ["game.mode", mode],
+        ["game.hostedUrl", "ws://example.test"],
         [
             "game.gameIntent",
             validIntent ? JSON.stringify({ mode, command: Constants.COMMANDS.JOIN, data: { roomName: "Test" } }) : "null"
@@ -87,7 +89,7 @@ async function startRoomView(basePath, mode, validIntent) {
     ]);
     let homeHandler;
     class FakeRoomController {
-        setClient() {}
+        setView() {}
         setIntent() {}
         setReadyHandler() {}
         setHomeHandler(handler) {
@@ -96,18 +98,11 @@ async function startRoomView(basePath, mode, validIntent) {
         renderYear() {}
         async initialize() {}
     }
-    class FakeClient {
-        open() {}
-        close() {
-            state.closed = true;
-        }
-    }
     const context = {
         Constants,
-        Game: class {},
         URL,
         URLSearchParams,
-        document: { body: { dataset: { page: "room" } } },
+        document: { body: { dataset: { page: "room" } }, querySelector() { return null; } },
         location: {
             href: `https://example.test${basePath}room.html?mode=${mode}`,
             search: `?mode=${mode}`,
@@ -137,14 +132,15 @@ async function startRoomView(basePath, mode, validIntent) {
                 state.errors.push(args);
             }
         },
-        ClientEvents: class {},
+        Host: class {},
         HTMLElement: class {},
         DomUtils: {},
-        NetworkConnectionController: class {}
+        ConnectionController: class {}
     };
     const config = {
-        createClient() {
-            return new FakeClient();
+        connect() {},
+        disconnect() {
+            state.closed = true;
         },
         RoomController: FakeRoomController
     };
@@ -165,7 +161,8 @@ async function startRoomView(basePath, mode, validIntent) {
     await runInNewContext(
         `(async function () {
             ${source};
-            RoomView.prototype.createClient = config.createClient;
+            RoomView.prototype.connect = config.connect;
+            RoomView.prototype.disconnect = config.disconnect;
             const homeUrl = new URL("./index.html", "https://example.test${basePath}");
             await new RoomView(homeUrl).start();
         })()`,

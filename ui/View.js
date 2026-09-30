@@ -2,104 +2,418 @@
 
 
 import {Constants} from "../core/Constants.js";
-import {Game} from "../core/Game.js";
-import {Client, ClientEvents} from "../runtime/Client.js";
-import {Host} from "../runtime/Host.js";
-import {Endpoint, WebSocketEndpoint} from "../runtime/Transport.js";
-import {DomUtils} from "./utilities/DomUtils.js";
+import {ValidationUtils} from "../core/ValidationUtils.js";
+import {Host} from "../host/Host.js";
 
-/** Provides shared controller, client, mode, and navigation state for an application view. */
+/** Browser client view with local or hosted connection and navigation state. */
 export class View {
-
-    /**
-     * @type {typeof Client|null} Active client owned by this view.
-     */
-    client = null;
-
-    /**
-     * @type {"direct"|"hosted"} Active transport mode.
-     */
+    /** @type {"direct"|"hosted"} Active transport mode. */
     mode = ViewState.getMode();
 
-    /**
-     * @type {typeof Game} Game constructor used by the in-browser runtime.
-     */
-    Game = Game;
-
-    /**
-     * @type {URL} Destination used when leaving this view.
-     */
+    /** @type {URL} Destination used when leaving this view. */
     url;
 
-    /**
-     * Creates the shared state for an application view.
-     *
-     * @param {URL} url - Destination used when navigating away from the view.
-     */
+    /** @param {URL} url - Destination used when navigating away from the view. */
     constructor(url) {
         this.url = url;
     }
 
     /**
-     * Creates a client over the endpoint selected by the transport mode.
-     *
-     * @param {"direct"|"hosted"} mode - Transport mode to use.
-     * @returns {Client} Unopened client for the selected endpoint.
+     * @type {string} Card ordering requested for room snapshots.
      */
-    createClient(mode) {
-        const endpoint = mode === "hosted"
-            ? new WebSocketEndpoint(ViewState.getHostedUrl())
-            : new Endpoint(new Host("direct", "fill", false, new this.Game()));
+    #sortKey = Constants.CARD.SORT_OPTIONS[0];
 
-        return new Client(endpoint);
+    /** @type {string|null} Hosted WebSocket URL used for reconnects. */
+    #webSocketUrl = null;
+
+    /** @type {WebSocket|null} Active or connecting hosted socket. */
+    #socket = null;
+
+    /** @type {number|null} Pending reconnect timer. */
+    #reconnectTimer = null;
+
+    /** @type {number} Consecutive hosted reconnect attempts. */
+    #reconnectAttempts = 0;
+
+    /** @type {import("../host/Host.js").Host|null} Browser-owned Host to stop on disconnect. */
+    #localHost = null;
+
+    /** @type {import("../host/HostConnection.js").HostConnection|null} Local Host-side connection. */
+    #hostConnection = null;
+
+    /** @type {boolean} Whether this client is open. */
+    #isOpen = false;
+
+    /** @type {number} Invalidates queued work from an earlier local connection. */
+    #generation = 0;
+
+    /**
+     * @type {import("./controllers/ViewController.js").ViewController|null} Active page controller.
+     */
+    #activeController = null;
+
+    /**
+     * @type {(function(string, string): void)|null} Optional connection-status observer.
+     */
+    #onStatus = null;
+
+    /**
+     * @type {(function(string|null, Object): void)|null} Optional view-data observer.
+     */
+    #onData = null;
+
+    /**
+     * @type {string} Tab-stable identifier included with every request.
+     */
+    #tabId = View.#getTabId();
+
+    /**
+     * @returns {string} Current card sort key.
+     */
+    get sortKey() {
+        return this.#sortKey;
     }
 
     /**
-     * Disconnects the current client and creates its replacement.
-     *
-     * @param {"direct"|"hosted"} mode - Transport mode for the replacement client.
-     * @returns {Client} New unopened client.
+     * @param {string} value - Card sort key.
      */
-    replaceClient(mode) {
+    set sortKey(value) {
+        const sortKey = ValidationUtils.requiredString(value, "Sort key");
+        if (!Constants.CARD.SORT_OPTIONS.includes(sortKey)) {
+            throw new Error(`Invalid card sort key: ${sortKey}`);
+        }
+        this.#sortKey = sortKey;
+    }
+
+    /**
+     * Connects to a browser-owned Host or hosted WebSocket URL, closing the prior route.
+     *
+     * @param {import("../host/Host.js").Host|string} target - Local Host or hosted URL.
+     * @param {import("./controllers/ViewController.js").ViewController} controller - Active page controller.
+     * @param {(function(string, string): void)|null} [onStatus=null] - Connection status observer.
+     * @param {(function(string|null, Object): void)|null} [onData=null] - View data observer.
+     */
+    connect(target, controller, onStatus = null, onData = null) {
+        const hostedUrl = typeof target === "string"
+            ? ValidationUtils.requiredString(target, "WebSocket URL")
+            : null;
+        if (hostedUrl === null && typeof target?.accept !== "function") {
+            throw new Error("View requires a local Host or hosted WebSocket URL.");
+        }
+
         this.disconnect();
-        this.client = this.createClient(mode);
-        return this.client;
+
+        this.#activeController = controller;
+        this.#onStatus = onStatus;
+        this.#onData = onData;
+        this.#isOpen = true;
+        const generation = ++this.#generation;
+
+        if (hostedUrl === null) {
+            this.#localHost = target;
+            this.#handleStatus("connecting", "Starting direct room…");
+            this.#hostConnection = target.accept(
+                this.#receiveLocal.bind(this, generation), this.#disconnectLocal.bind(this, generation)
+            );
+            queueMicrotask(this.#notifyLocalOpen.bind(this, generation));
+        } else {
+            this.#webSocketUrl = hostedUrl;
+            this.#openWebSocket(generation);
+        }
     }
 
-    /** Disconnects and releases the active client, when present. */
+    /** Closes the active local or hosted route. */
     disconnect() {
-        this.client?.close();
-        this.client = null;
+        if (!this.#isOpen) return;
+        this.#isOpen = false;
+        this.#generation += 1;
+
+        if (this.#webSocketUrl !== null) {
+            this.#webSocketUrl = null;
+            this.#cancelReconnect();
+            this.#reconnectAttempts = 0;
+            const socket = this.#socket;
+            this.#socket = null;
+            socket?.close();
+            this.#handleStatus("disconnected", "Closed");
+            this.#handleClose();
+            return;
+        }
+
+        const hostConnection = this.#hostConnection;
+        this.#hostConnection = null;
+        const localHost = this.#localHost;
+        this.#localHost = null;
+        void hostConnection?.close();
+        void localHost?.shutdown?.();
+        this.#handleStatus("disconnected", "Closed");
+        this.#handleClose();
     }
 
+    /**
+     * Sends one canonical Room command request.
+     *
+     * @param {string} command - Command name from Constants.COMMANDS.
+     * @param {Object} data - Command-specific data.
+     * @returns {boolean} Whether the request was accepted.
+     */
+    request(command, data) {
+        const normalizedCommand = ValidationUtils.requiredString(command, "Command");
+        const commandData = ValidationUtils.object(data, "Command data");
+
+        const request = {
+            command: normalizedCommand,
+            data: { ...commandData, sortKey: this.#sortKey, tabId: this.#tabId }
+        };
+
+        if (this.#hostConnection !== null) {
+            if (!this.#isOpen) return false;
+            queueMicrotask(this.#deliverLocalRequest.bind(this, this.#generation, structuredClone(request)));
+            return true;
+        }
+
+        const canSend = this.#isOpen && this.#socket instanceof WebSocket &&
+            this.#socket.readyState === WebSocket.OPEN;
+        if (canSend) this.#socket.send(JSON.stringify(request));
+        return canSend;
+    }
+
+    /** @param {number} generation - Connection generation. */
+    #openWebSocket(generation) {
+        const isReconnecting = this.#reconnectAttempts > 0;
+        this.#handleStatus(isReconnecting ? "reconnecting" : "connecting",
+            isReconnecting ? "Reconnecting…" : "Connecting…");
+        const socket = new WebSocket(this.#webSocketUrl);
+        this.#socket = socket;
+        socket.addEventListener("open", this.#handleSocketOpen.bind(this, generation, socket));
+        socket.addEventListener("message", this.#handleSocketMessage.bind(this, generation, socket));
+        socket.addEventListener("close", this.#handleSocketClose.bind(this, generation, socket));
+        socket.addEventListener("error", this.#handleSocketError.bind(this, generation, socket));
+    }
+
+    /**
+     * @param {number} generation - Connection generation.
+     * @param {WebSocket} socket - Socket that opened.
+     */
+    #handleSocketOpen(generation, socket) {
+        if (generation !== this.#generation || socket !== this.#socket || !this.#isOpen) return;
+        this.#cancelReconnect();
+        this.#reconnectAttempts = 0;
+        this.#handleStatus("connected", "Hosted");
+        this.#handleOpen();
+    }
+
+    /**
+     * @param {number} generation - Connection generation.
+     * @param {WebSocket} socket - Socket that received data.
+     * @param {MessageEvent} event - Inbound message.
+     */
+    #handleSocketMessage(generation, socket, event) {
+        if (generation === this.#generation && socket === this.#socket && this.#isOpen) this.#receive(event.data);
+    }
+
+    /**
+     * @param {number} generation - Connection generation.
+     * @param {WebSocket} socket - Socket that closed.
+     */
+    #handleSocketClose(generation, socket) {
+        if (generation !== this.#generation || socket !== this.#socket || !this.#isOpen) return;
+        this.#socket = null;
+        this.#handleStatus("disconnected", "Disconnected");
+        this.#handleClose();
+        this.#scheduleReconnect(generation);
+    }
+
+    /**
+     * @param {number} generation - Connection generation.
+     * @param {WebSocket} socket - Socket that failed.
+     */
+    #handleSocketError(generation, socket) {
+        if (generation === this.#generation && socket === this.#socket && this.#isOpen) {
+            this.#handleStatus("error", "Connection error");
+            socket.close();
+        }
+    }
+
+    /** @param {number} generation - Connection generation. */
+    #scheduleReconnect(generation) {
+        if (!this.#isOpen || this.#reconnectAttempts >= 5 || this.#reconnectTimer !== null) return;
+        const delay = Math.min(1000 * 2 ** this.#reconnectAttempts, 30_000);
+        this.#reconnectAttempts += 1;
+        this.#handleStatus("reconnecting", "Reconnecting…");
+        this.#reconnectTimer = globalThis.setTimeout(this.#reconnect.bind(this, generation), delay);
+    }
+
+    /** @param {number} generation - Connection generation. */
+    #reconnect(generation) {
+        this.#reconnectTimer = null;
+        if (this.#isOpen && generation === this.#generation) this.#openWebSocket(generation);
+    }
+
+    /** Cancels a pending hosted reconnect. */
+    #cancelReconnect() {
+        if (this.#reconnectTimer !== null) {
+            globalThis.clearTimeout(this.#reconnectTimer);
+            this.#reconnectTimer = null;
+        }
+    }
+
+    /**
+     * @param {number} generation - Local connection generation.
+     * @param {Object} request - Cloned local request.
+     */
+    #deliverLocalRequest(generation, request) {
+        if (this.#isOpen && generation === this.#generation) void this.#hostConnection?.receive(request);
+    }
+
+    /** @param {number} generation - Local connection generation. */
+    #disconnectLocal(generation) {
+        if (generation === this.#generation) this.disconnect();
+    }
+
+    /**
+     * @param {number} generation - Local connection generation.
+     * @param {Object} response - Local Host response.
+     */
+    #receiveLocal(generation, response) {
+        if (this.#isOpen && generation === this.#generation) {
+            queueMicrotask(this.#deliverLocalResponse.bind(this, generation, structuredClone(response)));
+        }
+    }
+
+    /**
+     * @param {number} generation - Local connection generation.
+     * @param {Object} response - Cloned local Host response.
+     */
+    #deliverLocalResponse(generation, response) {
+        if (this.#isOpen && generation === this.#generation) this.#receive(response);
+    }
+
+    /** @param {number} generation - Local connection generation. */
+    #notifyLocalOpen(generation) {
+        if (this.#isOpen && generation === this.#generation) {
+            this.#handleStatus("connected", "Direct");
+            this.#handleOpen();
+        }
+    }
+
+    /**
+     * @param {string} status - Connection status.
+     * @param {string} label - Display label.
+     */
+    #handleStatus(status, label) {
+        this.#activeController?.handleConnectionStatus?.(status, label);
+        this.#onStatus?.(status, label);
+    }
+
+    /** Notifies the page controller that the connection can accept requests. */
+    #handleOpen() {
+        this.#activeController?.handleClientOpen?.();
+    }
+
+    /** Notifies the page controller that the connection closed. */
+    #handleClose() {
+        this.#activeController?.handleClientClose?.();
+    }
+
+    /**
+     * @param {Object|string} raw - Raw connection response.
+     */
+    #receive(raw) {
+        const response = View.#parseResponse(raw);
+
+        if (response === null) {
+            console.warn("Invalid server response:", raw);
+            return;
+        }
+
+        if (response.data !== null) {
+            this.#activeController?.handleData?.(response.view, response.data, response.message);
+            this.#onData?.(response.view, response.data);
+        }
+
+        if (response.message !== null && response.view !== Constants.VIEWS.HOME) {
+            this.#activeController?.handleNotification?.(response.message);
+        }
+    }
+
+    /**
+     * @param {Object|string} raw - Raw connection response.
+     * @returns {{view:string|null,message:Object|null,data:Object|null}|null} Canonical response, or null.
+     */
+    static #parseResponse(raw) {
+        try {
+            const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+            if (typeof parsed !== "object" || parsed === null) {
+                return null;
+            }
+
+            return {
+                view:
+                    typeof parsed[Constants.RESPONSE_KEYS.VIEW] === "string"
+                        ? parsed[Constants.RESPONSE_KEYS.VIEW]
+                        : null,
+                message:
+                    typeof parsed[Constants.RESPONSE_KEYS.MESSAGE] === "object" &&
+                    parsed[Constants.RESPONSE_KEYS.MESSAGE] !== null
+                        ? parsed[Constants.RESPONSE_KEYS.MESSAGE]
+                        : null,
+                data:
+                    typeof parsed[Constants.RESPONSE_KEYS.DATA] === "object" &&
+                    parsed[Constants.RESPONSE_KEYS.DATA] !== null
+                        ? parsed[Constants.RESPONSE_KEYS.DATA]
+                        : null
+            };
+        } catch (_error) {
+            return null;
+        }
+    }
+
+    /**
+     * @returns {string} Existing tab identifier, or a newly generated and persisted identifier.
+     */
+    static #getTabId() {
+        const storage = globalThis.sessionStorage;
+        let tabId = storage?.getItem("game.tabId") ?? "";
+
+        if (!tabId) {
+            tabId =
+                globalThis.crypto?.randomUUID?.() ??
+                `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+            storage?.setItem("game.tabId", tabId);
+        }
+
+        return tabId;
+    }
 }
 
 
 /** Persists transport, navigation, and notification state for one browser tab. */
 export class ViewState {
     /**
-     * @returns {string} Session key for the selected transport mode.
+     * @returns {string} Browser-tab storage key for the selected connection mode.
      */
     static get #MODE_KEY() {
         return `${this.#namespace()}.mode`;
     }
 
     /**
-     * @returns {string} Session key for pending Room navigation intent.
+     * @returns {string} Browser-tab storage key for pending Room navigation intent.
      */
     static get #INTENT_KEY() {
         return `${this.#namespace()}.gameIntent`;
     }
 
     /**
-     * @returns {string} Session key for a notification carried across navigation.
+     * @returns {string} Browser-tab storage key for a notification carried across navigation.
      */
     static get #NOTICE_KEY() {
         return `${this.#namespace()}.notice`;
     }
 
     /**
-     * @returns {string} Session key for the verified Hosted WebSocket URL.
+     * @returns {string} Browser-tab storage key for the verified Hosted WebSocket URL.
      */
     static get #HOSTED_URL_KEY() {
         return `${this.#namespace()}.hostedUrl`;
@@ -120,7 +434,7 @@ export class ViewState {
     }
 
     /**
-     * @returns {"direct"|"hosted"|null} URL-selected or session-selected mode, if valid.
+     * @returns {"direct"|"hosted"|null} URL-selected or stored mode, if valid.
      */
     static getModePreference() {
         const queryMode = new URLSearchParams(globalThis.location?.search ?? "").get("mode");
@@ -234,6 +548,9 @@ export class ViewState {
         if (protocol === undefined) {
             throw new Error(`Unsupported server protocol: ${url.protocol}`);
         }
+        if (url.username || url.password) {
+            throw new Error("Host addresses cannot include credentials.");
+        }
 
         url.protocol = protocol;
         url.pathname = "/";
@@ -276,14 +593,192 @@ export class ViewState {
         const currentHostUrl = this.getCurrentHostUrl();
 
         if (currentHostUrl === null) {
-            throw new Error("Network host is not available.");
+            throw new Error("Hosted endpoint is not available.");
         }
 
         return currentHostUrl;
     }
+
+    /** @returns {string|null} Hosted URL previously verified on the Connection page. */
+    static getVerifiedHostedUrl() {
+        return globalThis.sessionStorage?.getItem(this.#HOSTED_URL_KEY)?.trim() || null;
+    }
 }
 
 
+/** One bounded browser WebSocket availability probe. */
+class WebSocketProbe {
+    /** @type {string} Endpoint under test. */
+    #endpoint;
+    /** @type {WebSocket|null} Temporary socket. */
+    #socket = null;
+    /** @type {number|null} Probe timeout. */
+    #timer = null;
+    /** @type {function(Object): void|null} Promise resolver. */
+    #resolve = null;
+    /** @type {number} Probe start time. */
+    #startedAt = 0;
+
+    /** @param {string} endpoint - WebSocket endpoint under test. */
+    constructor(endpoint) {
+        this.#endpoint = endpoint;
+    }
+
+    /** @returns {Promise<{available:boolean, elapsedMs:number, failure:string}>} Probe outcome. */
+    check() {
+        this.#startedAt = Date.now();
+        return new Promise(this.#start.bind(this));
+    }
+
+    /** @param {function(Object): void} resolve - Probe outcome resolver. */
+    #start(resolve) {
+        this.#resolve = resolve;
+        this.#timer = globalThis.setTimeout(
+            this.#finish.bind(this, false, `Timed out after ${Constants.CONNECTION_PROBE_TIMEOUT_MS} ms.`),
+            Constants.CONNECTION_PROBE_TIMEOUT_MS
+        );
+        try {
+            this.#socket = new WebSocket(this.#endpoint);
+            this.#socket.addEventListener("open", this.#finish.bind(this, true, ""), {once: true});
+            this.#socket.addEventListener("error", this.#finish.bind(this, false, "WebSocket handshake failed."), {once: true});
+        } catch (error) {
+            this.#finish(false, error instanceof Error ? error.message : String(error));
+        }
+    }
+
+    /** Stops an obsolete or departing-page probe. */
+    cancel() {
+        this.#finish(false, "Canceled.");
+    }
+
+    /**
+     * @param {boolean} available - Whether the endpoint opened.
+     * @param {string} failure - Browser-visible failure detail.
+     */
+    #finish(available, failure) {
+        if (this.#resolve === null) return;
+        const resolve = this.#resolve;
+        this.#resolve = null;
+        if (this.#timer !== null) globalThis.clearTimeout(this.#timer);
+        this.#timer = null;
+        this.#socket?.close();
+        this.#socket = null;
+        resolve({available, elapsedMs: Date.now() - this.#startedAt, failure});
+    }
+}
+
+/** Coordinates the standalone Hosted Connection page. */
+export class ConnectionView extends View {
+    /** @type {import("./controllers/ConnectionController.js").ConnectionController|null} Page controller. */
+    #controller = null;
+    /** @type {WebSocketProbe|null} Active availability probe. */
+    #probe = null;
+    /** @type {number} Invalidates older probe sequences. */
+    #generation = 0;
+    /** @type {number} Total endpoint probes on this page. */
+    #probeCount = 0;
+
+    /** Initializes page controls and probes configured hosts. */
+    async start() {
+        const {ConnectionController} = await import("./controllers/ConnectionController.js");
+        this.#controller = new ConnectionController();
+        this.#controller.initialize(this.#submit.bind(this));
+        this.#controller.renderYear();
+        window.addEventListener("pagehide", this.#cancel.bind(this), {once: true});
+
+        const isAutomatic = new URLSearchParams(location.search).get("auto") === "1";
+        const available = await this.#probeHosts(null);
+        if (isAutomatic && available === false) {
+            ViewState.setMode("direct");
+            location.replace(this.#homeUrl("direct"));
+        }
+    }
+
+    /** @param {string} origin - User-entered host address. */
+    #submit(origin) {
+        if (origin === "") {
+            void this.#probeHosts(null);
+            return;
+        }
+        try {
+            void this.#probeHosts(ViewState.resolveHostedUrl(origin));
+        } catch (error) {
+            this.#cancel();
+            this.#controller.render(Constants.CONNECTION_STATUS.ERROR, {
+                endpoint: origin, failure: error instanceof Error ? error.message : String(error)
+            });
+        }
+    }
+
+    /** Invalidates the current probe without navigating. */
+    #cancel() {
+        this.#generation += 1;
+        this.#probe?.cancel();
+        this.#probe = null;
+    }
+
+    /**
+     * @param {string|null} preferredUrl - Explicit endpoint or configured/same-origin candidates.
+     * @returns {Promise<boolean|null>} Availability, or null when superseded.
+     */
+    async #probeHosts(preferredUrl) {
+        this.#cancel();
+        const generation = this.#generation;
+        let configurationError = "";
+        let configuredUrl = null;
+        const configuredOrigin = ViewState.getConfiguredServerOrigin();
+        if (configuredOrigin !== null) {
+            try {
+                configuredUrl = ViewState.resolveHostedUrl(configuredOrigin);
+            } catch (error) {
+                configurationError = error instanceof Error ? error.message : String(error);
+            }
+        }
+        let currentHostUrl = null;
+        try {
+            currentHostUrl = ViewState.getCurrentHostUrl();
+        } catch (_error) {
+        }
+
+        const candidates = preferredUrl === null
+            ? [...new Set([configuredUrl, currentHostUrl].filter(Boolean))]
+            : [preferredUrl];
+        if (candidates.length === 0) {
+            this.#controller.render(Constants.CONNECTION_STATUS.UNCONFIGURED, {failure: configurationError});
+            return false;
+        }
+
+        for (const [index, endpoint] of candidates.entries()) {
+            const attempt = ++this.#probeCount;
+            const metrics = {endpoint, attempt, candidate: index + 1, candidateCount: candidates.length};
+            this.#controller.render(Constants.CONNECTION_STATUS.CONNECTING, metrics);
+            this.#probe = new WebSocketProbe(endpoint);
+            const outcome = await this.#probe.check();
+            if (generation !== this.#generation) return null;
+            this.#probe = null;
+
+            if (outcome.available) {
+                this.#controller.render(Constants.CONNECTION_STATUS.CONNECTED, {...metrics, elapsedMs: outcome.elapsedMs});
+                ViewState.setHostedUrl(endpoint);
+                ViewState.setMode("hosted");
+                location.replace(this.#homeUrl("hosted"));
+                return true;
+            }
+            this.#controller.render(Constants.CONNECTION_STATUS.ERROR, {...metrics, ...outcome});
+        }
+        return false;
+    }
+
+    /**
+     * @param {"direct"|"hosted"} mode - Home mode.
+     * @returns {string} Home URL.
+     */
+    #homeUrl(mode) {
+        const url = new URL(this.url);
+        url.searchParams.set("mode", mode);
+        return url.href;
+    }
+}
 /** Coordinates Home controllers, transport selection, and Room navigation. */
 export class HomeView extends View {
 
@@ -291,16 +786,6 @@ export class HomeView extends View {
      * @type {import("./controllers/HomeController.js").HomeController|null} Home interaction controller after startup.
      */
     #controller = null;
-
-    /**
-     * @type {HTMLElement} Root Home view hidden during hosted connection setup.
-     */
-    #homeView = DomUtils.require("#home-view", HTMLElement);
-
-    /**
-     * @type {import("./controllers/NetworkConnectionController.js").NetworkConnectionController|null} Hosted endpoint discovery UI.
-     */
-    #networkController = null;
 
     /**
      * @type {"direct"|"hosted"|null} Persisted or URL-selected startup mode.
@@ -326,26 +811,21 @@ export class HomeView extends View {
      */
     async start() {
         const {HomeController} = await import("./controllers/HomeController.js");
-        const {NetworkConnectionController} = await import("./controllers/NetworkConnectionController.js");
 
         this.#controller = new HomeController();
         await this.#controller.initialize();
         this.#controller.renderYear();
         this.#controller.setModeHandler(this.#handleMode.bind(this));
-        this.#controller.setGameHandler(this.#enterRoom.bind(this));
+        this.#controller.setRoomHandler(this.#enterRoom.bind(this));
 
         if (this.#notice !== null) this.#controller.handleNotification(this.#notice);
 
-        this.#networkController = new NetworkConnectionController();
-        this.#networkController.setConnectedHandler(this.#handleHostedConnected.bind(this));
-        this.#networkController.initialize();
-
-        if (this.#preferredMode === "hosted") {
-            this.#selectHosted(false);
-        } else if (this.#preferredMode === "direct") {
-            this.#selectDirect();
+        if (this.#preferredMode !== "hosted") {
+            this.#connect("direct");
+        } else if (this.#preferredMode === "hosted" && ViewState.getVerifiedHostedUrl() !== null) {
+            this.#connect("hosted");
         } else {
-            this.#selectHosted(true);
+            this.#openConnectionPage(false);
         }
     }
 
@@ -359,19 +839,7 @@ export class HomeView extends View {
     }
 
     /**
-     * Replaces Home with Hosted connection status.
-     *
-     * @param {string} status - Connection status identifier.
-     * @param {string} networkUrl - Hosted endpoint displayed to the user.
-     */
-    #showNetworkState(status, networkUrl) {
-        DomUtils.hide(this.#homeView);
-        this.#networkController.show();
-        this.#networkController.render(status, networkUrl, "");
-    }
-
-    /**
-     * Replaces the client, binds Home observers, and opens the selected transport.
+     * Connects this view to the selected Host and binds Home observers.
      *
      * @param {"direct"|"hosted"} requestedMode - Transport mode to open.
      */
@@ -380,106 +848,49 @@ export class HomeView extends View {
         ViewState.setMode(this.mode);
         this.#controller.selectMode(this.mode);
 
-        const nextClient = this.replaceClient(this.mode);
-        this.#controller.setClient(nextClient);
-        let statusHandler = null;
-        let dataHandler = null;
-
-        if (this.mode === "hosted") {
-            const networkUrl = ViewState.getHostedUrl();
-            statusHandler = this.#handleNetworkStatus.bind(this, nextClient, networkUrl);
-            dataHandler = this.#handleNetworkData.bind(this, nextClient);
-        }
-
-        nextClient.open(new ClientEvents(this.#controller, statusHandler, dataHandler));
+        this.#controller.setView(this);
+        const target = this.mode === "hosted"
+            ? ViewState.getVerifiedHostedUrl()
+            : new Host("direct", "fill", false);
+        this.connect(target, this.#controller);
+        this.#updateModeUrl(this.mode);
     }
 
     /**
-     * Displays status only when it belongs to the current Hosted client.
-     *
-     * @param {typeof Client} expectedClient - Client that registered the callback.
-     * @param {string} networkUrl - Hosted endpoint displayed to the user.
-     * @param {string} status - Connection status identifier.
+     * Opens the standalone page that verifies a Hosted connection.
+     * @param {boolean} isAutomatic - Whether to fall back to Direct if probing fails.
      */
-    #handleNetworkStatus(expectedClient, networkUrl, status) {
-        if (this.client === expectedClient && this.mode === "hosted") {
-            this.#showNetworkState(status, networkUrl);
-        }
-    }
-
-    /**
-     * Reveals Home after the current Hosted client supplies Home data.
-     *
-     * @param {Client} expectedClient - Client that registered the callback.
-     * @param {string} view - Response view identifier.
-     */
-    #handleNetworkData(expectedClient, view) {
-        if (this.client !== expectedClient || this.mode !== "hosted" || view !== Constants.VIEWS.HOME) return;
-        this.#networkController.hide();
-        DomUtils.show(this.#homeView);
-        this.#updateModeUrl("hosted");
-    }
-
-    /** Cancels hosted discovery and establishes an in-browser Direct client. */
-    #selectDirect() {
-        this.#networkController.cancel();
-        this.#networkController.hide();
-        DomUtils.show(this.#homeView);
-        ViewState.clearHostedUrl();
-        this.#updateModeUrl("direct");
-        this.#connect("direct");
-    }
-
-    /**
-     * @param {boolean} fallbackToDirect - Whether failed discovery selects Direct mode.
-     */
-    #selectHosted(fallbackToDirect) {
+    #openConnectionPage(isAutomatic) {
         this.disconnect();
-        this.mode = "hosted";
-        ViewState.setMode("hosted");
-        this.#controller.selectMode("hosted");
-        this.#showNetworkState("connecting", "");
-        void this.#networkController.connect(null).then(this.#handleAutomaticHostedResult.bind(this, fallbackToDirect));
-    }
-
-    /**
-     * Performs the requested Direct fallback after Hosted discovery completes.
-     *
-     * @param {boolean} fallbackToDirect - Whether fallback was requested.
-     * @param {boolean} isAvailable - Whether a Hosted endpoint was found.
-     */
-    #handleAutomaticHostedResult(fallbackToDirect, isAvailable) {
-        if (fallbackToDirect && !isAvailable && this.mode === "hosted") this.#selectDirect();
+        const url = new URL("./connection.html", location.href);
+        if (isAutomatic) url.searchParams.set("auto", "1");
+        location.assign(url.href);
     }
 
     /**
      * @param {"direct"|"hosted"} mode - User-selected transport mode.
      */
     #handleMode(mode) {
-        if (mode === "hosted") this.#selectHosted(false);
-        else this.#selectDirect();
-    }
-
-    /**
-     * @param {string} networkUrl - Verified Hosted WebSocket URL.
-     */
-    #handleHostedConnected(networkUrl) {
-        ViewState.setHostedUrl(networkUrl);
-        this.#connect("hosted");
+        if (mode === "hosted") {
+            this.#openConnectionPage(false);
+        } else {
+            ViewState.clearHostedUrl();
+            this.#connect("direct");
+        }
     }
 
     /**
      * Persists Room intent and navigates to the Room view.
      *
      * @param {string} command - Create, join, or view command.
-     * @param {{name:string}} data - Command data containing the target Room name.
+     * @param {{roomName:string}} data - Command data containing the target Room name.
      */
     #enterRoom(command, data) {
         ViewState.setMode(this.mode);
         ViewState.setIntent({mode: this.mode, command, data});
         const roomUrl = new URL(this.url);
         roomUrl.searchParams.set("mode", this.mode);
-        roomUrl.searchParams.set("room", data.name);
+        roomUrl.searchParams.set("room", data.roomName);
         location.assign(roomUrl.href);
     }
 }
@@ -540,10 +951,12 @@ export class RoomView extends View {
 
         this.#controller = new RoomController();
         await this.#controller.initialize();
-        const client = this.replaceClient(this.mode);
-        client.open(new ClientEvents(this.#controller, null, null));
+        const target = this.mode === "hosted"
+            ? ViewState.getHostedUrl()
+            : new Host("direct", "fill", false);
+        this.connect(target, this.#controller);
         this.#controller.renderYear();
-        this.#controller.setClient(client);
+        this.#controller.setView(this);
         this.#controller.setIntent(this.#intent);
         this.#controller.setReadyHandler(this.#handleReady.bind(this));
         this.#controller.setHomeHandler(this.#returnHome.bind(this));
@@ -566,14 +979,14 @@ export class RoomView extends View {
     /**
      * Converts successful creation intent into a stable joined-Room intent.
      *
-     * @param {{name:string}} game - Created game snapshot.
+     * @param {{name:string}} room - Created Room snapshot.
      */
-    #handleReady(game) {
+    #handleReady(room) {
         if (this.#intent.command !== Constants.COMMANDS.CREATE) return;
         this.#intent = {
             ...this.#intent,
             command: Constants.COMMANDS.JOIN,
-            data: {roomName: game.name, playerName: this.#intent.data.playerName}
+            data: {roomName: room.name, actorName: this.#intent.data.actorName}
         };
         ViewState.setIntent(this.#intent);
         this.#controller.setIntent(this.#intent);

@@ -1,5 +1,6 @@
 "use strict";
 
+import { Constants } from "../../core/Constants.js";
 import { ValidationUtils } from "../../core/ValidationUtils.js";
 import { DomUtils } from "./DomUtils.js";
 import { TemplateUtils } from "./TemplateUtils.js";
@@ -41,6 +42,9 @@ export class RoomRowUtils extends TemplateUtils {
 
         RoomRowUtils.#setCell(element, "[data-name]", "name", data.name);
         RoomRowUtils.#setCell(element, "[data-state]", "state", data.state);
+        const knockoutCell = DomUtils.requireChild(element, "[data-knockout]", HTMLTableCellElement);
+        knockoutCell.dataset.knockout = data.knockout;
+        knockoutCell.textContent = data.knockout === Constants.KNOCKOUT_VALUE.YES ? "Yes" : "No";
         RoomRowUtils.#setCell(
             element,
             "[data-turn-order-actor-count]",
@@ -74,9 +78,10 @@ export class RoomRowUtils extends TemplateUtils {
 
         return {
             name: RoomRowUtils.#displayText(source.name),
-            state: RoomRowUtils.#displayText(source.state),
+            state: RoomRowUtils.#displayText(source.match.state),
+            knockout: source.match.isKnockout === true ? Constants.KNOCKOUT_VALUE.YES : Constants.KNOCKOUT_VALUE.NO,
             turnOrder: {
-                actorCount: RoomRowUtils.#displayCount(source.turnOrder?.actorCount, "Room.turnOrder.actorCount")
+                actorCount: RoomRowUtils.#displayCount(source.match.turnOrder?.actorCount, "Room.turnOrder.actorCount")
             },
             viewers: RoomRowUtils.#displayCount(source.viewers, "Room.viewers"),
             actorLimit: RoomRowUtils.#displayCount(source.actorLimit, "Room.actorLimit"),

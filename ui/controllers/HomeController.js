@@ -71,7 +71,7 @@ export class HomeController extends ViewController {
     /**
      * @type {Function|null} Optional application callback registered by the owning page.
      */
-    #gameHandler = null;
+    #roomHandler = null;
 
     /**
      * @type {AlertController} Notification dialog owned by this page controller.
@@ -81,12 +81,12 @@ export class HomeController extends ViewController {
     /**
      * @type {HTMLTableSectionElement} Required table body replaced from authoritative state.
      */
-    #gameTableBody;
+    #roomTableBody;
 
     /**
      * @type {HTMLInputElement} Required user-input control owned by this controller.
      */
-    #playerNameInput;
+    #actorNameInput;
 
     /**
      * @type {HTMLInputElement} Required user-input control owned by this controller.
@@ -96,7 +96,7 @@ export class HomeController extends ViewController {
     /**
      * @type {HTMLInputElement} Required user-input control owned by this controller.
      */
-    #playerLimitInput;
+    #actorLimitInput;
 
     /**
      * @type {HTMLElement} Required UI element owned by this controller.
@@ -116,20 +116,20 @@ export class HomeController extends ViewController {
     /** Creates the shared Home controller. */
     constructor() {
         super("#home-view");
-        this.#gameTableBody = DomUtils.require("#list-table-body", HTMLTableSectionElement);
-        this.#playerNameInput = DomUtils.require("#player-name-input", HTMLInputElement);
+        this.#roomTableBody = DomUtils.require("#list-table-body", HTMLTableSectionElement);
+        this.#actorNameInput = DomUtils.require("#actor-name-input", HTMLInputElement);
         this.#roomNameInput = DomUtils.require("#room-name-input", HTMLInputElement);
-        this.#playerLimitInput = DomUtils.require("#player-limit-input", HTMLInputElement);
+        this.#actorLimitInput = DomUtils.require("#actor-limit-input", HTMLInputElement);
         this.#connectionStatus = DomUtils.require("#app-header > aside[data-status]", HTMLElement);
         this.#directModeInput = DomUtils.require("#direct-mode-input", HTMLInputElement);
         this.#hostedModeInput = DomUtils.require("#hosted-mode-input", HTMLInputElement);
     }
 
     /**
-     * @param {import("../../runtime/Client.js").Client} client - Active endpoint client.
+     * @param {import("../View.js").View} view - Active Home view.
      */
-    setClient(client) {
-        this.client = client;
+    setView(view) {
+        this.view = view;
     }
 
     /**
@@ -142,8 +142,8 @@ export class HomeController extends ViewController {
     /**
      * @param {Function} handler - Room-navigation callback.
      */
-    setGameHandler(handler) {
-        this.#gameHandler = handler;
+    setRoomHandler(handler) {
+        this.#roomHandler = handler;
     }
 
     /** Binds Home forms, filters, and mode controls. */
@@ -200,14 +200,14 @@ export class HomeController extends ViewController {
         this.#directModeInput.checked = !isHosted;
         this.#hostedModeInput.checked = isHosted;
         this.#connectionStatus.dataset.status = "connecting";
-        this.#gameTableBody.replaceChildren();
-        this.#renderEmptyGameMessage();
+        this.#roomTableBody.replaceChildren();
+        this.#renderEmptyRoomMessage();
         this.#renderConnectionStatus();
     }
 
     /** Requests the Home directory when the endpoint opens. */
     handleClientOpen() {
-        this.client?.request(Constants.COMMANDS.LIST, {});
+        this.view?.request(Constants.COMMANDS.LIST, {});
     }
 
     /**
@@ -245,23 +245,23 @@ export class HomeController extends ViewController {
      */
     render(home) {
         this.#home = home;
-        this.#gameTableBody.replaceChildren();
+        this.#roomTableBody.replaceChildren();
         const filter = DomUtils.require("#status-filter", HTMLSelectElement).value;
 
         for (const room of Array.isArray(home?.rooms) ? home.rooms : []) {
-            if (!filter || room.state === filter) {
+            if (!filter || room.match.state === filter) {
                 const row = RoomRowUtils.create(room);
 
                 row.tabIndex = 0;
                 row.setAttribute("aria-label", `View room ${room.name}`);
                 row.addEventListener("click", this.#openRoom.bind(this, room));
                 row.addEventListener("keydown", this.#handleRoomKeyDown.bind(this, room));
-                this.#gameTableBody.appendChild(row);
+                this.#roomTableBody.appendChild(row);
             }
         }
 
-        if (this.#gameTableBody.childElementCount === 0) {
-            this.#renderEmptyGameMessage();
+        if (this.#roomTableBody.childElementCount === 0) {
+            this.#renderEmptyRoomMessage();
         }
 
         DomUtils.require("#join-mode-input", HTMLInputElement).disabled = this.#capabilities.join !== true;
@@ -269,14 +269,14 @@ export class HomeController extends ViewController {
     }
 
     /** Renders the empty registry row. */
-    #renderEmptyGameMessage() {
+    #renderEmptyRoomMessage() {
         const row = document.createElement("tr");
         const cell = document.createElement("td");
-        cell.colSpan = 7;
+        cell.colSpan = 8;
         cell.textContent = "No rooms available.";
         row.className = "empty-row";
         row.appendChild(cell);
-        this.#gameTableBody.appendChild(row);
+        this.#roomTableBody.appendChild(row);
     }
 
     /** Renders connection state and mode switching on one control. */
@@ -298,13 +298,13 @@ export class HomeController extends ViewController {
 
     /** Submits create or join room intent. */
     #submitRegistration() {
-        let playerName;
+        let actorName;
         let roomName;
 
         try {
-            playerName = ValidationUtils.namedString(
-                this.#playerNameInput.value,
-                "Player name",
+            actorName = ValidationUtils.namedString(
+                this.#actorNameInput.value,
+                "Actor name",
                 ValidationUtils.actorNameMaxLength
             );
             roomName = ValidationUtils.namedString(
@@ -324,9 +324,9 @@ export class HomeController extends ViewController {
         const modeInput = document.querySelector("input[name='registration-mode']:checked");
         const registrationMode = modeInput instanceof HTMLInputElement ? modeInput.value : "create";
 
-        const isGameListed = this.#isGameListed(roomName);
+        const isRoomListed = this.#isRoomListed(roomName);
 
-        if (registrationMode === "join" && !isGameListed) {
+        if (registrationMode === "join" && !isRoomListed) {
             this.handleNotification({
                 status: Constants.STATUS.WARNING,
                 ...Constants.NOTIFICATIONS.ROOM_NOT_FOUND
@@ -334,7 +334,7 @@ export class HomeController extends ViewController {
             return;
         }
 
-        if (registrationMode === "create" && isGameListed) {
+        if (registrationMode === "create" && isRoomListed) {
             this.handleNotification({
                 status: Constants.STATUS.WARNING,
                 ...Constants.NOTIFICATIONS.ROOM_ALREADY_EXISTS
@@ -346,23 +346,23 @@ export class HomeController extends ViewController {
 
         const data = {
             roomName,
-            playerName,
-            playerLimit: Number(this.#playerLimitInput.value || Constants.ROOM_PLAYER_LIMIT)
+            actorName,
+            actorLimit: Number(this.#actorLimitInput.value || Constants.ROOM_ACTOR_LIMIT)
         };
 
-        this.#gameHandler?.(command, data);
+        this.#roomHandler?.(command, data);
     }
 
     /**
      * @param {string} roomName - Room name to find.
      * @returns {boolean} Whether the latest directory contains the room name.
      */
-    #isGameListed(roomName) {
-        const gameKey = Actor.normalizeKey(roomName);
+    #isRoomListed(roomName) {
+        const roomKey = Actor.normalizeKey(roomName);
         const rooms = Array.isArray(this.#home?.rooms) ? this.#home.rooms : [];
 
         for (const room of rooms) {
-            if (typeof room?.name === "string" && Actor.normalizeKey(room.name) === gameKey) {
+            if (typeof room?.name === "string" && Actor.normalizeKey(room.name) === roomKey) {
                 return true;
             }
         }
@@ -388,6 +388,6 @@ export class HomeController extends ViewController {
      */
     #openRoom(room) {
         const roomName = ValidationUtils.requiredString(room.name, "Room name");
-        this.#gameHandler?.(Constants.COMMANDS.VIEW, { roomName });
+        this.#roomHandler?.(Constants.COMMANDS.VIEW, { roomName });
     }
 }

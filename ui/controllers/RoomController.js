@@ -6,13 +6,13 @@ import { ViewController } from "./ViewController.js";
 import { AlertController } from "./AlertController.js";
 import { CountdownController } from "./CountdownController.js";
 import { ResultsController } from "./ResultsController.js";
-import { LocalPlayerController } from "./LocalPlayerController.js";
+import { LocalActorController } from "./LocalActorController.js";
 import { SuitSelectionController } from "./SuitSelectionController.js";
 import { DomUtils } from "../utilities/DomUtils.js";
 import { RoomRowUtils } from "../utilities/RoomRowUtils.js";
 import { NotificationUtils } from "../utilities/NotificationUtils.js";
 import { OpponentUtils } from "../utilities/OpponentUtils.js";
-import { PlayingCard } from "../PlayingCard.js";
+import { CardListUtils } from "../utilities/CardListUtils.js";
 
 /** Controls the complete Pick2 Room. */
 export class RoomController extends ViewController {
@@ -42,7 +42,7 @@ export class RoomController extends ViewController {
     #readyHandler = null;
 
     /**
-     * @type {boolean} Whether the client-open intent has already been submitted.
+     * @type {boolean} Whether the view-open intent has already been submitted.
      */
     #hasOpened = false;
 
@@ -73,7 +73,7 @@ export class RoomController extends ViewController {
         if (room === null) return;
         this.room = room;
         this.renderRoomInformation(room);
-        this.renderGameCommands(room.localActorName === null ? null : room.localActorName);
+        this.renderMatchCommands(room.localActorName === null ? null : room.localActorName);
     }
 
     /** Resolves Room shell elements and initializes shared subcontrollers. */
@@ -82,11 +82,11 @@ export class RoomController extends ViewController {
     }
 
     /**
-     * Sets the active endpoint client.
-     * @param {import("../../runtime/Client.js").Client} client - Endpoint client.
+     * Sets the active endpoint view.
+     * @param {import("../View.js").View} view - Active Room view.
      */
-    setClient(client) {
-        this.client = client;
+    setView(view) {
+        this.view = view;
     }
 
     /**
@@ -120,7 +120,7 @@ export class RoomController extends ViewController {
     #leave(event) {
         event.preventDefault();
         this.#isLeaving = true;
-        const requestAccepted = this.client?.request(Constants.COMMANDS.LEAVE, {}) === true;
+        const requestAccepted = this.view?.request(Constants.COMMANDS.LEAVE, {}) === true;
 
         if (requestAccepted) {
             this.#homeHandler?.(null);
@@ -148,7 +148,7 @@ export class RoomController extends ViewController {
         }
 
         this.#hasOpened = true;
-        this.client?.request(command, this.#intent.data);
+        this.view?.request(command, this.#intent.data);
     }
 
     /**
@@ -196,28 +196,34 @@ export class RoomController extends ViewController {
      * @param {Object} room - Room snapshot.
      */
     renderRoomInformation(room) {
-        DomUtils.require("#info-table-body", HTMLTableSectionElement).replaceChildren(RoomRowUtils.create(room));
+        const body = DomUtils.require("#info-table-body", HTMLTableSectionElement);
+        const row = body.firstElementChild;
+        if (row instanceof HTMLTableRowElement && row.querySelector("[data-name]") !== null) {
+            RoomRowUtils.updateElement(row, room);
+        } else {
+            body.replaceChildren(RoomRowUtils.create(room));
+        }
     }
 
     /**
-     * Renders game commands.
-     * @param {string|null} localPlayer - Local actor name, if joined.
+     * Renders match commands.
+     * @param {string|null} localActor - Local actor name, if joined.
      */
-    renderGameCommands(localPlayer) {
+    renderMatchCommands(localActor) {
         DomUtils.require("#room-leave-button", HTMLButtonElement).hidden = false;
         DomUtils.require("#room-join-button", HTMLButtonElement).hidden =
-            localPlayer !== null || this.capabilities.join !== true;
+            localActor !== null || this.capabilities.join !== true;
         DomUtils.require("#room-invite-button", HTMLButtonElement).hidden = this.capabilities.invite !== true;
     }
 
     /** Reads the join form and submits a join command for the current Room. */
     #join() {
-        const playerName = window.prompt("Enter your name:");
+        const actorName = window.prompt("Enter your name:");
 
-        if (playerName?.trim() && this.room?.name) {
-            this.client?.request(Constants.COMMANDS.JOIN, {
+        if (actorName?.trim() && this.room?.name) {
+            this.view?.request(Constants.COMMANDS.JOIN, {
                 roomName: this.room.name,
-                playerName
+                actorName
             });
         }
     }
@@ -251,10 +257,13 @@ export class RoomController extends ViewController {
      */
     #previousState = "";
 
+    /** @type {string|null} Last displayed completed-match or final-knockout result. */
+    #previousResultKey = null;
+
     /**
-     * @type {LocalPlayerController} Local actor hand and command controller.
+     * @type {LocalActorController} Local actor hand and command controller.
      */
-    #playerController = new LocalPlayerController("#actor-region", false);
+    #actorController = new LocalActorController("#actor-region", false);
 
     /**
      * @type {SuitSelectionController} Pending ace suit-declaration dialog.
@@ -262,30 +271,36 @@ export class RoomController extends ViewController {
     #suitController = new SuitSelectionController("#suit-selection-dialog");
 
     /**
-     * @type {CountdownController} Round-transition countdown overlay.
+     * @type {CountdownController} Match-transition countdown overlay.
      */
     #countdownController = new CountdownController("#countdown-dialog");
 
     /**
-     * @type {ResultsController} Finished-round results dialog.
+     * @type {ResultsController} Finished-match results dialog.
      */
     #resultsController = new ResultsController("#results-dialog");
+
+    /** @type {HTMLElement} Play mode choice overlay. */
+    #playDialog = null;
 
     /** Initializes required state and event bindings. */
     async initialize() {
         await this._initializeRoomView();
         await OpponentUtils.load();
-        this.#playerController.initialize();
-        this.#playerController.setCommandHandler(this.#handlePlayerCommand.bind(this));
-        this.#playerController.setSortHandler(this.#handleSortChange.bind(this));
+        this.#actorController.initialize();
+        this.#actorController.setCommandHandler(this.#handleActorCommand.bind(this));
+        this.#actorController.setSortHandler(this.#handleSortChange.bind(this));
         this.#suitController.setSubmitHandler(this.#handleSuitSelection.bind(this));
+        this.#playDialog = DomUtils.require("#play-dialog", HTMLElement);
+        DomUtils.require("#play-one-button", HTMLButtonElement).addEventListener("click",
+            this.#chooseKnockout.bind(this, false));
+        DomUtils.require("#play-knockout-button", HTMLButtonElement).addEventListener("click",
+            this.#chooseKnockout.bind(this, true));
+        DomUtils.require("#play-cancel-button", HTMLButtonElement).addEventListener("click",
+            this.#closePlayDialog.bind(this));
         DomUtils.require("#table-play-area > [data-is-drag-over]", HTMLElement).addEventListener(
             "card_drop",
             this.#handleCardDrop.bind(this)
-        );
-        DomUtils.require("#player-hand > [data-is-drag-over]", HTMLElement).addEventListener(
-            "card_drop",
-            this.#handleCardReturn.bind(this)
         );
     }
 
@@ -293,12 +308,29 @@ export class RoomController extends ViewController {
      * Submits a local actor command and clears temporary sort after drawing.
      * @param {string} command - Room command.
      */
-    #handlePlayerCommand(command) {
-        if (RoomController.#isCardMove(command)) {
+    #handleActorCommand(command) {
+        if (command === Constants.COMMANDS.START) {
+            if (this.room?.match?.nextMatchAvailable === true) {
+                this.view?.request(Constants.COMMANDS.START, {});
+            } else {
+                this.#playDialog.dataset.state = Constants.PLAY_DIALOG_STATE.OPEN;
+            }
+        } else if (RoomController.#isCardMove(command)) {
             this.#sendCardMove(command, {});
         } else {
-            this.client?.request(command, {});
+            this.view?.request(command, {});
         }
+    }
+
+    /** Submits the Knockout choice from the Play dialog. */
+    #chooseKnockout(knockout) {
+        this.#closePlayDialog();
+        this.view?.request(Constants.COMMANDS.START, { knockout });
+    }
+
+    /** Closes the Play dialog without starting a match. */
+    #closePlayDialog() {
+        this.#playDialog.dataset.state = Constants.PLAY_DIALOG_STATE.CLOSED;
     }
 
     /**
@@ -306,8 +338,8 @@ export class RoomController extends ViewController {
      * @param {string} sortKey - Selected hand sort order.
      */
     #handleSortChange(sortKey) {
-        this.client.sortKey = ValidationUtils.requiredString(sortKey, "Sort key");
-        this.render(this.room);
+        this.view.sortKey = ValidationUtils.requiredString(sortKey, "Sort key");
+        this.#renderLocalActor(RoomController.#getLocalActor(this.room), this.room);
     }
 
     /**
@@ -315,7 +347,7 @@ export class RoomController extends ViewController {
      * @param {string} suit - Declared suit.
      */
     #handleSuitSelection(suit) {
-        this.client?.request(Constants.COMMANDS.DECLARE, { suit });
+        this.view?.request(Constants.COMMANDS.DECLARE, { suit });
     }
 
     /**
@@ -329,20 +361,6 @@ export class RoomController extends ViewController {
     }
 
     /**
-     * Converts an eligible pile-to-hand card drop into a return request.
-     * @param {Event} event - Card-drop event.
-     */
-    #handleCardReturn(event) {
-        const allowsFreeTransactions =
-            this.room?.state === Constants.ROOM_STATE.WAITING ||
-            this.room?.state === Constants.ROOM_STATE.FINISHED;
-
-        if (event instanceof CustomEvent && event.detail?.card && allowsFreeTransactions) {
-            this.#sendCardMove(Constants.COMMANDS.RETURN, { card: event.detail.card });
-        }
-    }
-
-    /**
      * Renders the current authoritative state.
      * @param {Object|null} room - Room snapshot.
      */
@@ -352,34 +370,45 @@ export class RoomController extends ViewController {
         }
 
         const previousState = this.#previousState;
-        const nextState = ValidationUtils.optionalString(room.state, "");
-        const localPlayer = RoomController.#getLocalPlayer(room);
+        const nextState = ValidationUtils.optionalString(room.match.state, "");
+        const localActor = RoomController.#getLocalActor(room);
+        const previousResultKey = this.#previousResultKey;
+        const nextResultKey = nextState === Constants.ROOM_STATE.FINISHED
+            ? `${room.match.isKnockout}:${room.match.isKnockoutComplete}:${JSON.stringify(room.match.turnOrder?.actors?.map(function actorResult(actor) {
+                return [actor.key, actor.state];
+            }))}` : null;
+
+        if (nextState === Constants.ROOM_STATE.ACTIVE && this.#playDialog !== null) {
+            this.#closePlayDialog();
+        }
 
         this.room = room;
         this.#previousState = nextState;
+        this.#previousResultKey = nextResultKey;
 
         this._renderRoom(room);
 
         const playRegion = DomUtils.require(':is([data-game-region="act"], [data-game-region="view"])', HTMLElement);
-        playRegion.dataset.mode = room.mode;
-        playRegion.dataset.state = room.state;
+        playRegion.dataset.connectionMode = room.connectionMode;
+        playRegion.dataset.state = room.match.state;
 
-        this.#renderPlayers(room);
-        this.#renderDiscardPile(room, localPlayer);
-        this.#renderLocalPlayer(localPlayer, room);
+        this.#renderActors(room);
+        this.#renderDiscardPile(room);
+        this.#renderLocalActor(localActor, room);
 
         if (
-            localPlayer !== null &&
-            previousState === Constants.ROOM_STATE.WAITING &&
+            localActor !== null &&
+            previousState !== Constants.ROOM_STATE.ACTIVE &&
             nextState === Constants.ROOM_STATE.ACTIVE
         ) {
-            this.#countdownController.show(Constants.COUNTDOWN_SECONDS);
+            this.#countdownController.show(Constants.COUNTDOWN_SECONDS, room.match.isKnockout
+                ? "Knockout match starting" : "Game starting");
         }
 
         const requiresSuitSelection =
-            room.pending?.command === Constants.COMMANDS.DECLARE &&
-            localPlayer !== null &&
-            room.turnOrder?.ownerKey === localPlayer.key;
+            room.match.pending?.command === Constants.COMMANDS.DECLARE &&
+            localActor !== null &&
+            room.match.turnOrder?.ownerKey === localActor.key;
 
         if (requiresSuitSelection) {
             this.#suitController.show();
@@ -388,12 +417,12 @@ export class RoomController extends ViewController {
         }
 
         if (
-            localPlayer !== null &&
-            previousState !== Constants.ROOM_STATE.FINISHED &&
+            localActor !== null &&
+            (previousState !== Constants.ROOM_STATE.FINISHED || previousResultKey !== nextResultKey) &&
             nextState === Constants.ROOM_STATE.FINISHED
         ) {
             this.#resultsController.show(room);
-        } else if (localPlayer === null || nextState !== Constants.ROOM_STATE.FINISHED) {
+        } else if (nextState !== Constants.ROOM_STATE.FINISHED) {
             this.#resultsController.hide();
         }
     }
@@ -404,9 +433,9 @@ export class RoomController extends ViewController {
      * @param {Object} data - Command payload.
      */
     #sendCardMove(command, data) {
-        if (this.client?.request(command, data)) {
-            this.client.sortKey = Constants.CARD.SORT_OPTIONS[0];
-            this.render(this.room);
+        if (this.view?.request(command, data)) {
+            this.view.sortKey = Constants.CARD.SORT_OPTIONS[0];
+            this.#renderLocalActor(RoomController.#getLocalActor(this.room), this.room);
         }
     }
 
@@ -419,35 +448,40 @@ export class RoomController extends ViewController {
         return (
             command === Constants.COMMANDS.DRAW ||
             command === Constants.COMMANDS.DISCARD ||
-            command === Constants.COMMANDS.RETURN ||
             command === Constants.COMMANDS.PASS
         );
     }
 
     /**
-     * Renders remote players.
+     * Renders remote actors.
      * @param {Object} room - Room snapshot.
      */
-    #renderPlayers(room) {
+    #renderActors(room) {
         const container = DomUtils.require("#opponent-list", HTMLUListElement);
         const localName = room.localActorName ?? null;
 
-        container.replaceChildren();
+        const actors = ResultsController.localFirst(RoomController.#getActors(room), localName);
+        const rows = new Map(Array.from(container.children, function indexRow(element) {
+            return [element.dataset.actorKey, element];
+        }));
+        const ordered = [];
 
-        const players = ResultsController.localFirst(RoomController.#getPlayers(room), localName);
-
-        for (const player of players) {
-            if (player.name !== localName) {
-                container.appendChild(
-                    OpponentUtils.create(
-                        {
-                            ...player,
-                            itemCount: player.collection.items.length
-                        },
-                        room.turnOrder.ownerKey,
-                        "card"
-                    )
-                );
+        for (const actor of actors) {
+            if (actor.name !== localName) {
+                const data = { ...actor, itemCount: actor.collection.items.length,
+                    turnOwnerKey: room.match.turnOrder.ownerKey, pieceName: "card" };
+                const row = rows.get(actor.key) ?? OpponentUtils.create(data, data.turnOwnerKey, "card");
+                if (rows.has(actor.key)) OpponentUtils.updateElement(row, data);
+                row.dataset.actorKey = actor.key;
+                rows.delete(actor.key);
+                ordered.push(row);
+            }
+        }
+        for (const row of rows.values()) row.remove();
+        for (let index = ordered.length - 1; index >= 0; index -= 1) {
+            if (ordered[index].parentElement !== container ||
+                ordered[index].nextElementSibling !== (ordered[index + 1] ?? null)) {
+                container.insertBefore(ordered[index], ordered[index + 1] ?? null);
             }
         }
     }
@@ -455,39 +489,26 @@ export class RoomController extends ViewController {
     /**
      * Renders the discard pile.
      * @param {Object} room - Room snapshot.
-     * @param {Object|null} localPlayer - Local actor snapshot, if joined.
      */
-    #renderDiscardPile(room, localPlayer) {
-        const cards = Array.isArray(room.collections?.play?.items) ? room.collections.play.items : [];
-        const allowsFreeTransactions =
-            room.state === Constants.ROOM_STATE.WAITING || room.state === Constants.ROOM_STATE.FINISHED;
-        const destination =
-            allowsFreeTransactions && localPlayer !== null && room.pending === null
-                ? DomUtils.require("#player-hand > [data-is-drag-over]", HTMLElement)
-                : null;
-
-        const elements = [];
-
-        for (const card of cards) {
-            elements.push(PlayingCard.create(card, card.value ? destination : null));
-        }
-
-        DomUtils.require("#table-play-area > [data-is-drag-over]", HTMLElement).replaceChildren(...elements);
+    #renderDiscardPile(room) {
+        const cards = Array.isArray(room.match.collections?.play?.items) ? room.match.collections.play.items : [];
+        const pile = DomUtils.require("#table-play-area > [data-is-drag-over]", HTMLElement);
+        CardListUtils.update(pile, cards);
     }
 
     /**
-     * Renders the local player.
-     * @param {Object|null} player - Local actor snapshot, if joined.
+     * Renders the local actor.
+     * @param {Object|null} actor - Local actor snapshot, if joined.
      * @param {Object} room - Room snapshot.
      */
-    #renderLocalPlayer(player, room) {
-        if (player === null) {
-            this.#playerController.hide();
+    #renderLocalActor(actor, room) {
+        if (actor === null) {
+            this.#actorController.hide();
             return;
         }
 
-        this.#playerController.setCanRestartFinishedGame(this.capabilities.restart === true);
-        this.#playerController.show(player, room, this.client.sortKey);
+        this.#actorController.setCanRestartFinishedMatch(this.capabilities.restart === true);
+        this.#actorController.show(actor, room, this.view.sortKey);
     }
 
     /**
@@ -495,8 +516,8 @@ export class RoomController extends ViewController {
      * @param {Object} room - Room snapshot.
      * @returns {Object[]} Actor snapshots.
      */
-    static #getPlayers(room) {
-        return Array.isArray(room?.turnOrder?.actors) ? room.turnOrder.actors : [];
+    static #getActors(room) {
+        return Array.isArray(room?.match?.turnOrder?.actors) ? room.match.turnOrder.actors : [];
     }
 
     /**
@@ -504,12 +525,12 @@ export class RoomController extends ViewController {
      * @param {Object} room - Room snapshot.
      * @returns {Object|null} Local actor snapshot, if joined.
      */
-    static #getLocalPlayer(room) {
-        const playerName = room?.localActorName ?? null;
+    static #getLocalActor(room) {
+        const actorName = room?.localActorName ?? null;
 
-        for (const player of RoomController.#getPlayers(room)) {
-            if (player.name === playerName) {
-                return player;
+        for (const actor of RoomController.#getActors(room)) {
+            if (actor.name === actorName) {
+                return actor;
             }
         }
 

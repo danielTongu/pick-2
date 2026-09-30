@@ -7,7 +7,7 @@ import { PlayingCard } from "../PlayingCard.js";
 import { ViewController } from "./ViewController.js";
 
 /**
- * Controls the singleton round-end overlay already present in the page HTML.
+ * Controls the singleton match-end overlay already present in the page HTML.
  */
 export class ResultsController extends ViewController {
     /**
@@ -30,6 +30,9 @@ export class ResultsController extends ViewController {
      */
     #selectedActorItems;
 
+    /** @type {HTMLElement} Configurable match context. */
+    #context;
+
     /**
      * Creates a results overlay controller.
      *
@@ -39,8 +42,9 @@ export class ResultsController extends ViewController {
     constructor(selector) {
         super(selector);
         this.#message = DomUtils.requireChild(this.root, "#results-message", HTMLElement);
-        this.#statsBody = DomUtils.requireChild(this.root, "#player-stats-body", HTMLTableSectionElement);
-        this.#selectedActorItems = DomUtils.requireChild(this.root, "#selected-player-items", HTMLElement);
+        this.#statsBody = DomUtils.requireChild(this.root, "#actor-stats-body", HTMLTableSectionElement);
+        this.#selectedActorItems = DomUtils.requireChild(this.root, "#selected-actor-items", HTMLElement);
+        this.#context = DomUtils.requireChild(this.root, "#results-context", HTMLElement);
         this.bindDismissButton("#results-dismiss-button");
     }
 
@@ -66,15 +70,17 @@ export class ResultsController extends ViewController {
      * Normalizes completed-Room data.
      *
      * @param {*} room - Room data.
-     * @returns {{actors:Object[],actorName:string}} Normalized Room data.
+     * @returns {{actors:Object[],actorName:string,isKnockout:boolean,isKnockoutComplete:boolean}} Normalized Room data.
      */
     static #normalizeRoom(room) {
         const source = ValidationUtils.object(room, "Room");
         const actorName = ValidationUtils.optionalString(source.localActorName, "");
 
         return {
-            actors: ResultsController.localFirst(source.turnOrder?.actors, actorName),
-            actorName
+            actors: ResultsController.localFirst(source.match.turnOrder?.actors, actorName),
+            actorName,
+            isKnockout: source.match.isKnockout === true,
+            isKnockoutComplete: source.match.isKnockoutComplete === true
         };
     }
 
@@ -101,10 +107,21 @@ export class ResultsController extends ViewController {
      *
      * @param {string} actorName - Local actor.
      * @param {string[]} winners - Winner names.
+     * @param {Object} room - Normalized Room data.
      * @returns {string} Room-end message.
      */
-    static #buildResultMessage(actorName, winners) {
+    static #buildResultMessage(actorName, winners, room) {
         let message = "Room finished.";
+
+        if (room.isKnockout && !room.isKnockoutComplete) {
+            const actor = room.actors.find(function matchesLocal(candidate) { return candidate.name === actorName; });
+            return actor?.state === Constants.ACTOR_STATE.QUALIFIED
+                ? "You qualified for the next match."
+                : "You were eliminated.";
+        }
+        if (room.isKnockout && winners.length !== 1) {
+            return "Knockout finished in a tie.";
+        }
 
         if (winners.length > 1) {
             message = "It is a tie.";
@@ -117,9 +134,9 @@ export class ResultsController extends ViewController {
     }
 
     /**
-     * Shows the completed-round results overlay.
+     * Shows the completed-match results overlay.
      *
-     * @param {*} room - Room data containing the completed round.
+     * @param {*} room - Room data containing the completed match.
      * @throws {Error} When required markup, callback, or input data violates the controller contract.
      */
     show(room) {
@@ -135,6 +152,7 @@ export class ResultsController extends ViewController {
     hide() {
         this.#actors = [];
         this.#message.textContent = "";
+        this.#context.textContent = "";
         this.#statsBody.replaceChildren();
         this.#selectedActorItems.replaceChildren();
         super.hide();
@@ -148,7 +166,8 @@ export class ResultsController extends ViewController {
     #render(room) {
         const winners = ResultsController.#getWinnerNames(room.actors);
 
-        this.#message.textContent = ResultsController.#buildResultMessage(room.actorName, winners);
+        this.#message.textContent = ResultsController.#buildResultMessage(room.actorName, winners, room);
+        this.#context.textContent = room.isKnockout ? "Knockout match results" : "Statistics for this game";
         this.#renderStats(room.actors);
         this.#selectedActorItems.replaceChildren();
     }
@@ -176,6 +195,7 @@ export class ResultsController extends ViewController {
         const row = document.createElement("tr");
 
         row.dataset.actorName = actor.name;
+        row.dataset.actorState = actor.state;
         row.dataset.isSelected = "false";
         row.tabIndex = 0;
         row.setAttribute("aria-label", `View ${actor.name}'s cards`);
@@ -185,7 +205,13 @@ export class ResultsController extends ViewController {
         row.appendChild(this.#createStatsCell(actor.name));
         row.appendChild(this.#createStatsCell(String(actor.collection.penalty)));
         row.appendChild(this.#createStatsCell(String(actor.collection.itemCount ?? actor.collection.items.length)));
-        row.appendChild(this.#createStatsCell(actor.state === Constants.ACTOR_STATE.WON ? "Winner" : "Lost"));
+        const labels = {
+            [Constants.ACTOR_STATE.WON]: "Winner",
+            [Constants.ACTOR_STATE.LOST]: "Lost",
+            [Constants.ACTOR_STATE.QUALIFIED]: "Qualified",
+            [Constants.ACTOR_STATE.ELIMINATED]: "Eliminated"
+        };
+        row.appendChild(this.#createStatsCell(labels[actor.state] ?? actor.state));
 
         row.addEventListener("click", this.#selectActor.bind(this, actor.name));
         row.addEventListener("keydown", this.#handleStatsKeyDown.bind(this, actor.name));

@@ -11,7 +11,7 @@ import { Serializable } from "../core/Serializable.js";
 import { StateMapper } from "../core/StateMapper.js";
 import { UserNotification } from "../core/UserNotification.js";
 import { RoomRowUtils } from "../ui/utilities/RoomRowUtils.js";
-import { RateLimit } from "../runtime/RateLimit.js";
+import { RequestThrottle } from "../host/Host.js";
 import { NotificationUtils } from "../ui/utilities/NotificationUtils.js";
 import { OpponentUtils } from "../ui/utilities/OpponentUtils.js";
 import { TemplateUtils } from "../ui/utilities/TemplateUtils.js";
@@ -41,8 +41,8 @@ test("browser controller, custom element, and template utility families share th
             { ResultsController },
             { RoomController },
             { HomeController },
-            { LocalPlayerController },
-            { NetworkConnectionController },
+            { LocalActorController },
+            { ConnectionController },
             { SuitSelectionController },
             { ViewController },
             { PlayingCard }
@@ -52,14 +52,14 @@ test("browser controller, custom element, and template utility families share th
             import("../ui/controllers/ResultsController.js"),
             import("../ui/controllers/RoomController.js"),
             import("../ui/controllers/HomeController.js"),
-            import("../ui/controllers/LocalPlayerController.js"),
-            import("../ui/controllers/NetworkConnectionController.js"),
+            import("../ui/controllers/LocalActorController.js"),
+            import("../ui/controllers/ConnectionController.js"),
             import("../ui/controllers/SuitSelectionController.js"),
             import("../ui/controllers/ViewController.js"),
             import("../ui/PlayingCard.js")
         ]);
         const overlayTypes = [AlertController, CountdownController, ResultsController, SuitSelectionController];
-        const viewTypes = [HomeController, NetworkConnectionController, RoomController];
+        const viewTypes = [HomeController, RoomController];
         const playingCardMethods = ["update"];
 
         for (const Type of overlayTypes) {
@@ -75,6 +75,10 @@ test("browser controller, custom element, and template utility families share th
             assert.equal(typeof Type.prototype.show, "function");
             assert.equal(typeof Type.prototype.hide, "function");
         }
+
+        assert.equal(ConnectionController.prototype instanceof ViewController, true);
+        assert.equal(typeof ConnectionController.prototype.initialize, "function");
+        assert.equal(typeof ConnectionController.prototype.render, "function");
 
         for (const Type of [OpponentUtils, RoomRowUtils]) {
             assert.equal(Type.prototype instanceof TemplateUtils, true);
@@ -97,22 +101,22 @@ test("browser controller, custom element, and template utility families share th
             );
         }
 
-        assert.equal(LocalPlayerController.prototype instanceof ViewController, true);
+        assert.equal(LocalActorController.prototype instanceof ViewController, true);
             assert.equal(typeof ViewController.prototype.bindDismissButton, "function");
             assert.equal(typeof ViewController.prototype.renderYear, "function");
         assert.equal(PlayingCard.prototype instanceof globalThis.HTMLElement, true);
         assert.equal(registeredElements.get(PlayingCard.elementName), PlayingCard);
         assert.equal(Object.getOwnPropertyDescriptor(PlayingCard.prototype, "card"), undefined);
 
-        const players = [{ name: "Alice" }, { name: "Bob" }, { name: "Casey" }, { name: "Daniel" }];
+        const actors = [{ name: "Alice" }, { name: "Bob" }, { name: "Casey" }, { name: "Daniel" }];
         assert.deepEqual(
-            ResultsController.localFirst(players, "Casey").map(function getName(player) {
-                return player.name;
+            ResultsController.localFirst(actors, "Casey").map(function getName(actor) {
+                return actor.name;
             }),
             ["Casey", "Daniel", "Alice", "Bob"]
         );
-        assert.deepEqual(ResultsController.localFirst(players, null), players);
-        assert.deepEqual(ResultsController.localFirst(players, "Unknown"), players);
+        assert.deepEqual(ResultsController.localFirst(actors, null), actors);
+        assert.deepEqual(ResultsController.localFirst(actors, "Unknown"), actors);
         assert.deepEqual(ResultsController.localFirst(null, "Alice"), []);
     } finally {
         if (OriginalHTMLElement === undefined) {
@@ -170,11 +174,12 @@ test("StateMapper builds immutable response, message, Home, and detailed Game pa
     const response = StateMapper.toResponse(Constants.VIEWS.ROOM, message, { version: 1 });
     const state = {
         name: "Mapped Room",
-        state: Constants.ROOM_STATE.ACTIVE,
         actorLimit: 4,
         createdAt: "invalid",
         lastActiveAt: 0,
         viewers: ["one", "two"],
+        match: {
+            state: Constants.ROOM_STATE.ACTIVE,
         turnOrder: {
             actorCount: 1,
             ownerKey: "alice",
@@ -198,9 +203,9 @@ test("StateMapper builds immutable response, message, Home, and detailed Game pa
             play: { items: [{ value: "3", suit: "hearts", rank: 3, rotation: 20 }] },
             draw: { items: [{}, {}] }
         },
-        winners: ["Alice"],
         pending: { command: Constants.COMMANDS.DECLARE, actorKey: "alice" },
         declaredSuit: Constants.CARD.SUIT.SPADES
+        }
     };
     const room = { toJSON: () => state };
 
@@ -210,58 +215,63 @@ test("StateMapper builds immutable response, message, Home, and detailed Game pa
 
     const home = StateMapper.toHomeData([room]);
     assert.equal(home.rooms[0].viewers, 2);
+    assert.equal(home.rooms[0].match.isKnockout, false);
+    assert.equal(Object.hasOwn(home.rooms[0], "state"), false);
     assert.equal(home.rooms[0].createdAt, "");
 
     const data = StateMapper.toRoomData(room, "Alice");
-    assert.equal(data.turnOrder.ownerKey, "alice");
-    assert.equal(data.turnOrder.ownerKey, data.turnOrder.actors[0].key);
-    assert.equal(data.turnOrder.actors[0].collection.items.length, 1);
-    assert.equal(data.turnOrder.actors[0].collection.penalty, 5);
-    assert.equal(data.collections.play.items.length, 2);
-    assert.deepEqual(data.collections.play.items[1], { suit: Constants.CARD.SUIT.SPADES, rotation: 0 });
-    assert.equal(data.collections.draw.itemCount, 2);
+    assert.equal(Object.hasOwn(data, "turnOrder"), false);
+    assert.equal(data.match.state, Constants.ROOM_STATE.ACTIVE);
+    assert.equal(data.match.turnOrder.ownerKey, "alice");
+    assert.equal(data.match.turnOrder.ownerKey, data.match.turnOrder.actors[0].key);
+    assert.equal(data.match.turnOrder.actors[0].collection.items.length, 1);
+    assert.equal(data.match.turnOrder.actors[0].collection.penalty, 5);
+    assert.equal(data.match.collections.play.items.length, 2);
+    assert.deepEqual(data.match.collections.play.items[1], { suit: Constants.CARD.SUIT.SPADES, rotation: 0 });
+    assert.equal(data.match.collections.draw.itemCount, 2);
 });
 
 test("StateMapper supplies safe defaults for incomplete game state", () => {
     const state = {
         name: "Empty",
-        state: Constants.ROOM_STATE.WAITING,
         actorLimit: 2,
         createdAt: null,
         lastActiveAt: null,
         viewers: 3,
+        match: {
+            state: Constants.ROOM_STATE.WAITING,
         turnOrder: null,
         collections: null,
-        winners: null,
         pending: null,
         declaredSuit: null
+        }
     };
     const room = { toJSON: () => state };
     const data = StateMapper.toRoomData(room, null);
 
-    assert.equal(data.turnOrder.actorCount, 0);
+    assert.equal(data.match.turnOrder.actorCount, 0);
     assert.equal(data.viewers, 3);
-    assert.deepEqual(data.turnOrder.actors, []);
-    assert.deepEqual(data.collections.play.items, []);
-    assert.deepEqual(data.winners, []);
-    assert.equal(data.collections.draw.itemCount, 0);
-    assert.equal(data.turnOrder.ownerKey, null);
+    assert.deepEqual(data.match.turnOrder.actors, []);
+    assert.deepEqual(data.match.collections.play.items, []);
+    assert.equal(Object.hasOwn(data, "winners"), false);
+    assert.equal(data.match.collections.draw.itemCount, 0);
+    assert.equal(data.match.turnOrder.ownerKey, null);
 });
 
-test("RateLimit isolates scopes and supports reset, pruning, and validation", () => {
-    const guard = new RateLimit();
+test("RequestThrottle isolates scopes and supports reset, pruning, and validation", () => {
+    const guard = new RequestThrottle();
 
     guard.enforceConnection({ tabId: " tab " }, "sync", 1000);
     assert.throws(() => guard.enforceConnection({ tabId: "tab" }, "sync", 1000), UserNotification);
 
     guard.reset("connection:tab");
     guard.enforceConnection({ tabId: "tab" }, "sync", 1000);
-    guard.enforcePlayerThrottle("player-tab", "move", 0);
+    guard.enforceActorThrottle("actor-tab", "move", 0);
     guard.enforceRoomThrottle("room-key", "start", 0);
     guard.prune(0);
     guard.resetAll();
 
-    assert.throws(() => guard.enforcePlayerThrottle("", "move", 1), /cannot be empty/);
+    assert.throws(() => guard.enforceActorThrottle("", "move", 1), /cannot be empty/);
     assert.throws(() => guard.enforceRoomThrottle("room", "move", -1), /non-negative integer/);
 });
 
@@ -307,6 +317,13 @@ test("the countdown strobes its box shadow and respects reduced motion", () => {
         OVERLAYS_CSS,
         /@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]*?#countdown-value[\s\S]*?animation:\s*none/
     );
+});
+
+test("dialog panels size within a shrinkable overlay grid column", () => {
+    assert.match(OVERLAYS_CSS, /\.dialog-overlay\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+    assert.match(OVERLAYS_CSS, /\.dialog-panel\s*\{[^}]*width:\s*fit-content/);
+    assert.match(OVERLAYS_CSS, /\.dialog-panel\s*\{[^}]*min-width:\s*min\(271px, 100%\)/);
+    assert.match(OVERLAYS_CSS, /\.dialog-panel\s*\{[^}]*max-width:\s*min\(94vw, 100%\)/);
 });
 
 test("FAQ rank cells initialize from canonical card ranks", () => {

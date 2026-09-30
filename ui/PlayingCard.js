@@ -7,7 +7,7 @@ import { ValidationUtils } from "../core/ValidationUtils.js";
 /**
  * Card presentation with optional flipping and pointer dragging.
  * A destination supplied at creation enables interaction.
- * Controllers own destination selection, game legality, and requests to the room host.
+ * Controllers own destination selection, match legality, and requests to the room host.
  */
 export class PlayingCard extends HTMLElement {
     /**
@@ -209,7 +209,7 @@ export class PlayingCard extends HTMLElement {
     }
 
     /**
-     * @returns {number|null} Supplied game rank, or null for a suit-only card.
+     * @returns {number|null} Supplied card rank, or null for a suit-only card.
      */
     get rank() {
         return this.value ? Number(this.dataset.rank ?? Constants.getCardRank(this.value, this.suit)) : null;

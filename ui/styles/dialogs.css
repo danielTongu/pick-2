@@ -11,6 +11,7 @@
     inset: 0;
     z-index: 1000;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     place-items: center;
     padding: var(--container-spacing);
     color: var(--white);
@@ -19,16 +20,26 @@
     animation: fadeIn 0.25s ease;
 }
 
+#play-dialog[data-state="closed"] {
+    display: none;
+}
+
+#play-dialog[data-state="open"] {
+    display: grid;
+}
+
 /* ========================================
    DIALOG BASE  (mobile first)
    ======================================== */
 
 .dialog-panel {
+    width: fit-content;
     min-width: min(271px, 100%);
     max-width: min(94vw, 100%);
 
     text-align: center;
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr) auto;
     gap: calc(var(--container-spacing) * 1.5);
     padding: calc(var(--container-spacing) * 1.5);
@@ -73,7 +84,7 @@
 
 .dialog-panel > footer {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
     gap: 1rem;
 }
 
@@ -265,16 +276,16 @@
     overflow-x: auto;
 }
 
-#message-output:has(tbody > tr) > #selected-player-items:not(:has(*))::before {
-    content: "Select a player to see their items.";
+#message-output:has(tbody > tr) > #selected-actor-items:not(:has(*))::before {
+    content: "Select an actor to see their items.";
     font-style: italic;
 }
 
-#player-stats-table tbody tr[data-is-winner="true"] {
+#actor-stats-table tbody tr[data-is-winner="true"] {
     color: var(--gold);
 }
 
-#selected-player-items {
+#selected-actor-items {
     --card-area-font-size: 1em;
 
     overflow-x: auto;
@@ -283,7 +294,7 @@
     color: var(--cyan);
 }
 
-#selected-player-items > * {
+#selected-actor-items > * {
     pointer-events: none;
 }
 
