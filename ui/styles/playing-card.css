@@ -66,6 +66,16 @@ playing-card,
    DRAW CARD BUTTON - Placeholder card
    ======================================== */
 
+/* Keep hit testing on the controls, rather than their decorative internals. */
+playing-card:not([data-is-dragging="true"], [data-drag-clone="true"]) > .playing-card-drag-handle {
+    pointer-events: auto;
+}
+
+playing-card > :not(.playing-card-drag-handle),
+#draw-button * {
+    pointer-events: none;
+}
+
 #draw-button {
     --plus-length: calc(var(--card-width) * 0.5);
     --plus-length-hover: calc(var(--card-width) * 0.7);
@@ -85,7 +95,6 @@ playing-card,
 
 #draw-button::before,
 #draw-button::after {
-    pointer-events: none;
     content: "";
     position: absolute;
     left: 50%;
@@ -112,7 +121,6 @@ playing-card,
     bottom: calc(var(--card-height) / 17);
     font-size: calc(var(--card-height) / 11);
     line-height: 1;
-    pointer-events: none;
     left: 50%;
     transform: translateX(-50%);
 }
@@ -233,7 +241,6 @@ playing-card > .playing-card-center {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    pointer-events: none;
 }
 
 playing-card[data-suit="spades"]:not([data-value="q"], [data-value="k"]) > .playing-card-center,
@@ -327,7 +334,6 @@ playing-card[data-value="joker"]::after {
 
 playing-card::before,
 playing-card::after {
-    pointer-events: none;
     content: attr(data-value) "\A" var(--symbol);
     position: absolute;
     z-index: 2;
