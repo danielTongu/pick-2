@@ -243,15 +243,14 @@ playing-card > .playing-card-center {
     transform: translate(-50%, -50%);
 }
 
-playing-card[data-suit="spades"]:not([data-value="q"], [data-value="k"]) > .playing-card-center,
-playing-card[data-suit="clubs"]:not([data-value="q"], [data-value="k"]) > .playing-card-center {
+playing-card[data-suit="spades"] > .playing-card-center,
+playing-card[data-suit="clubs"] > .playing-card-center {
     top: 45%;
 }
 
-playing-card[data-suit="hearts"]:not([data-value="q"], [data-value="k"]) > .playing-card-center {
+playing-card[data-suit="hearts"] > .playing-card-center {
     top: 53%;
 }
-
 
 playing-card > .playing-card-center::before {
     content: var(--symbol);
@@ -259,14 +258,15 @@ playing-card > .playing-card-center::before {
     line-height: 1;
 }
 
-playing-card:is([data-value="joker"], [data-value="k"], [data-value="q"]) > .playing-card-center {
+playing-card:is([data-value="k"],[data-value="q"],[data-value="j"],[data-value="joker"]) > .playing-card-center {
+    top: 50%;
     display: grid;
     place-items: center;
     width: var(--card-width);
     height: var(--card-height);
 }
 
-playing-card:is([data-value="joker"], [data-value="k"], [data-value="q"]) > .playing-card-center::before {
+playing-card:is([data-value="k"],[data-value="q"],[data-value="j"],[data-value="joker"]) > .playing-card-center::before {
     content: "";
     display: block;
     width: 70%;
@@ -276,12 +276,16 @@ playing-card:is([data-value="joker"], [data-value="k"], [data-value="q"]) > .pla
     background-position: center;
 }
 
+playing-card[data-value="k"] > .playing-card-center::before {
+    background-image: url("../images/king.png");
+}
+
 playing-card[data-value="q"] > .playing-card-center::before {
     background-image: url("../images/queen.png");
 }
 
-playing-card[data-value="k"] > .playing-card-center::before {
-    background-image: url("../images/king.png");
+playing-card[data-value="j"] > .playing-card-center::before {
+    background-image: url("../images/jack.png");
 }
 
 playing-card[data-value="joker"] > .playing-card-center::before {
