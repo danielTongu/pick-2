@@ -110,7 +110,7 @@ playing-card,
 #draw-button > span[data-draw-allowance] {
     position: absolute;
     bottom: calc(var(--card-height) / 17);
-    font-size: calc(var(--card-height) / 8);
+    font-size: calc(var(--card-height) / 11);
     line-height: 1;
     pointer-events: none;
     left: 50%;
