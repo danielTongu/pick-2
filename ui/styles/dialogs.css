@@ -254,7 +254,7 @@
    ======================================== */
 
 #suit-selection-dialog {
-    --accent: var(--green);
+    --accent: var(--light-green);
     --button-color: var(--black);
 }
 
