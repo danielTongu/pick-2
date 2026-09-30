@@ -152,8 +152,6 @@ playing-card {
     --card-rotation: 0deg;
     --corner-font-size: calc(var(--card-width) / 4);
     --center-symbol-size: calc(var(--card-height) / 1.7);
-    --joker-font-size: calc(var(--card-width) / 7);
-    --joker-size: 73%;
     --card-back-primary: var(--red);
     --card-back-secondary: var(--white);
     --card-back-pattern:
@@ -185,32 +183,6 @@ playing-card[data-is-face-up="false"] {
     box-shadow: var(--shadow-black);
 }
 
-/* ========================================
-   CARD CENTER - Rank/Suit display
-   ======================================== */
-
-playing-card > .playing-card-center {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    pointer-events: none;
-}
-
-playing-card[data-suit="spades"] > .playing-card-center,
-playing-card[data-suit="clubs"] > .playing-card-center {
-    top: 45%;
-}
-
-playing-card[data-suit="hearts"] > .playing-card-center {
-    top: 53%;
-}
-
-playing-card > .playing-card-center::before {
-    content: var(--symbol);
-    font-size: var(--center-symbol-size);
-    line-height: 1;
-}
 
 /* ========================================
    DRAG HANDLE
@@ -253,33 +225,60 @@ playing-card > .playing-card-center::before {
 }
 
 /* ========================================
-   JOKER SPECIAL STYLES
+   CARD CENTER - Suit/image display
    ======================================== */
 
-playing-card[data-value="joker"] > .playing-card-center::before {
-    content: "";
-    display: block;
-    width: var(--joker-size);
-    height: var(--joker-size);
-    background-image: url("../images/joker.png");
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
+playing-card > .playing-card-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
 }
 
-playing-card[data-value="joker"] > .playing-card-center {
+playing-card[data-suit="spades"]:not([data-value="q"], [data-value="k"]) > .playing-card-center,
+playing-card[data-suit="clubs"]:not([data-value="q"], [data-value="k"]) > .playing-card-center {
+    top: 45%;
+}
+
+playing-card[data-suit="hearts"]:not([data-value="q"], [data-value="k"]) > .playing-card-center {
+    top: 53%;
+}
+
+
+playing-card > .playing-card-center::before {
+    content: var(--symbol);
+    font-size: var(--center-symbol-size);
+    line-height: 1;
+}
+
+playing-card:is([data-value="joker"], [data-value="k"], [data-value="q"]) > .playing-card-center {
     display: grid;
     place-items: center;
     width: var(--card-width);
     height: var(--card-height);
 }
 
-playing-card[data-value="joker"]::before,
-playing-card[data-value="joker"]::after {
-    content: "J\A O\A K\A E\A R";
-    --corner-font-size: var(--joker-font-size);
-    letter-spacing: 0.05em;
-    line-height: 1.1;
+playing-card:is([data-value="joker"], [data-value="k"], [data-value="q"]) > .playing-card-center::before {
+    content: "";
+    display: block;
+    width: 70%;
+    height: 70%;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+}
+
+playing-card[data-value="q"] > .playing-card-center::before {
+    background-image: url("../images/queen.png");
+}
+
+playing-card[data-value="k"] > .playing-card-center::before {
+    background-image: url("../images/king.png");
+}
+
+playing-card[data-value="joker"] > .playing-card-center::before {
+    background-image: url("../images/joker.png");
 }
 
 /* ========================================
@@ -317,6 +316,14 @@ playing-card[data-suit="spades"] {
 /* ========================================
    CARD CORNERS - Rank/Suit indicators
    ======================================== */
+
+playing-card[data-value="joker"]::before,
+playing-card[data-value="joker"]::after {
+    content: "J\A O\A K\A E\A R";
+    --corner-font-size: calc(var(--card-width) / 7);
+    letter-spacing: 0.05em;
+    line-height: 1.1;
+}
 
 playing-card::before,
 playing-card::after {
