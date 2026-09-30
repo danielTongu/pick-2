@@ -71,7 +71,7 @@ export class Actor extends Serializable {
         this.#clearIdleTimeout();
 
         if (this.onIdle !== null) {
-            this.#idleTimeoutId = globalThis.setTimeout(this.#handleIdleTimeout.bind(this), Constants.MAX_IDLE_MS);
+            this.#idleTimeoutId = globalThis.setTimeout(this.#handleIdleTimeout.bind(this), Constants.ROOM_WAIT_MS);
         }
 
         return this.lastActiveAt;

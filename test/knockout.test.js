@@ -187,9 +187,9 @@ test("a bot-only qualified field starts on the timer after the human is eliminat
 
         async runAutomatedTurn() {}
     }
-    const previousCountdown = Constants.COUNTDOWN_SECONDS;
-    Constants.COUNTDOWN_SECONDS = 0.04;
-    t.after(function restoreCountdown() { Constants.COUNTDOWN_SECONDS = previousCountdown; });
+    const previousDelay = Constants.ROOM_WAIT_MS;
+    Constants.ROOM_WAIT_MS = 40;
+    t.after(function restoreDelay() { Constants.ROOM_WAIT_MS = previousDelay; });
     const host = new CapturingHost("direct", "fill", false);
     t.after(function cleanup() { return host.shutdown(); });
     const responses = [];
@@ -230,6 +230,9 @@ test("an eliminated bot is reseated after the final knockout result", async (t) 
 
         async runAutomatedTurn() {}
     }
+    const previousDelay = Constants.ROOM_WAIT_MS;
+    Constants.ROOM_WAIT_MS = 40;
+    t.after(function restoreDelay() { Constants.ROOM_WAIT_MS = previousDelay; });
     const previousCountdown = Constants.COUNTDOWN_SECONDS;
     Constants.COUNTDOWN_SECONDS = 0.04;
     t.after(function restoreCountdown() { Constants.COUNTDOWN_SECONDS = previousCountdown; });

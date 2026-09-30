@@ -604,7 +604,7 @@ export class Host {
      */
     #scheduleRoomClosureIfEmpty(roomKey) {
         if (this.#isRoomEmpty(roomKey)) {
-            this.#roomLifecycle.schedule(roomKey, Constants.MAX_IDLE_MS, this.#closeRoomIfNoActorsRemain.bind(this));
+            this.#roomLifecycle.schedule(roomKey, Constants.ROOM_WAIT_MS, this.#closeRoomIfNoActorsRemain.bind(this));
         }
     }
 
@@ -1146,7 +1146,7 @@ export class Host {
         this.#settlingKnockout.add(roomKey);
         try {
             if (room.match.nextMatchAvailable && !this.#knockoutStarts.hasPending(roomKey)) {
-                this.#knockoutStarts.schedule(roomKey, Constants.COUNTDOWN_SECONDS * 1000, this.#startScheduledKnockoutMatch.bind(this));
+                this.#knockoutStarts.schedule(roomKey, Constants.ROOM_WAIT_MS, this.#startScheduledKnockoutMatch.bind(this));
                 room.notifyStateChange();
             } else if (room.match.isKnockoutComplete) {
                 this.#knockoutStarts.cancel(roomKey);

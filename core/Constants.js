@@ -1,8 +1,8 @@
 /** Canonical immutable vocabulary, limits, card definitions, and timing shared across Pick 2. */
 export class Constants {
 
-    /** @type {number} Hosted actor idle limit in milliseconds. */
-    static MAX_IDLE_MS = 30 * 1000;
+    /** @type {number} Room wait for actor activity, empty-room closure, and the next Knockout match. */
+    static ROOM_WAIT_MS = 30 * 1000;
 
     /** @type {number} Transition countdown length. */
     static COUNTDOWN_SECONDS = 5;

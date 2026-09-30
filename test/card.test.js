@@ -160,9 +160,9 @@ test("emoji constants provide a reusable silly group", () => {
 });
 
 test("actor inactivity timeout is a positive whole-second duration", () => {
-    assert.equal(Constants.MAX_IDLE_MS, 30_000);
-    assert.equal(Constants.MAX_IDLE_MS > 0, true);
-    assert.equal(Constants.MAX_IDLE_MS % 1_000, 0);
+    assert.equal(Constants.ROOM_WAIT_MS, 30_000);
+    assert.equal(Constants.ROOM_WAIT_MS > 0, true);
+    assert.equal(Constants.ROOM_WAIT_MS % 1_000, 0);
 });
 
 test("ordinary plays must match value or suit", () => {

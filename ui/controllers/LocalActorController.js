@@ -108,7 +108,7 @@ export class LocalActorController extends ViewController {
         this.#passButton = DomUtils.requireChild(this.root, "#turn-pass-button", HTMLButtonElement);
 
         if (this.#idleSecondsOutput !== null) {
-            const idleSeconds = Constants.MAX_IDLE_MS / 1000;
+            const idleSeconds = Constants.ROOM_WAIT_MS / 1000;
             this.#idleSecondsOutput.dataset.idleSeconds = String(idleSeconds);
         }
     }

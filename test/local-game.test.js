@@ -485,7 +485,7 @@ test("Play offers a knockout choice and room tables show the selected mode", () 
     const rowHtml = readFileSync(new URL("../ui/templates/room-row.html", import.meta.url), "utf8");
     const rowController = readFileSync(new URL("../ui/utilities/RoomRowUtils.js", import.meta.url), "utf8");
 
-    assert.match(roomHtml, /<p>Select mode<\/p>/);
+    assert.match(roomHtml, /<p>[Ss]elect mode<\/p>/);
     assert.match(roomHtml, /id="play-one-button" class="play-choice" type="button">\s*<span class="play-choice-title">One match<\/span>/);
     assert.match(roomHtml, /id="play-knockout-button" class="play-choice" type="button">\s*<span class="play-choice-title">Knockout<\/span>/);
     assert.ok(roomHtml.indexOf('id="play-one-button"') < roomHtml.indexOf('id="play-knockout-button"'));

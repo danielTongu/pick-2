@@ -280,7 +280,7 @@ when they establish a new monitoring window; they MUST NOT introduce a separate 
 
 ### 6.3 Who is monitored
 
-Hosted idle monitoring uses `Constants.MAX_IDLE_MS` (currently 30 seconds). Bots are never monitored because the host
+Hosted idle monitoring uses `Constants.ROOM_WAIT_MS` (currently 30 seconds). Bots are never monitored because the host
 advances automated turns promptly.
 
 - While the Room is **active** and has a turn owner, only the current human turn owner is monitored.
@@ -291,7 +291,7 @@ advances automated turns promptly.
 
 An idle human Actor is demoted to viewing state, not silently deleted from the Room interaction. The affected client
 MUST receive a warning notification. If the demotion leaves the Room with no Actors, the Host starts a grace-period
-empty-room check for another `MAX_IDLE_MS`.
+empty-room check for another `ROOM_WAIT_MS`.
 
 When the empty-room check expires and the Room is still empty, the Host MUST close and unregister the Room. Direct mode
 disables automatic idle monitoring; its lifecycle is owned by the browser page.
@@ -311,10 +311,10 @@ the winner or tied winners.
 
 `Room.js` defines `Room`, `Match`, and `Knockout` together. A Room retains membership, viewers, serialized card commands, activity, and publication; its current Match owns the turn order, collections, card transfers, pending decision, and ordinary result rules. `Knockout extends Match` and overrides elimination and next-match preparation. Room and UI access match state through `room.match`; transport snapshots nest those fields under `match`.
 
-Play asks whether to start a Knockout once at least two Actors are seated. No retains the existing single-match result. Yes starts a Knockout, where a match that began with
+Play offers One match or Knockout once at least two Actors are seated. One match retains the existing single-match result. Knockout starts a series where a match that began with
 three or more Actors marks every Actor tied for the highest remaining hand penalty as eliminated and the others as
 qualified. The Host converts eliminated humans to Viewers and sidelines eliminated Bots until the Knockout ends. The Room
-marks Actors `QUALIFIED` or `ELIMINATED`, retaining the finished `turnOrder` and its result metrics until the next match begins. At that start, the Room removes eliminated Actors from the order, and the Host demotes eliminated humans and sidelines eliminated Bots. A finished Knockout has no next match when fewer than two Actors qualified. The next match starts after a short delay, or any seated human can start it sooner
+marks Actors `QUALIFIED` or `ELIMINATED`, retaining the finished `turnOrder` and its result metrics until the next match begins. At that start, the Room removes eliminated Actors from the order, and the Host demotes eliminated humans and sidelines eliminated Bots. A finished Knockout has no next match when fewer than two Actors qualified. The next match starts after `ROOM_WAIT_MS` (30 seconds), or any seated human can start it sooner
 with Play. Idle monitoring continues while they wait. One survivor wins immediately, and no survivors means a tie. A match played one-on-one uses the ordinary
 lowest-penalty winner or tie result, with no penalty elimination. If one Actor leaves an active Knockout one-on-one, the
 other wins by forfeit. The results dialog reads the finished `turnOrder` directly; a departed Actor's metrics are no
