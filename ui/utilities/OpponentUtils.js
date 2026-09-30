@@ -51,6 +51,7 @@ export class OpponentUtils extends TemplateUtils {
             actor.state === Constants.ACTOR_STATE.WON ? "winner" : ""
         ].filter(Boolean);
 
+        element.title = actor.name;
         element.dataset.actorName = actor.name;
         element.dataset.itemCount = String(count);
         element.setAttribute(
