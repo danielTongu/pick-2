@@ -7,9 +7,6 @@ export class Constants {
     /** @type {number} Transition countdown length. */
     static COUNTDOWN_SECONDS = 5;
 
-    /** Delay for the next Knockout match and for restoring sidelined Bots. */
-    static KNOCKOUT_TRANSITION_DELAY_MS = 5000;
-
     /** @type {number} Hosted connection attempt timeout. */
     static CONNECTION_PROBE_TIMEOUT_MS = 3 * 1000;
 

@@ -284,15 +284,21 @@
             </aside>
             <aside id="play-dialog" class="dialog-overlay" data-state="closed" aria-labelledby="play-dialog-title" aria-describedby="play-dialog-description">
                 <div class="dialog-panel">
-                    <header><h1 id="play-dialog-title">Play</h1></header>
+                    <header>
+                        <h1 id="play-dialog-title">Play</h1>
+                        <p>select mode</p>
+                    </header>
                     <section id="play-dialog-description">
-                        <p>Start a <strong>Knockout</strong>?</p>
-                        <p><strong>Yes:</strong> Play successive matches. With three or more actors, everyone tied for the highest penalty is eliminated after each match. The next match starts after a short delay, or a qualified actor can press Play sooner. One survivor wins; no survivors means a tie. At two actors, a regular match decides the result.</p>
-                        <p><strong>No:</strong> Play one match. The actor or actors with the lowest penalty win.</p>
+                        <button id="play-one-button" class="play-choice" type="button">
+                            <span class="play-choice-title">One match</span>
+                            <span class="play-choice-description">Play one match. The actor or actors with the lowest penalty win.</span>
+                        </button>
+                        <button id="play-knockout-button" class="play-choice" type="button">
+                            <span class="play-choice-title">Knockout</span>
+                            <span class="play-choice-description">Play a series of matches. After each match, the actor or actors with the highest penalty are eliminated. The next match starts automatically, or a qualified actor can start it sooner. The final two actors play one match to decide the winner; a tie remains a tie.</span>
+                        </button>
                     </section>
                     <footer>
-                        <button id="play-knockout-button" type="button">Yes</button>
-                        <button id="play-one-button" type="button">No</button>
                         <button id="play-cancel-button" type="button">Cancel</button>
                     </footer>
                 </div>

@@ -103,6 +103,65 @@
 }
 
 /* ========================================
+   PLAY DIALOG
+   ======================================== */
+
+#play-dialog > .dialog-panel {
+    width: min(760px, 100%);
+    max-height: min(92dvh, 800px);
+}
+
+#play-dialog > .dialog-panel > header {
+    gap: 0.35rem;
+}
+
+#play-dialog-description {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+}
+
+#play-dialog .play-choice {
+    --button-background: color-mix(in srgb, var(--accent) 9%, var(--black));
+    --button-border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+    --button-radius: var(--container-radius);
+
+    min-width: 0;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    align-content: start;
+    justify-items: start;
+    gap: 0.8rem;
+    text-align: left;
+    text-transform: none;
+    letter-spacing: normal;
+}
+
+#play-dialog .play-choice:hover,
+#play-dialog .play-choice:focus-visible {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 17%, var(--black));
+}
+
+.play-choice-title {
+    color: var(--white);
+    font-family: var(--display-font);
+    font-size: 1.5rem;
+}
+
+.play-choice-description {
+    color: color-mix(in srgb, var(--white) 75%, transparent);
+    font-weight: 400;
+    line-height: 1.5;
+}
+
+#play-cancel-button {
+    --button-background: transparent;
+    --button-border: 1px solid color-mix(in srgb, var(--white) 40%, transparent);
+
+    width: 100%;
+}
+
+/* ========================================
    ALERT DIALOG
    ======================================== */
 
@@ -342,6 +401,10 @@
    ======================================== */
 
 @media (min-width: 37rem) {
+    #play-dialog-description {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     #suit-selection-panel {
         grid-template-columns: repeat(4, minmax(7rem, 1fr));
     }

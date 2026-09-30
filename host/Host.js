@@ -1146,12 +1146,12 @@ export class Host {
         this.#settlingKnockout.add(roomKey);
         try {
             if (room.match.nextMatchAvailable && !this.#knockoutStarts.hasPending(roomKey)) {
-                this.#knockoutStarts.schedule(roomKey, Constants.KNOCKOUT_TRANSITION_DELAY_MS, this.#startScheduledKnockoutMatch.bind(this));
+                this.#knockoutStarts.schedule(roomKey, Constants.COUNTDOWN_SECONDS * 1000, this.#startScheduledKnockoutMatch.bind(this));
                 room.notifyStateChange();
             } else if (room.match.isKnockoutComplete) {
                 this.#knockoutStarts.cancel(roomKey);
                 if ((this.#sidelinedBotsByRoom.get(roomKey)?.length ?? 0) > 0 && !this.#botReturns.hasPending(roomKey)) {
-                    this.#botReturns.schedule(roomKey, Constants.KNOCKOUT_TRANSITION_DELAY_MS, this.#restoreSidelinedBotsWhenDue.bind(this));
+                    this.#botReturns.schedule(roomKey, Constants.COUNTDOWN_SECONDS * 1000, this.#restoreSidelinedBotsWhenDue.bind(this));
                 }
                 this.#scheduleRoomClosureIfEmpty(roomKey);
             }
