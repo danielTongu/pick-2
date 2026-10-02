@@ -513,6 +513,12 @@ ordinary local variables are not APIs and do not require JSDoc. The architecture
 8. Update this document, the README, and the in-page FAQ whenever public behavior, policy, or operational behavior
    changes.
 
+The collapsed Home guide contains the game introduction and browser play instructions, without describing how seats are filled. An About Pick 2 & how to play article sits immediately above
+`home-directory` and uses native `details` to stay collapsed by default. Its rules, scoring, and Knockout content
+are present in the HTML and can be expanded without JavaScript or a connection. Keep this guide aligned with core
+rules and the in-room FAQ. Home has canonical search metadata and appears in `sitemap.xml`; dynamic Room and
+Connection pages remain excluded from indexing. Room retains its existing FAQ without a separate guide link.
+
 ## 15. Operations
 
 - Default Node port: `8080`; override with `PORT`.

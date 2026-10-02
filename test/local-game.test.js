@@ -438,7 +438,9 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.match(gameHtml, /<button id="suit-selection-timeout-button">timeout<\/button>/);
     assert.match(gameHtml, /<button id="suit-selection-submit-button">Submit<\/button>/);
     assert.match(gameHtml, /<button id="results-dismiss-button">dismiss<\/button>/);
-    assert.doesNotMatch(homeHtml + gameHtml, /id="(?:quick-start|core-rules|special-cards)"/);
+    assert.match(homeHtml, /<article id="home-guide"[^>]*>\s*<details>\s*<summary>[\s\S]*?<\/details>\s*<\/article>\s*<article id="home-directory">/);
+    assert.doesNotMatch(homeHtml, /<details[^>]*\bopen\b/);
+    assert.doesNotMatch(gameHtml, /href="\.\/rules\.html"/);
     assert.match(main, /new Host\("direct", "fill", false\)/);
     assert.match(main, /this\.connect\(target, this\.#controller/);
     assert.match(main, /ViewState\.getHostedUrl\(\)/);

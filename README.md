@@ -29,6 +29,8 @@ The final two play a regular match. Qualified humans remain subject to the idle 
 Bots return after the Knockout ends.
 
 The canonical public URL is `https://danieltongu.github.io/pick-2/`, and the root `sitemap.xml` contains that page.
+Home includes a collapsible About Pick 2 & how to play article above the room directory. Its rules, scoring, and Knockout guide
+are present in the HTML and can be expanded without JavaScript.
 
 ## Commands
 
