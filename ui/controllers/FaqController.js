@@ -1,7 +1,7 @@
 "use strict";
 
 import { Constants } from "../../core/Constants.js";
-import { DomUtils } from "../../ui/utilities/DomUtils.js";
+import { DomUtils } from "../utilities/DomUtils.js";
 import { PlayingCard } from "../PlayingCard.js";
 
 /** Initializes the FAQ and shared card controls. */

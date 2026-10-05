@@ -209,13 +209,6 @@ export class PlayingCard extends HTMLElement {
     }
 
     /**
-     * @returns {number|null} Supplied card rank, or null for a suit-only card.
-     */
-    get rank() {
-        return this.value ? Number(this.dataset.rank ?? Constants.getCardRank(this.value, this.suit)) : null;
-    }
-
-    /**
      * @returns {number|null} Explicit rotation in degrees, or null to use CSS.
      */
     get rotation() {

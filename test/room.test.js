@@ -124,12 +124,10 @@ test("actor activity belongs to the actor and room, not the turnOrder", async (t
     room.match.turnOrder.setOwner(alice.key);
     alice.collection.add(new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS));
     room.match.collections.play.items = [new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.CLUBS)];
-    alice.lastActiveAt = 0;
     room.lastActiveAt = 0;
 
     await room.playItem("Alice", Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS);
 
-    assert.equal(alice.lastActiveAt > 0, true);
     assert.equal(room.lastActiveAt > 0, true);
     assert.equal(Object.hasOwn(room.match.turnOrder.toJSON(), "lastActiveAt"), false);
     assert.equal(Object.hasOwn(room.match.turnOrder.toJSON(), "createdAt"), false);
@@ -260,7 +258,7 @@ test("starting a match deals seven cards and selects an ordinary discard", async
 
     await room.joinActor("Alice");
     await room.joinActor("Bob");
-    assert.equal(await room.startMatch(), undefined);
+    assert.deepEqual(await room.startMatch(), []);
 
     assert.equal(room.match.state, Constants.ROOM_STATE.ACTIVE);
     assert.equal(room.match.collections.play.items.length, 1);
@@ -434,7 +432,7 @@ test("a room commits the selected card order when the actor moves", async (t) =>
 
     await room.passTurn("Alice", "rank");
 
-    assert.deepEqual(actor.collection.toArray().map(String), ["3-hearts", "8-spades", "k-clubs"]);
+    assert.deepEqual(actor.collection.items.map(String), ["3-hearts", "8-spades", "k-clubs"]);
 });
 
 test("AI preserves the ace of spades when no draw attack is active", async (t) => {

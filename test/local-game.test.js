@@ -5,7 +5,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { Constants } from "../core/Constants.js";
-import { View } from "../ui/View.js";
+import { Session } from "../ui/Session.js";
 import { Host } from "../host/Host.js";
 import { HostConnection } from "../host/HostConnection.js";
 
@@ -210,7 +210,7 @@ test("Host retains a custom room in memory after its creator leaves", async () =
     await host.shutdown();
 });
 
-test("View adds shared fields to every local Host request", async () => {
+test("Session adds shared fields to every local Host request", async () => {
     let publish;
     let request;
     const host = {
@@ -222,16 +222,17 @@ test("View adds shared fields to every local Host request", async () => {
             };
         }
     };
-    const view = new View(new URL("https://example.test/room.html"));
+    const view = new Session(new URL("https://example.test/room.html"));
     const statuses = [];
     const dataEvents = [];
     view.sortKey = "rank";
     assert.throws(() => {
         view.sortKey = "value";
     }, /Invalid card sort key/);
-    view.connect(host, { handleData() {} },
-        (status) => statuses.push(status),
-        (name, data) => dataEvents.push({ view: name, data }));
+    view.connect(host, {
+        handleConnectionStatus(status) { statuses.push(status); },
+        handleData(name, data) { dataEvents.push({ view: name, data }); }
+    });
 
     assert.equal(view.request(Constants.COMMANDS.CREATE, { roomName: "Test" }), true);
     await Promise.resolve();
@@ -246,7 +247,7 @@ test("View adds shared fields to every local Host request", async () => {
     assert.deepEqual(dataEvents, [{ view: Constants.VIEWS.ROOM, data: { version: 2 } }]);
 });
 
-test("View switches local and hosted connections without replaying old local work", async (t) => {
+test("Session switches local and hosted connections without replaying old local work", async (t) => {
     const originalWebSocket = globalThis.WebSocket;
     const sent = [];
     class FakeWebSocket {
@@ -275,7 +276,7 @@ test("View switches local and hosted connections without replaying old local wor
         return { receive(request) { localRequests.push(["new", request]); }, close() {} };
     } };
     const received = [];
-    const view = new View(new URL("https://example.test/room.html"));
+    const view = new Session(new URL("https://example.test/room.html"));
     view.sortKey = "rank";
     view.connect(oldHost, { handleData(_name, data) { received.push(data); } });
     view.request("list", {});
@@ -298,8 +299,8 @@ test("View switches local and hosted connections without replaying old local wor
 
 test("browser and Node runtime import graphs stay separate", () => {
     const host = readFileSync(new URL("../host/Host.js", import.meta.url), "utf8");
-    const transport = readFileSync(new URL("../ui/View.js", import.meta.url), "utf8");
-    const view = readFileSync(new URL("../ui/View.js", import.meta.url), "utf8");
+    const transport = readFileSync(new URL("../ui/Session.js", import.meta.url), "utf8");
+    const view = readFileSync(new URL("../ui/Session.js", import.meta.url), "utf8");
     const hostedServer = readFileSync(new URL("../server.js", import.meta.url), "utf8");
 
     assert.doesNotMatch(host, /from ["'](?:node:|express|ws)/);
@@ -317,7 +318,7 @@ test("browser and Node runtime import graphs stay separate", () => {
 
 test("application source uses explicit, named control flow", () => {
     const source = [
-        readFileSync(new URL("../ui/View.js", import.meta.url), "utf8"),
+        readFileSync(new URL("../ui/Session.js", import.meta.url), "utf8"),
         readFileSync(new URL("../main.js", import.meta.url), "utf8"),
         readJavaScriptSources(new URL("../core/", import.meta.url)).join("\n"),
         readJavaScriptSources(new URL("../host/", import.meta.url)).join("\n"),
@@ -335,7 +336,7 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     const gameHtml = readFileSync(new URL("../room.html", import.meta.url), "utf8");
     const roomPageHtml = readFileSync(new URL("../room.html", import.meta.url), "utf8");
     const main =
-        readFileSync(new URL("../ui/View.js", import.meta.url), "utf8") +
+        readFileSync(new URL("../ui/Session.js", import.meta.url), "utf8") +
         readFileSync(new URL("../main.js", import.meta.url), "utf8");
     const network = readFileSync(new URL("../server.js", import.meta.url), "utf8");
     const homeCss = readFileSync(new URL("../ui/styles/home.css", import.meta.url), "utf8");
@@ -367,12 +368,12 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.doesNotMatch(homeTemplate, /id="(?:request-mode-control|list-panel)" hidden/);
     assert.match(homeTemplate, /<tbody id="list-table-body">[\s\S]*?class="empty-row"/);
     assert.doesNotMatch(homeMarkup, /id="game-faq"/);
-    assert.match(gameHtml, /data-game-region="view"/);
+    assert.match(gameHtml, /data-has-local-actor="false"/);
     assert.doesNotMatch(gameHtml, /pick-2-shared-root/);
     assert.doesNotMatch(homeTemplate, /id="connection-view"/);
     assert.match(readFileSync(new URL("../connection.html", import.meta.url), "utf8"), /id="connection-view"/);
-    assert.match(gameHtml, /data-game-region="view"[^>]+data-connection-mode="direct"[^>]+data-state="waiting"/);
-    assert.match(gameHtml, /data-is-turn-owner="false"[^>]+data-is-winner="false"/);
+    assert.match(gameHtml, /data-has-local-actor="false"[^>]+data-connection-mode="direct"[^>]+data-match-state="waiting"/);
+    assert.match(gameHtml, /data-actor-state="ready"/);
     assert.match(
         gameHtml,
         /id="actor-summary"[\s\S]*?<span data-actor-name="" id="actor-status"><\/span>[\s\S]*?<span data-item-count="0"><\/span>/
@@ -384,7 +385,7 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
         /id="actor-hand"[\s\S]*?<span class="playing-card-area"><\/span>/
     );
     assert.doesNotMatch(gameHtml, /<span class="playing-card-area" data-is-drag-over="false"><\/span>/);
-    assert.doesNotMatch(gameHtml, /id="local-actor-region"/);
+    assert.doesNotMatch(gameHtml, /id="actor-region"/);
     assert.match(gameHtml, /<details id="game-faq">/);
     assert.doesNotMatch(gameHtml, /<details id="game-faq" open>/);
     assert.match(gameHtml, /<b>FAQ<\/b>/);
@@ -393,7 +394,7 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.match(gameHtml, /How is my penalty calculated\?/);
     assert.match(gameHtml, /two \(20\) and a king \(13\) add up to 33 penalty/);
     assert.match(gameHtml, /id="room-faq-link" href="#game-faq">FAQ<\/a>/);
-    assert.doesNotMatch(gameHtml, /data-game-region="faq"|id="faq-section"/);
+    assert.doesNotMatch(gameHtml, /data-match-region|id="faq-section"/);
     assert.match(gameHtml, /<tr class="placeholder-row"[^>]*>[\s\S]*?<td>--<\/td>/);
     assert.doesNotMatch(gameHtml, /id="room-mode-label"|id="connection-status-indicator"/);
     assert.match(homeHtml, /src="main\.js"/);
@@ -443,9 +444,9 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.doesNotMatch(gameHtml, /href="\.\/rules\.html"/);
     assert.match(main, /new Host\("direct", "fill", false\)/);
     assert.match(main, /this\.connect\(target, this\.#controller/);
-    assert.match(main, /ViewState\.getHostedUrl\(\)/);
-    assert.match(main, /new HomeView\(roomUrl\)/);
-    assert.match(main, /new RoomView\(homeUrl\)/);
+    assert.match(main, /SessionState\.getHostedUrl\(\)/);
+    assert.match(main, /new HomeSession\(roomUrl\)/);
+    assert.match(main, /new RoomSession\(homeUrl\)/);
     assert.match(network, /app\.use\(express\.static\(repositoryPath\)\)/);
     assert.match(network, /path\.dirname\(fileURLToPath\(import\.meta\.url\)\)/);
     assert.doesNotMatch(network, /network\/index\.html/);
@@ -475,8 +476,8 @@ test("the finished dialog opens once per finish and clears for a new game", () =
         /hide\(\)\s*\{[\s\S]*?#actors = \[\];[\s\S]*?#statsBody\.replaceChildren\(\);[\s\S]*?#selectedActorItems\.replaceChildren\(\);[\s\S]*?super\.hide\(\)/
     );
     assert.match(
-        actorController,
-        /ROOM_STATE\.WAITING \|\|[\s\S]*?ROOM_STATE\.FINISHED && !room\.match\.isKnockout[\s\S]*?return true;/
+        controller,
+        /ROOM_STATE\.WAITING \|\|[\s\S]*?ROOM_STATE\.FINISHED && !match\.isKnockout[\s\S]*?return true;/
     );
     assert.doesNotMatch(controller, /#handleCardReturn|COMMANDS\.RETURN/);
 });
@@ -552,7 +553,7 @@ test("responsive styles are mobile-first with one tablet and desktop stage", () 
     assert.match(baseCss, /#app-footer\s*\{/);
 });
 
-test("page controllers depend on View rather than runtime services", () => {
+test("page controllers depend on Session rather than runtime services", () => {
     const homeController = readFileSync(new URL("../ui/controllers/HomeController.js", import.meta.url), "utf8");
     const gameController = readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8");
 
@@ -605,26 +606,26 @@ test("the shared game preserves touch-friendly card presentation", () => {
     assert.match(cardCss, /\.playing-card-drag-handle\s*\{[\s\S]*?width:\s*100%/);
     assert.match(gameCss, /@keyframes turn-owner-border-strobe/);
     assert.match(homeCss, /\.toggle-switch > label:has\(input:checked\) > span/);
-    assert.match(controller, /this\.#playRegion\.dataset\.gameRegion = "act"/);
-    assert.match(controller, /this\.#playRegion\.dataset\.gameRegion = "view"/);
+    assert.match(controller, /this\.#playRegion\.dataset\.hasLocalActor = "true"/);
+    assert.match(controller, /this\.#playRegion\.dataset\.hasLocalActor = "false"/);
     assert.match(controller, /this\.#actorStatus\.dataset\.actorName = actor\.name \?\? ""/);
     assert.match(controller, /this\.#actorStatus\.dataset\.actorName = ""/);
     assert.doesNotMatch(html + controller + gameCss, /data-is-actor-view|isActorView/);
-    assert.match(html, /id="opponent-list"[\s\S]*?id="table-play-area"[\s\S]*?id="actor-region"/);
-    assert.match(html, /<ul id="opponent-list" aria-label="Other actors"><\/ul>/);
-    assert.doesNotMatch(html, /id="opponent-list"[^>]*role=/);
+    assert.match(html, /id="actors-list"[\s\S]*?id="table-play-area"[\s\S]*?id="local-actor-region"/);
+    assert.match(html, /<ul id="actors-list" aria-label="Other actors"><\/ul>/);
+    assert.doesNotMatch(html, /id="actors-list"[^>]*role=/);
     assert.match(
-        readFileSync(new URL("../ui/templates/opponent.html", import.meta.url), "utf8"),
-        /<li data-actor-name=/
+        readFileSync(new URL("../ui/templates/actor.html", import.meta.url), "utf8"),
+        /<li[^>]* data-actor-name=/
     );
     assert.doesNotMatch(
-        readFileSync(new URL("../ui/templates/opponent.html", import.meta.url), "utf8"),
+        readFileSync(new URL("../ui/templates/actor.html", import.meta.url), "utf8"),
         /role="listitem"/
     );
-    assert.match(gameCss, /\[data-game-region="view"\]\s*\{[\s\S]*?--play-area-rows:/);
-    assert.match(gameCss, /\[data-game-region="view"\] #actor-region\s*\{[\s\S]*?display:\s*none/);
-    assert.doesNotMatch(gameCss, /\[data-game-region="view"\][^{]*#table-play-area[^{]*\{[^}]*--card-height/);
-    assert.match(gameCss, /\[data-game-region="act"\]\[data-connection-mode="direct"\] #actor-idle-warning/);
+    assert.match(gameCss, /\[data-has-local-actor="false"\]\s*\{[\s\S]*?--play-area-rows:/);
+    assert.match(gameCss, /\[data-has-local-actor="false"\] > #local-actor-region,[\s\S]*?\{\s*display:\s*none/);
+    assert.doesNotMatch(gameCss, /\[data-has-local-actor="false"\][^{]*#table-play-area[^{]*\{[^}]*--card-height/);
+    assert.match(gameCss, /#game-region\[data-connection-mode="direct"\] > #local-actor-region #actor-idle-warning/);
     assert.match(
         readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8"),
         /playRegion\.dataset\.connectionMode = room\.connectionMode/

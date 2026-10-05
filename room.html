@@ -62,18 +62,18 @@
                         <button id="room-invite-button" type="button" hidden>Invite</button>
                     </nav>
                 </header>
-                <article data-game-region="view" aria-label="Room table" data-connection-mode="direct" data-state="waiting">
-                    <ul id="opponent-list" aria-label="Other actors"></ul>
+                <article id="game-region" data-has-local-actor="false" aria-label="Room table" data-connection-mode="direct" data-match-state="waiting">
+                    <ul id="actors-list" aria-label="Other actors"></ul>
                     <div id="table-play-area">
                         <span class="playing-card-area" data-is-drag-over="false" aria-label="Discard pile"></span>
                     </div>
-                    <div id="actor-region" aria-label="Your play area" data-is-turn-owner="false" data-is-winner="false">
+                    <div class="actor-region" id="local-actor-region" aria-label="Your play area" data-actor-state="ready">
                         <header id="actor-summary" aria-live="polite" aria-atomic="true">
                             <span data-actor-name="" id="actor-status"></span>
                             <span data-item-count="0"></span>
                         </header>
                         <section id="actor-hand">
-                            <button id="draw-button" type="button" aria-label="Draw card" disabled>
+                            <button id="draw-button" type="button" aria-label="Draw card">
                                 <span data-draw-allowance="0"></span>
                             </button>
                             <span class="playing-card-area"></span>

@@ -5,17 +5,6 @@
  */
 export class Serializable {
     /**
-     * Creates a model instance.
-     *
-     * @param {Object} [data] - Optional initial model data.
-     */
-    constructor(data) {
-        if (data !== undefined) {
-            Object.assign(this, data);
-        }
-    }
-
-    /**
      * Serializes this model into a JSON-safe object.
      *
      * @param {string[]|null} include - Optional field allow-list.

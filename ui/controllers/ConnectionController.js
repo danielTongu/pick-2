@@ -8,26 +8,36 @@ import { ViewController } from "./ViewController.js";
 export class ConnectionController extends ViewController {
     /** @type {HTMLElement} Shared header connection status. */
     #connectionStatus;
+
     /** @type {HTMLElement} Visible header connection status label. */
     #statusLabelOutput;
+
     /** @type {HTMLElement} Status message and failure detail. */
     #messageOutput;
+
     /** @type {HTMLInputElement} Editable host address. */
     #originInput;
+
     /** @type {HTMLButtonElement} Host probe command. */
     #connectButton;
+
     /** @type {HTMLFormElement} Host address form. */
     #form;
+
     /** @type {HTMLElement} Endpoint diagnostic value. */
     #endpointOutput;
+
     /** @type {HTMLElement} Probe attempt diagnostic value. */
     #attemptOutput;
+
     /** @type {HTMLElement} Duration diagnostic value. */
     #durationOutput;
+
     /** @type {HTMLElement} Timeout diagnostic value. */
     #timeoutOutput;
     /** @type {HTMLElement} Failure diagnostic value. */
     #failureOutput;
+
     /** @type {(function(string): void)|null} Host address submit handler. */
     #onSubmit = null;
 

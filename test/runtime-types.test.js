@@ -5,7 +5,7 @@ import test from "node:test";
 
 import { HostRequestContext } from "../host/HostRequestContext.js";
 import { HostRequest } from "../host/HostRequest.js";
-import { View } from "../ui/View.js";
+import { Session } from "../ui/Session.js";
 import { HostConnection } from "../host/HostConnection.js";
 import { RoomMembership } from "../host/RoomMembership.js";
 import { ConnectionRegistry } from "../host/ConnectionRegistry.js";
@@ -120,12 +120,12 @@ test("RoomLifecycle replaces, cancels, and clears pending room work", () => {
     assert.equal(lifecycle.hasPending("room-two"), false);
 });
 
-test("View validates its hosted URL", () => {
-    const view = new View(new URL("https://example.test/room.html"));
+test("Session validates its hosted URL", () => {
+    const view = new Session(new URL("https://example.test/room.html"));
     assert.throws(() => view.connect("", null), /WebSocket URL/);
 });
 
-test("local and hosted View connections close explicitly", async (t) => {
+test("local and hosted Session connections close explicitly", async (t) => {
     const originalWebSocket = globalThis.WebSocket;
     const directRequests = [];
     const statuses = [];
@@ -152,7 +152,7 @@ test("local and hosted View connections close explicitly", async (t) => {
         else globalThis.WebSocket = originalWebSocket;
     });
 
-    const direct = new View(new URL("https://example.test/room.html"));
+    const direct = new Session(new URL("https://example.test/room.html"));
     direct.connect({
         accept() {
             return {
@@ -162,15 +162,17 @@ test("local and hosted View connections close explicitly", async (t) => {
                 close() {}
             };
         }
-    }, null, (status, label) => statuses.push({ status, label }));
+    }, { handleConnectionStatus(status, label) { statuses.push({ status, label }); } });
 
     direct.request("list", {});
     direct.disconnect();
     await Promise.resolve();
 
-    const hosted = new View(new URL("https://example.test/room.html"));
-    hosted.connect("ws://example.test", {handleClientClose() { closes += 1; }},
-        (status, label) => statuses.push({ status, label }));
+    const hosted = new Session(new URL("https://example.test/room.html"));
+    hosted.connect("ws://example.test", {
+        handleClientClose() { closes += 1; },
+        handleConnectionStatus(status, label) { statuses.push({ status, label }); }
+    });
     hosted.disconnect();
 
     assert.deepEqual(directRequests, []);

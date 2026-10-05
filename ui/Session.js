@@ -5,15 +5,15 @@ import {Constants} from "../core/Constants.js";
 import {ValidationUtils} from "../core/ValidationUtils.js";
 import {Host} from "../host/Host.js";
 
-/** Browser client view with local or hosted connection and navigation state. */
-export class View {
+/** Browser client session with local or hosted connection and navigation state. */
+export class Session {
     /** @type {"direct"|"hosted"} Active transport mode. */
-    mode = ViewState.getMode();
+    mode = SessionState.getMode();
 
-    /** @type {URL} Destination used when leaving this view. */
+    /** @type {URL} Destination used when leaving this session. */
     url;
 
-    /** @param {URL} url - Destination used when navigating away from the view. */
+    /** @param {URL} url - Destination used when navigating away from the session. */
     constructor(url) {
         this.url = url;
     }
@@ -53,19 +53,9 @@ export class View {
     #activeController = null;
 
     /**
-     * @type {(function(string, string): void)|null} Optional connection-status observer.
-     */
-    #onStatus = null;
-
-    /**
-     * @type {(function(string|null, Object): void)|null} Optional view-data observer.
-     */
-    #onData = null;
-
-    /**
      * @type {string} Tab-stable identifier included with every request.
      */
-    #tabId = View.#getTabId();
+    #tabId = Session.#getTabId();
 
     /**
      * @returns {string} Current card sort key.
@@ -90,22 +80,18 @@ export class View {
      *
      * @param {import("../host/Host.js").Host|string} target - Local Host or hosted URL.
      * @param {import("./controllers/ViewController.js").ViewController} controller - Active page controller.
-     * @param {(function(string, string): void)|null} [onStatus=null] - Connection status observer.
-     * @param {(function(string|null, Object): void)|null} [onData=null] - View data observer.
      */
-    connect(target, controller, onStatus = null, onData = null) {
+    connect(target, controller) {
         const hostedUrl = typeof target === "string"
             ? ValidationUtils.requiredString(target, "WebSocket URL")
             : null;
         if (hostedUrl === null && typeof target?.accept !== "function") {
-            throw new Error("View requires a local Host or hosted WebSocket URL.");
+            throw new Error("Session requires a local Host or hosted WebSocket URL.");
         }
 
         this.disconnect();
 
         this.#activeController = controller;
-        this.#onStatus = onStatus;
-        this.#onData = onData;
         this.#isOpen = true;
         const generation = ++this.#generation;
 
@@ -303,7 +289,6 @@ export class View {
      */
     #handleStatus(status, label) {
         this.#activeController?.handleConnectionStatus?.(status, label);
-        this.#onStatus?.(status, label);
     }
 
     /** Notifies the page controller that the connection can accept requests. */
@@ -320,7 +305,7 @@ export class View {
      * @param {Object|string} raw - Raw connection response.
      */
     #receive(raw) {
-        const response = View.#parseResponse(raw);
+        const response = Session.#parseResponse(raw);
 
         if (response === null) {
             console.warn("Invalid server response:", raw);
@@ -329,7 +314,6 @@ export class View {
 
         if (response.data !== null) {
             this.#activeController?.handleData?.(response.view, response.data, response.message);
-            this.#onData?.(response.view, response.data);
         }
 
         if (response.message !== null && response.view !== Constants.VIEWS.HOME) {
@@ -390,7 +374,7 @@ export class View {
 
 
 /** Persists transport, navigation, and notification state for one browser tab. */
-export class ViewState {
+export class SessionState {
     /**
      * @returns {string} Browser-tab storage key for the selected connection mode.
      */
@@ -608,14 +592,19 @@ export class ViewState {
 
 /** One bounded browser WebSocket availability probe. */
 class WebSocketProbe {
+
     /** @type {string} Endpoint under test. */
     #endpoint;
+
     /** @type {WebSocket|null} Temporary socket. */
     #socket = null;
+
     /** @type {number|null} Probe timeout. */
     #timer = null;
+
     /** @type {function(Object): void|null} Promise resolver. */
     #resolve = null;
+
     /** @type {number} Probe start time. */
     #startedAt = 0;
 
@@ -668,13 +657,16 @@ class WebSocketProbe {
 }
 
 /** Coordinates the standalone Hosted Connection page. */
-export class ConnectionView extends View {
+export class ConnectionSession extends Session {
     /** @type {import("./controllers/ConnectionController.js").ConnectionController|null} Page controller. */
     #controller = null;
+
     /** @type {WebSocketProbe|null} Active availability probe. */
     #probe = null;
+
     /** @type {number} Invalidates older probe sequences. */
     #generation = 0;
+
     /** @type {number} Total endpoint probes on this page. */
     #probeCount = 0;
 
@@ -689,7 +681,7 @@ export class ConnectionView extends View {
         const isAutomatic = new URLSearchParams(location.search).get("auto") === "1";
         const available = await this.#probeHosts(null);
         if (isAutomatic && available === false) {
-            ViewState.setMode("direct");
+            SessionState.setMode("direct");
             location.replace(this.#homeUrl("direct"));
         }
     }
@@ -701,7 +693,7 @@ export class ConnectionView extends View {
             return;
         }
         try {
-            void this.#probeHosts(ViewState.resolveHostedUrl(origin));
+            void this.#probeHosts(SessionState.resolveHostedUrl(origin));
         } catch (error) {
             this.#cancel();
             this.#controller.render(Constants.CONNECTION_STATUS.ERROR, {
@@ -726,17 +718,17 @@ export class ConnectionView extends View {
         const generation = this.#generation;
         let configurationError = "";
         let configuredUrl = null;
-        const configuredOrigin = ViewState.getConfiguredServerOrigin();
+        const configuredOrigin = SessionState.getConfiguredServerOrigin();
         if (configuredOrigin !== null) {
             try {
-                configuredUrl = ViewState.resolveHostedUrl(configuredOrigin);
+                configuredUrl = SessionState.resolveHostedUrl(configuredOrigin);
             } catch (error) {
                 configurationError = error instanceof Error ? error.message : String(error);
             }
         }
         let currentHostUrl = null;
         try {
-            currentHostUrl = ViewState.getCurrentHostUrl();
+            currentHostUrl = SessionState.getCurrentHostUrl();
         } catch (_error) {
         }
 
@@ -759,8 +751,8 @@ export class ConnectionView extends View {
 
             if (outcome.available) {
                 this.#controller.render(Constants.CONNECTION_STATUS.CONNECTED, {...metrics, elapsedMs: outcome.elapsedMs});
-                ViewState.setHostedUrl(endpoint);
-                ViewState.setMode("hosted");
+                SessionState.setHostedUrl(endpoint);
+                SessionState.setMode("hosted");
                 location.replace(this.#homeUrl("hosted"));
                 return true;
             }
@@ -780,7 +772,7 @@ export class ConnectionView extends View {
     }
 }
 /** Coordinates Home controllers, transport selection, and Room navigation. */
-export class HomeView extends View {
+export class HomeSession extends Session {
 
     /**
      * @type {import("./controllers/HomeController.js").HomeController|null} Home interaction controller after startup.
@@ -790,19 +782,12 @@ export class HomeView extends View {
     /**
      * @type {"direct"|"hosted"|null} Persisted or URL-selected startup mode.
      */
-    #preferredMode = ViewState.getModePreference();
+    #preferredMode = SessionState.getModePreference();
 
     /**
      * @type {Record<string, *>|null} One-time notification restored after navigation.
      */
-    #notice = ViewState.takeNotice();
-
-    /**
-     * @param {URL} url - Room destination used after a create, join, or view command.
-     */
-    constructor(url) {
-        super(url);
-    }
+    #notice = SessionState.takeNotice();
 
     /**
      * Loads and initializes Home controllers, then establishes the preferred transport.
@@ -822,7 +807,7 @@ export class HomeView extends View {
 
         if (this.#preferredMode !== "hosted") {
             this.#connect("direct");
-        } else if (this.#preferredMode === "hosted" && ViewState.getVerifiedHostedUrl() !== null) {
+        } else if (this.#preferredMode === "hosted" && SessionState.getVerifiedHostedUrl() !== null) {
             this.#connect("hosted");
         } else {
             this.#openConnectionPage(false);
@@ -845,12 +830,12 @@ export class HomeView extends View {
      */
     #connect(requestedMode) {
         this.mode = requestedMode === "hosted" ? "hosted" : "direct";
-        ViewState.setMode(this.mode);
+        SessionState.setMode(this.mode);
         this.#controller.selectMode(this.mode);
 
         this.#controller.setView(this);
         const target = this.mode === "hosted"
-            ? ViewState.getVerifiedHostedUrl()
+            ? SessionState.getVerifiedHostedUrl()
             : new Host("direct", "fill", false);
         this.connect(target, this.#controller);
         this.#updateModeUrl(this.mode);
@@ -874,20 +859,20 @@ export class HomeView extends View {
         if (mode === "hosted") {
             this.#openConnectionPage(false);
         } else {
-            ViewState.clearHostedUrl();
+            SessionState.clearHostedUrl();
             this.#connect("direct");
         }
     }
 
     /**
-     * Persists Room intent and navigates to the Room view.
+     * Persists Room intent and navigates to the Room session.
      *
      * @param {string} command - Create, join, or view command.
      * @param {{roomName:string}} data - Command data containing the target Room name.
      */
     #enterRoom(command, data) {
-        ViewState.setMode(this.mode);
-        ViewState.setIntent({mode: this.mode, command, data});
+        SessionState.setMode(this.mode);
+        SessionState.setIntent({mode: this.mode, command, data});
         const roomUrl = new URL(this.url);
         roomUrl.searchParams.set("mode", this.mode);
         roomUrl.searchParams.set("room", data.roomName);
@@ -897,7 +882,7 @@ export class HomeView extends View {
 
 
 /** Coordinates Room admission, controllers, transport, and Home navigation. */
-export class RoomView extends View {
+export class RoomSession extends Session {
 
     /**
      * @type {import("./controllers/RoomController.js").RoomController|null} Room interaction controller after startup.
@@ -912,7 +897,10 @@ export class RoomView extends View {
     /**
      * @type {{mode:"direct"|"hosted", command:string, data:Record<string, *>}|null} Create, join, or view intent carried from Home.
      */
-    #intent = ViewState.getIntent();
+    #intent = SessionState.getIntent();
+
+    /** @type {boolean} Whether room admission has previously been attempted. */
+    #hasOpened = false;
 
     /**
      * @type {boolean} Whether mode and intent are enough to enter Room.
@@ -952,12 +940,11 @@ export class RoomView extends View {
         this.#controller = new RoomController();
         await this.#controller.initialize();
         const target = this.mode === "hosted"
-            ? ViewState.getHostedUrl()
+            ? SessionState.getHostedUrl()
             : new Host("direct", "fill", false);
         this.connect(target, this.#controller);
         this.#controller.renderYear();
         this.#controller.setView(this);
-        this.#controller.setIntent(this.#intent);
         this.#controller.setReadyHandler(this.#handleReady.bind(this));
         this.#controller.setHomeHandler(this.#returnHome.bind(this));
 
@@ -965,6 +952,18 @@ export class RoomView extends View {
         this.#faqController?.initialize();
 
         window.addEventListener("pagehide", this.disconnect.bind(this), {once: true});
+    }
+
+    /** Submits session-owned admission intent, using Join after a Create reconnect. */
+    openRoom() {
+        if (this.#intent === null) {
+            this.#returnHome(null);
+            return;
+        }
+        const command = this.#hasOpened && this.#intent.command === Constants.COMMANDS.CREATE
+            ? Constants.COMMANDS.JOIN : this.#intent.command;
+        this.#hasOpened = true;
+        this.request(command, this.#intent.data);
     }
 
     /**
@@ -988,8 +987,7 @@ export class RoomView extends View {
             command: Constants.COMMANDS.JOIN,
             data: {roomName: room.name, actorName: this.#intent.data.actorName}
         };
-        ViewState.setIntent(this.#intent);
-        this.#controller.setIntent(this.#intent);
+        SessionState.setIntent(this.#intent);
     }
 
     /**
@@ -999,8 +997,8 @@ export class RoomView extends View {
      */
     #returnHome(notice) {
         const isFailedAdmission = notice !== null;
-        if (isFailedAdmission) ViewState.setNotice(notice);
-        ViewState.clearIntent();
+        if (isFailedAdmission) SessionState.setNotice(notice);
+        SessionState.clearIntent();
         this.disconnect();
 
         if (isFailedAdmission) location.replace(this.#homeUrl());

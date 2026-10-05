@@ -86,7 +86,7 @@
 
 /* ---------- GAME REGION ---------- */
 
-[data-game-region] {
+#game-region {
     --play-area-color: color-mix(in srgb, var(--white) 55%, transparent);
     --card-row-floor: calc(var(--card-height-min, 91px) + 2rem);
 
@@ -106,28 +106,84 @@
     overflow: clip;
 }
 
-/* viewer: 2 rows (opponents, table) — no actor region in the DOM */
-[data-game-region="view"] {
-    --play-area-rows:
-        minmax(var(--card-height-min), 0.2fr)
-        minmax(var(--card-row-floor), 0.8fr);
-}
-
-[data-game-region="view"] #actor-region {
-    display: none;
-}
-
 /* actor: 3 rows (opponents, table, actor) */
-[data-game-region="act"] {
+#game-region[data-has-local-actor="true"] {
     --play-area-rows:
         minmax(var(--card-height-min), 0.2fr)
         minmax(calc(var(--card-row-floor) * 2), 0.3fr)
         minmax(calc(var(--card-row-floor) * 5/2), 0.5fr);
 }
 
+/* viewer: 2 rows (opponents, table) — no actor region in the DOM */
+#game-region[data-has-local-actor="false"] {
+    --play-area-rows:
+        minmax(var(--card-height-min), 0.2fr)
+        minmax(var(--card-row-floor), 0.8fr);
+}
+
+#game-region[data-has-local-actor="false"] > #local-actor-region,
+#game-region[data-connection-mode="direct"] > #local-actor-region #actor-idle-warning {
+    display: none;
+}
+
+#game-region:not([data-match-state="waiting"], [data-match-state="finished"]) #room-play-button,
+#game-region:not([data-match-state="active"]) #turn-pass-button {
+    display: none;
+}
+
+.actor-region {
+    background: color-mix(in srgb, var(--white) 4%, transparent);
+    border: 3px solid;
+    box-shadow: var(--shadow-black);
+    overflow: hidden;
+}
+
+/* ---------- STATE-DRIVEN STATUS STYLING ---------- */
+
+.actor-region[data-actor-state="active"] {
+    animation: turn-owner-border-strobe 1.2s ease-in-out infinite;
+}
+
+.actor-region[data-actor-state="active"] #actor-status::before {
+    content: "your turn";
+}
+
+.actor-region[data-actor-state="won"] {
+    border-color: var(--gold);
+}
+
+.actor-region[data-actor-state="won"] #actor-status::before {
+    content: "🏆 you won!";
+}
+
+ul#actors-list > li[data-actor-state="won"]::before {
+    content: "🏆 " attr(data-actor-name);
+}
+
+.actor-region[data-actor-state="lost"] #actor-status::before {
+    content: "😂 you lost!";
+}
+
+.actor-region[data-actor-state="qualified"] #actor-status::before {
+    content: "✅ you've qualified!";
+}
+
+ul#actors-list > li[data-actor-state="qualified"]::before {
+    content: "✅ " attr(data-actor-name);
+}
+
+.actor-region[data-actor-state="eliminated"] #actor-status::before {
+    content: "❌ you're eliminated!";
+}
+
+ul#actors-list > li[data-actor-state="eliminated"]::before {
+    content: "❌ " attr(data-actor-name);
+}
+
+
 /* ---------- OPPONENTS ---------- */
 
-ul#opponent-list {
+ul#actors-list {
     container-type: size;
     display: grid;
     grid-auto-flow: column;
@@ -145,16 +201,16 @@ ul#opponent-list {
     list-style: none;
 }
 
-ul#opponent-list:empty {
+ul#actors-list:empty {
     place-items: center;
 }
 
-ul#opponent-list:empty::before {
+ul#actors-list:empty::before {
     content: "waiting for opponents…";
     font-style: italic;
 }
 
-ul#opponent-list > li {
+ul#actors-list > li {
     --opponent-height: 100cqh;
     --opponent-width: calc(var(--opponent-height) * 0.72);
     --opponent-skin: var(--peach);
@@ -165,14 +221,12 @@ ul#opponent-list > li {
     align-self: stretch;
     width: var(--opponent-width);
     height: var(--opponent-height);
-    border: 3px solid transparent;
+    border-color: transparent;
     border-radius: calc(var(--container-radius) / 2);
-    background: color-mix(in srgb, var(--white) 4%, transparent);
-    overflow: hidden;
     user-select: none;
 }
 
-ul#opponent-list > li::before {
+ul#actors-list > li::before {
     content: attr(data-actor-name);
     display: block;
     padding: 0.5rem;
@@ -185,15 +239,11 @@ ul#opponent-list > li::before {
     white-space: nowrap;
 }
 
-ul#opponent-list > li[data-is-winner="true"]::before {
-    content: "🏆 " attr(data-actor-name);
-}
-
-ul#opponent-list > li[data-item-count="0"]::after {
+ul#actors-list > li[data-item-count="0"]::after {
     display: none;
 }
 
-ul#opponent-list > li::after {
+ul#actors-list > li::after {
     content: attr(data-item-count);
     position: absolute;
     bottom: 0;
@@ -212,9 +262,10 @@ ul#opponent-list > li::after {
     font-weight: 800;
     line-height: 1;
     transform: translateX(-50%);
+    transition: content 1s ease-in-out;
 }
 
-ul#opponent-list > li > div {
+ul#actors-list > li > div {
     position: relative;
     display: grid;
     grid-template-rows: 40% 50%;
@@ -222,20 +273,20 @@ ul#opponent-list > li > div {
     min-height: 0;
 }
 
-ul#opponent-list > li > div::before,
-ul#opponent-list > li > div::after {
+ul#actors-list > li > div::before,
+ul#actors-list > li > div::after {
     content: "";
     display: block;
     background: var(--opponent-skin);
 }
 
-ul#opponent-list > li > div::before {
+ul#actors-list > li > div::before {
     width: 60%;
     aspect-ratio: 1;
     border-radius: 50%;
 }
 
-ul#opponent-list > li > div::after {
+ul#actors-list > li > div::after {
     width: 100%;
     height: 100%;
     border-radius: 50% 50% 0 0;
@@ -299,17 +350,13 @@ ul#opponent-list > li > div::after {
         background 0.3s ease;
 }
 
-/* ---------- ACTOR REGION ---------- */
+/* ---------- LOCAL ACTOR REGION ---------- */
 
-#actor-region {
+#local-actor-region {
     display: grid;
     grid-template-rows: auto minmax(var(--card-height-min), 1fr) auto auto;
     min-height: 0;
-    border: 3px solid;
     border-radius: var(--container-radius);
-    background: color-mix(in srgb, var(--white) 4%, transparent);
-    box-shadow: var(--shadow-black);
-    overflow: hidden;
 }
 
 /* ---------- ACTOR SUMMARY ---------- */
@@ -324,7 +371,7 @@ ul#opponent-list > li > div::after {
     font-weight: 600;
 }
 
-#actor-status {
+#actor-summary > span#actor-status {
     border-right: 1px solid var(--line);
 }
 
@@ -372,6 +419,15 @@ ul#opponent-list > li > div::after {
 #actor-idle-warning em {
     font-style: normal;
     font-weight: 700;
+}
+
+[data-idle-seconds]::before {
+    content: attr(data-idle-seconds) " ";
+}
+
+[data-match-state] #actor-status::before {
+    content: attr(data-actor-name);
+    text-transform: capitalize;
 }
 
 #actor-commands {
@@ -422,66 +478,6 @@ ul#opponent-list > li > div::after {
 
 #sort-control select:focus-visible {
     outline: 0;
-}
-
-/* ---------- BUTTON VISIBILITY MATRIX ---------- */
-
-#room-play-button,
-#turn-pass-button {
-    display: none;
-}
-
-[data-game-region="act"][data-state="waiting"] #room-play-button,
-[data-game-region="act"][data-state="active"] #turn-pass-button,
-[data-game-region="act"][data-state="finished"] #room-play-button {
-    display: block;
-}
-
-#turn-pass-button {
-    opacity: 0.5;
-    cursor: not-allowed;
-}
-
-#turn-pass-button:enabled {
-    opacity: 1;
-    cursor: pointer;
-}
-
-/* ---------- STATE-DRIVEN STYLING ---------- */
-
-[data-game-region][data-state="active"] [data-is-turn-owner="true"] {
-    animation: turn-owner-border-strobe 1.2s ease-in-out infinite;
-}
-
-[data-game-region][data-state="finished"] [data-is-winner="true"] {
-    border-color: var(--gold) !important;
-}
-
-[data-game-region][data-connection-mode="direct"] #actor-idle-warning {
-    display: none;
-}
-
-/* ---------- DATA-ATTRIBUTE TEXT INJECTION ---------- */
-
-[data-idle-seconds]::before {
-    content: attr(data-idle-seconds) " ";
-}
-
-[data-state] #actor-status::before {
-    content: attr(data-actor-name);
-    text-transform: capitalize;
-}
-
-[data-state="active"] > [data-is-turn-owner="true"] #actor-status::before {
-    content: "your turn";
-}
-
-[data-state="finished"] > [data-is-winner="true"] #actor-status::before {
-    content: "🏆 You Won!";
-}
-
-[data-state="finished"] > [data-is-winner="false"] #actor-status::before {
-    content: "😂 You Lost!";
 }
 
 /* ---------- FAQ ---------- */
@@ -602,7 +598,7 @@ summary + div > article > b {
 /* ---------- REDUCED MOTION ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-    [data-game-region] [data-is-turn-owner="true"] {
+    [data-has-local-actor] [data-actor-state="active"] {
         animation: none;
     }
 

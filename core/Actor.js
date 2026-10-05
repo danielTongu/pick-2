@@ -5,7 +5,7 @@ import { Serializable } from "./Serializable.js";
 import { ValidationUtils } from "./ValidationUtils.js";
 import { CardCollection } from "./CardCollection.js";
 
-/** Owns one seated actor’s identity, hand, match state, activity, and idle timer. */
+/** Owns one seated actor’s identity, hand, match state, and idle timer. */
 export class Actor extends Serializable {
     /**
      * @type {Function|null} Callback invoked with this actor after its idle window expires.
@@ -32,10 +32,7 @@ export class Actor extends Serializable {
 
         this.name = ValidationUtils.namedString(name, "Actor name", ValidationUtils.actorNameMaxLength);
         this.key = Actor.normalizeKey(this.name);
-        this.createdAt = Date.now();
-        this.lastActiveAt = this.createdAt;
         this.state = Constants.ACTOR_STATE.READY;
-
         this.collection = new CardCollection();
 
         if (initialState !== null) {
@@ -62,19 +59,14 @@ export class Actor extends Serializable {
     }
 
     /**
-     * Updates activity timestamp and restarts idle timer when enabled.
-     *
-     * @returns {number} Last active timestamp.
+     * Restarts idle monitoring when enabled.
      */
     recordActivity() {
-        this.lastActiveAt = Date.now();
         this.#clearIdleTimeout();
 
         if (this.onIdle !== null) {
             this.#idleTimeoutId = globalThis.setTimeout(this.#handleIdleTimeout.bind(this), Constants.ROOM_WAIT_MS);
         }
-
-        return this.lastActiveAt;
     }
 
     /**

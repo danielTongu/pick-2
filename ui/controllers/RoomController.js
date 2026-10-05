@@ -11,7 +11,7 @@ import { SuitSelectionController } from "./SuitSelectionController.js";
 import { DomUtils } from "../utilities/DomUtils.js";
 import { RoomRowUtils } from "../utilities/RoomRowUtils.js";
 import { NotificationUtils } from "../utilities/NotificationUtils.js";
-import { OpponentUtils } from "../utilities/OpponentUtils.js";
+import { ActorUtils } from "../utilities/ActorUtils.js";
 import { CardListUtils } from "../utilities/CardListUtils.js";
 
 /** Controls the complete Pick2 Room. */
@@ -27,11 +27,6 @@ export class RoomController extends ViewController {
     capabilities = {};
 
     /**
-     * @type {Object|null} Pending create, join, or view request.
-     */
-    #intent = null;
-
-    /**
      * @type {Function|null} Navigation callback invoked when Room returns Home.
      */
     #homeHandler = null;
@@ -40,11 +35,6 @@ export class RoomController extends ViewController {
      * @type {Function|null} Callback invoked after the first authoritative Room snapshot.
      */
     #readyHandler = null;
-
-    /**
-     * @type {boolean} Whether the view-open intent has already been submitted.
-     */
-    #hasOpened = false;
 
     /**
      * @type {boolean} Whether a leave request is suppressing further Room work.
@@ -57,7 +47,7 @@ export class RoomController extends ViewController {
     #alertController = new AlertController("#alert-dialog");
 
     /** Initializes required state and event bindings. */
-    async _initializeRoomView() {
+    async _initializeRoomSession() {
         await RoomRowUtils.load();
         DomUtils.require("#room-leave-button", HTMLButtonElement).addEventListener("click", this.#leave.bind(this));
         DomUtils.require("#app-home-link", HTMLAnchorElement).addEventListener("click", this.#leave.bind(this));
@@ -83,18 +73,10 @@ export class RoomController extends ViewController {
 
     /**
      * Sets the active endpoint view.
-     * @param {import("../View.js").View} view - Active Room view.
+     * @param {import("../Session.js").Session} view - Active Room session.
      */
     setView(view) {
         this.view = view;
-    }
-
-    /**
-     * Sets the create, join, or view intent.
-     * @param {Object|null} intent - Room request to submit on connection.
-     */
-    setIntent(intent) {
-        this.#intent = intent;
     }
 
     /**
@@ -134,21 +116,9 @@ export class RoomController extends ViewController {
         void this.#copyInvite();
     }
 
-    /** Submits the saved Room intent once the endpoint becomes available. */
+    /** Requests room admission when the client connection becomes available. */
     handleClientOpen() {
-        if (this.#intent === null) {
-            this.#homeHandler?.(null);
-            return;
-        }
-
-        let command = this.#intent.command;
-
-        if (this.#hasOpened && command === Constants.COMMANDS.CREATE) {
-            command = Constants.COMMANDS.JOIN;
-        }
-
-        this.#hasOpened = true;
-        this.view?.request(command, this.#intent.data);
+        this.view?.openRoom();
     }
 
     /**
@@ -218,6 +188,7 @@ export class RoomController extends ViewController {
 
     /** Reads the join form and submits a join command for the current Room. */
     #join() {
+        if (this.room === null || this.room.localActorName !== null || this.capabilities.join !== true) return;
         const actorName = window.prompt("Enter your name:");
 
         if (actorName?.trim() && this.room?.name) {
@@ -230,7 +201,7 @@ export class RoomController extends ViewController {
 
     /** Uses native sharing when available, otherwise copies the Room URL. */
     async #copyInvite() {
-        if (!this.room?.name) {
+        if (!this.room?.name || this.capabilities.invite !== true) {
             return;
         }
 
@@ -257,13 +228,10 @@ export class RoomController extends ViewController {
      */
     #previousState = "";
 
-    /** @type {string|null} Last displayed completed-match or final-knockout result. */
-    #previousResultKey = null;
-
     /**
      * @type {LocalActorController} Local actor hand and command controller.
      */
-    #actorController = new LocalActorController("#actor-region", false);
+    #actorController = new LocalActorController("#local-actor-region");
 
     /**
      * @type {SuitSelectionController} Pending ace suit-declaration dialog.
@@ -285,8 +253,8 @@ export class RoomController extends ViewController {
 
     /** Initializes required state and event bindings. */
     async initialize() {
-        await this._initializeRoomView();
-        await OpponentUtils.load();
+        await this._initializeRoomSession();
+        await ActorUtils.load();
         this.#actorController.initialize();
         this.#actorController.setCommandHandler(this.#handleActorCommand.bind(this));
         this.#actorController.setSortHandler(this.#handleSortChange.bind(this));
@@ -309,6 +277,7 @@ export class RoomController extends ViewController {
      * @param {string} command - Room command.
      */
     #handleActorCommand(command) {
+        if (!this.#canSubmitActorCommand(command)) return;
         if (command === Constants.COMMANDS.START) {
             if (this.room?.match?.nextMatchAvailable === true) {
                 this.view?.request(Constants.COMMANDS.START, {});
@@ -322,9 +291,40 @@ export class RoomController extends ViewController {
         }
     }
 
+    /**
+     * Checks the latest room state before a local actor button action.
+     * @param {string} command - Room command.
+     * @returns {boolean} Whether the action is currently permitted.
+     */
+    #canSubmitActorCommand(command) {
+        const actor = RoomController.#getLocalActor(this.room);
+        if (actor === null) return false;
+        const match = this.room.match;
+        if (match.pending !== null) return false;
+
+        if (command === Constants.COMMANDS.START) {
+            const canStart = match.state === Constants.ROOM_STATE.WAITING ||
+                (this.capabilities.restart === true && match.state === Constants.ROOM_STATE.FINISHED);
+            return canStart && match.turnOrder?.actorCount >= 2 &&
+                (!match.isKnockout || match.isKnockoutComplete || match.nextMatchAvailable);
+        }
+        if (command === Constants.COMMANDS.PASS) {
+            return match.state === Constants.ROOM_STATE.ACTIVE && match.turnOrder?.ownerKey === actor.key;
+        }
+        if (command === Constants.COMMANDS.DRAW) {
+            if (match.state === Constants.ROOM_STATE.WAITING ||
+                (match.state === Constants.ROOM_STATE.FINISHED && !match.isKnockout)) return true;
+            const ownerKey = match.turnOrder?.ownerKey ?? null;
+            return match.state === Constants.ROOM_STATE.ACTIVE &&
+                (!ownerKey || (ownerKey === actor.key && actor.drawAllowance > 0));
+        }
+        return true;
+    }
+
     /** Submits the Knockout choice from the Play dialog. */
     #chooseKnockout(knockout) {
         this.#closePlayDialog();
+        if (!this.#canSubmitActorCommand(Constants.COMMANDS.START)) return;
         this.view?.request(Constants.COMMANDS.START, { knockout });
     }
 
@@ -372,11 +372,6 @@ export class RoomController extends ViewController {
         const previousState = this.#previousState;
         const nextState = ValidationUtils.optionalString(room.match.state, "");
         const localActor = RoomController.#getLocalActor(room);
-        const previousResultKey = this.#previousResultKey;
-        const nextResultKey = nextState === Constants.ROOM_STATE.FINISHED
-            ? `${room.match.isKnockout}:${room.match.isKnockoutComplete}:${JSON.stringify(room.match.turnOrder?.actors?.map(function actorResult(actor) {
-                return [actor.key, actor.state];
-            }))}` : null;
 
         if (nextState === Constants.ROOM_STATE.ACTIVE && this.#playDialog !== null) {
             this.#closePlayDialog();
@@ -384,13 +379,12 @@ export class RoomController extends ViewController {
 
         this.room = room;
         this.#previousState = nextState;
-        this.#previousResultKey = nextResultKey;
 
         this._renderRoom(room);
 
-        const playRegion = DomUtils.require(':is([data-game-region="act"], [data-game-region="view"])', HTMLElement);
+        const playRegion = DomUtils.require('[data-has-local-actor]', HTMLElement);
         playRegion.dataset.connectionMode = room.connectionMode;
-        playRegion.dataset.state = room.match.state;
+        playRegion.dataset.matchState = room.match.state;
 
         this.#renderActors(room);
         this.#renderDiscardPile(room);
@@ -418,7 +412,7 @@ export class RoomController extends ViewController {
 
         if (
             localActor !== null &&
-            (previousState !== Constants.ROOM_STATE.FINISHED || previousResultKey !== nextResultKey) &&
+            previousState !== Constants.ROOM_STATE.FINISHED &&
             nextState === Constants.ROOM_STATE.FINISHED
         ) {
             this.#resultsController.show(room);
@@ -457,7 +451,7 @@ export class RoomController extends ViewController {
      * @param {Object} room - Room snapshot.
      */
     #renderActors(room) {
-        const container = DomUtils.require("#opponent-list", HTMLUListElement);
+        const container = DomUtils.require("#actors-list", HTMLUListElement);
         const localName = room.localActorName ?? null;
 
         const actors = ResultsController.localFirst(RoomController.#getActors(room), localName);
@@ -469,9 +463,9 @@ export class RoomController extends ViewController {
         for (const actor of actors) {
             if (actor.name !== localName) {
                 const data = { ...actor, itemCount: actor.collection.items.length,
-                    turnOwnerKey: room.match.turnOrder.ownerKey, pieceName: "card" };
-                const row = rows.get(actor.key) ?? OpponentUtils.create(data, data.turnOwnerKey, "card");
-                if (rows.has(actor.key)) OpponentUtils.updateElement(row, data);
+                    pieceName: "card" };
+                const row = rows.get(actor.key) ?? ActorUtils.create(data);
+                if (rows.has(actor.key)) ActorUtils.updateElement(row, data);
                 row.dataset.actorKey = actor.key;
                 rows.delete(actor.key);
                 ordered.push(row);
@@ -507,7 +501,6 @@ export class RoomController extends ViewController {
             return;
         }
 
-        this.#actorController.setCanRestartFinishedMatch(this.capabilities.restart === true);
         this.#actorController.show(actor, room, this.view.sortKey);
     }
 

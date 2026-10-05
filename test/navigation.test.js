@@ -77,20 +77,19 @@ test("Home and Room resolve their local assets and navigation under a subdirecto
 });
 
 /** Runs the real page entry point with a controlled transport and browser location. */
-async function startRoomView(basePath, mode, validIntent) {
-    const state = { redirects: [], errors: [], cleared: false, closed: false, notice: null };
+async function startRoomSession(basePath, mode, validIntent, command = Constants.COMMANDS.JOIN) {
+    const state = { redirects: [], errors: [], cleared: false, closed: false, notice: null, requests: [] };
     const storedValues = new Map([
         ["game.mode", mode],
         ["game.hostedUrl", "ws://example.test"],
         [
             "game.gameIntent",
-            validIntent ? JSON.stringify({ mode, command: Constants.COMMANDS.JOIN, data: { roomName: "Test" } }) : "null"
+            validIntent ? JSON.stringify({ mode, command, data: { roomName: "Test" } }) : "null"
         ]
     ]);
     let homeHandler;
     class FakeRoomController {
         setView() {}
-        setIntent() {}
         setReadyHandler() {}
         setHomeHandler(handler) {
             homeHandler = handler;
@@ -138,6 +137,7 @@ async function startRoomView(basePath, mode, validIntent) {
         ConnectionController: class {}
     };
     const config = {
+        request(command, data) { state.requests.push({ command, data }); return true; },
         connect() {},
         disconnect() {
             state.closed = true;
@@ -146,7 +146,7 @@ async function startRoomView(basePath, mode, validIntent) {
     };
     context.FakeRoomController = FakeRoomController;
     context.RoomController = FakeRoomController;
-    const source = readFileSync(new URL("ui/View.js", root), "utf8")
+    const source = readFileSync(new URL("ui/Session.js", root), "utf8")
         .replace(/^import .+;\n/gm, "")
         .replace(
             'const {RoomController} = await import("./controllers/RoomController.js");',
@@ -161,31 +161,33 @@ async function startRoomView(basePath, mode, validIntent) {
     await runInNewContext(
         `(async function () {
             ${source};
-            RoomView.prototype.connect = config.connect;
-            RoomView.prototype.disconnect = config.disconnect;
+            RoomSession.prototype.connect = config.connect;
+            RoomSession.prototype.disconnect = config.disconnect;
+            RoomSession.prototype.request = config.request;
             const homeUrl = new URL("./index.html", "https://example.test${basePath}");
-            await new RoomView(homeUrl).start();
+            config.session = new RoomSession(homeUrl);
+            await config.session.start();
         })()`,
         context
     );
     assert.deepEqual(state.errors, []);
-    return { state, returnHome: homeHandler };
+    return { state, returnHome: homeHandler, session: config.session };
 }
 
 test("room exits, failed admissions, and missing intents return Home with mode and base path intact", async () => {
     for (const basePath of ["/", "/pick-2/"]) {
         for (const mode of ["direct", "hosted"]) {
             const url = `https://example.test${basePath}index.html?mode=${mode}`;
-            const invalid = await startRoomView(basePath, mode, false);
+            const invalid = await startRoomSession(basePath, mode, false);
             assert.deepEqual(invalid.state.redirects, [{ method: "replace", url }]);
 
-            const leaving = await startRoomView(basePath, mode, true);
+            const leaving = await startRoomSession(basePath, mode, true);
             leaving.returnHome(null);
             assert.deepEqual(leaving.state.redirects, [{ method: "assign", url }]);
             assert.equal(leaving.state.cleared, true);
             assert.equal(leaving.state.closed, true);
 
-            const failed = await startRoomView(basePath, mode, true);
+            const failed = await startRoomSession(basePath, mode, true);
             const notice = { status: "error", message: "Room not found" };
             failed.returnHome(notice);
             assert.deepEqual(failed.state.redirects, [{ method: "replace", url }]);
@@ -193,5 +195,17 @@ test("room exits, failed admissions, and missing intents return Home with mode a
             assert.equal(failed.state.cleared, true);
             assert.equal(failed.state.closed, true);
         }
+    }
+});
+
+
+test("room session owns admission intent and changes Create to Join on reconnect", async () => {
+    for (const mode of ["direct", "hosted"]) {
+        const { state, session } = await startRoomSession("/", mode, true, Constants.COMMANDS.CREATE);
+        session.openRoom();
+        session.openRoom();
+        assert.deepEqual(state.requests.map(request => request.command), ["create", "join"]);
+        assert.equal(state.requests[0].data.roomName, "Test");
+        assert.equal(state.requests[1].data.roomName, "Test");
     }
 });

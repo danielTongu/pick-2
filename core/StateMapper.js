@@ -1,7 +1,5 @@
 "use strict";
 
-import { Constants } from "./Constants.js";
-
 /** Maps Pick2 state into immutable transport objects. */
 export class StateMapper {
     /**
@@ -58,9 +56,7 @@ export class StateMapper {
                 state: match.state,
                 isKnockout: match.isKnockout === true,
                 turnOrder: Object.freeze({
-                    actorCount: Number.isInteger(actorCount)
-                        ? actorCount
-                        : StateMapper.collectionCount(match.turnOrder?.actors)
+                    actorCount: Number.isInteger(actorCount) ? actorCount : StateMapper.collectionCount(match.turnOrder?.actors)
                 })
             }),
             actorLimit: room.actorLimit,
@@ -111,8 +107,7 @@ export class StateMapper {
                 collections: Object.freeze({
                     play: Object.freeze({ items: StateMapper.#toPlayedCards(state.match) }),
                     draw: Object.freeze({
-                        itemCount: Array.isArray(state.match.collections?.draw?.items)
-                            ? state.match.collections.draw.items.length : 0
+                        itemCount: Array.isArray(state.match.collections?.draw?.items) ? state.match.collections.draw.items.length : 0
                     })
                 }),
                 isKnockout: state.match.isKnockout === true,
@@ -168,8 +163,7 @@ export class StateMapper {
                 name: actor.name,
                 collection: Object.freeze({
                     items: StateMapper.#toCards(collection.items),
-                    penalty: collection.penalty,
-                    sortKey: collection.sortKey ?? Constants.CARD.SORT_OPTIONS[0]
+                    penalty: collection.penalty
                 }),
                 drawAllowance: actor.drawAllowance,
                 state: actor.state

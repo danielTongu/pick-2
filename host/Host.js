@@ -12,8 +12,6 @@ import {Knockout} from "../core/Room.js";
 import {Room} from "../core/Room.js";
 import {StateMapper} from "../core/StateMapper.js";
 import {RoomLifecycle} from "./RoomLifecycle.js";
-import {HostConnection} from "./HostConnection.js";
-import {RoomMembership} from "./RoomMembership.js";
 import {ConnectionRegistry} from "./ConnectionRegistry.js";
 import {HostRequest} from "./HostRequest.js";
 import {HostRequestContext} from "./HostRequestContext.js";
@@ -157,9 +155,6 @@ export class Host {
     /** @type {RoomLifecycle} Pending sidelined-bot returns. */
     #botReturns = new RoomLifecycle();
 
-    /** @type {Map<string, BotActor[]>} Eliminated bots retained until knockout completion. */
-    #sidelinedBotsByRoom = new Map();
-
     /** @type {Set<string>} Rooms currently converting eliminated actors. */
     #settlingKnockout = new Set();
 
@@ -228,13 +223,6 @@ export class Host {
         }
     }
 
-    /** Reads eliminated actors from the finished order before it is pruned. */
-    static #actorsToSideline(room) {
-        return [...room.match.turnOrder.actors.values()].filter(function eliminated(actor) {
-            return actor.state === Constants.ACTOR_STATE.ELIMINATED;
-        });
-    }
-
     // -------------------------------------------------------------------------
     // Room registry and state publication
     // -------------------------------------------------------------------------
@@ -244,7 +232,7 @@ export class Host {
      *
      * @param {function(Object): void} send - Transport response callback.
      * @param {function(number=, string=): void} disconnect - Transport disconnect callback.
-     * @returns {HostConnection} Host-side connection.
+     * @returns {import("./HostConnection.js").HostConnection} Host-side connection.
      */
     accept(send, disconnect) {
         const connection = this.#connections.createConnection(send, disconnect, this.#receive.bind(this), this.#disconnect.bind(this));
@@ -385,7 +373,7 @@ export class Host {
      * Resolves a membership's actor name against current room membership.
      *
      * @param {Room} room - Room instance.
-     * @param {RoomMembership} membership - Room membership.
+     * @param {import("./RoomMembership.js").RoomMembership} membership - Room membership.
      * @returns {string|null} Valid actor name or null.
      */
     #resolveMembershipActorName(room, membership) {
@@ -401,7 +389,7 @@ export class Host {
     /**
      * Sends active Room state to one membership.
      *
-     * @param {HostConnection} connection - Connected transport connection.
+     * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
      * @param {Room} room - Room instance.
      * @param {string|null} actorName - Room actor name.
      * @param {Object|null} message - Optional notification sent with the state.
@@ -461,7 +449,7 @@ export class Host {
     /**
      * Sends a normal transition to Home.
      *
-     * @param {HostConnection} connection - Connected transport connection.
+     * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
      * @param {{rooms:Object[]}} homeState - Home data.
      * @param {Object|null} message - Optional notification sent with Home state.
      */
@@ -478,7 +466,7 @@ export class Host {
      * Registers a membership with a room.
      *
      * @param {string} tabId - Tab ID.
-     * @param {HostConnection} connection - Connected transport connection.
+     * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
      * @param {string} roomKey - Normalized room lookup key.
      * @param {string|null} actorName - Actor name.
      */
@@ -499,7 +487,7 @@ export class Host {
      * This does not mutate Room membership or move the socket to the room.
      *
      * @param {string} tabId - Tab ID.
-     * @param {HostConnection} connection - Connected transport connection.
+     * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
      */
     #unregisterMembership(tabId, connection) {
         this.#connections.unregister(tabId, connection);
@@ -555,7 +543,7 @@ export class Host {
     /**
      * Removes one occupant without waiting for subsequent automated turns.
      *
-     * @param {RoomMembership} membership - Room membership.
+     * @param {import("./RoomMembership.js").RoomMembership} membership - Room membership.
      * @param {Room} room - Room instance.
      * @returns {Promise<void>}
      */
@@ -636,7 +624,6 @@ export class Host {
             this.#roomLifecycle.cancel(roomKey);
             this.#knockoutStarts.cancel(roomKey);
             this.#botReturns.cancel(roomKey);
-            this.#sidelinedBotsByRoom.delete(roomKey);
 
             const viewingMemberships = this.#connections.inRoom(roomKey);
 
@@ -667,7 +654,7 @@ export class Host {
     /**
      * Processes one request from a connected connection.
      *
-     * @param {HostConnection} connection - Connection that sent the request.
+     * @param {import("./HostConnection.js").HostConnection} connection - Connection that sent the request.
      * @param {Object|string|null} rawRequest - Untrusted request payload.
      */
     async #receive(connection, rawRequest) {
@@ -719,7 +706,7 @@ export class Host {
      *
      * Room memberships are silently removed.
      *
-     * @param {HostConnection} connection - Connected transport connection.
+     * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
      * @returns {Promise<void>}
      */
     async #disconnect(connection) {
@@ -1150,7 +1137,7 @@ export class Host {
                 room.notifyStateChange();
             } else if (room.match.isKnockoutComplete) {
                 this.#knockoutStarts.cancel(roomKey);
-                if ((this.#sidelinedBotsByRoom.get(roomKey)?.length ?? 0) > 0 && !this.#botReturns.hasPending(roomKey)) {
+                if (room.match.lostBotNames.length > 0 && !this.#botReturns.hasPending(roomKey)) {
                     this.#botReturns.schedule(roomKey, Constants.COUNTDOWN_SECONDS * 1000, this.#restoreSidelinedBotsWhenDue.bind(this));
                 }
                 this.#scheduleRoomClosureIfEmpty(roomKey);
@@ -1160,17 +1147,12 @@ export class Host {
         }
     }
 
-    /** Demotes eliminated humans and sidelines bots after the current order is pruned. */
+    /** Demotes eliminated humans after the current order is pruned. */
     async #settleEliminatedActors(roomKey, actors) {
         const room = this.#roomsByKey.get(roomKey) ?? null;
         if (room === null) return;
         for (const actor of actors) {
-            if (actor instanceof BotActor) {
-                const bench = this.#sidelinedBotsByRoom.get(roomKey) ?? [];
-                bench.push(actor);
-                this.#sidelinedBotsByRoom.set(roomKey, bench);
-                continue;
-            }
+            if (actor instanceof BotActor) continue;
             const membership = this.#connections.findActor(roomKey, actor.name);
             if (membership !== null && this.#connections.isCurrent(membership)) {
                 membership.view();
@@ -1183,8 +1165,7 @@ export class Host {
 
     /** Starts one match, processes exclusions, and advances automated play. */
     async #startMatchAndContinue(roomKey, room, knockout = null) {
-        const eliminated = room.match.nextMatchAvailable ? Host.#actorsToSideline(room) : [];
-        await room.startMatch(knockout);
+        const eliminated = await room.startMatch(knockout);
         this.#knockoutStarts.cancel(roomKey);
         await this.#settleEliminatedActors(roomKey, eliminated);
         await this.#advanceRoom(roomKey);
@@ -1201,21 +1182,12 @@ export class Host {
         }
     }
 
-    /** Reseats the same bot instances after the final result is available. */
+    /** Recreates lost bots by name after the final result is available. */
     async #returnSidelinedBots(roomKey) {
         const room = this.#roomsByKey.get(roomKey) ?? null;
         if (room === null || !(room.match instanceof Knockout) || !room.match.isKnockoutComplete) return;
         this.#botReturns.cancel(roomKey);
-        const bench = this.#sidelinedBotsByRoom.get(roomKey) ?? [];
-        this.#sidelinedBotsByRoom.delete(roomKey);
-        for (let index = 0; index < bench.length; index += 1) {
-            try {
-                await room.reseatActor(bench[index]);
-            } catch (error) {
-                this.#sidelinedBotsByRoom.set(roomKey, bench.slice(index));
-                throw error;
-            }
-        }
+        await room.restoreLostBots();
     }
 
     /** Handles a scheduled bot return without leaving an unobserved rejection. */
@@ -1238,7 +1210,6 @@ export class Host {
         this.#roomLifecycle.clear();
         this.#knockoutStarts.clear();
         this.#botReturns.clear();
-        this.#sidelinedBotsByRoom.clear();
 
         for (const room of this.#roomsByKey.values()) {
             this.#clearRoomCallbacks(room);

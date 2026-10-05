@@ -13,7 +13,7 @@ export class ViewController {
     root;
 
     /**
-     * @type {import("../View.js").View|null} Owning browser view.
+     * @type {import("../Session.js").Session|null} Owning browser session.
      */
     view;
 

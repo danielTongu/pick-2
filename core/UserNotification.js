@@ -8,10 +8,9 @@ export class UserNotification extends Error {
      * Creates a user-facing notification.
      *
      * @param {string} message - Actionable user-facing message.
-     * @param {ErrorOptions} [options] - Optional error cause.
      */
-    constructor(message, options) {
-        super(message, options);
+    constructor(message) {
+        super(message);
         this.name = "UserNotification";
     }
 }

@@ -33,7 +33,7 @@ The application has root Home, Connection, and Room entry points:
 index.html          Pick 2 Home page
 connection.html     Hosted server selection page
 room.html           Active Pick 2 Room page
-ui/View.js          Shared browser client view, Home, Connection, and Room views
+ui/Session.js          Shared browser client session, Home, Connection, and Room sessions
 ui/controllers/ConnectionController.js Hosted connection page controller
 main.js             Browser startup and dependency wiring
 core/               Pick2 items, actors, turns, cards, rules, bots, and DTO mapping
@@ -49,7 +49,7 @@ The Host owns orchestration and authority. Core owns identity, collections, turn
 match state. `StateMapper` defines the boundary between domain state and browser-safe data. Direct and Hosted hosts MUST
 preserve these responsibilities even when their transports differ.
 
-Direct mode connects `View` directly to a browser-owned Host. Hosted mode connects the same View API to a
+Direct mode connects `Session` directly to a browser-owned Host. Hosted mode connects the same Session API to a
 server-owned Host through WebSocket transport. Both Hosts keep rooms only in memory: Direct rooms end when the browser
 runtime ends, and Hosted rooms end when the server process ends. Hosted custom rooms do not automatically receive bots;
 Direct custom rooms do according to the direct Host profile. Default rooms are created when each Host starts.
@@ -62,7 +62,7 @@ Direct and Hosted play. Transport and Host policy remain explicit differences:
 ```text
 UI controller
     ↓ command
-View
+Session
     ├── local Host ──────────────────┐
     │   (in-tab, cloned messages)    │
     │                                ↓
@@ -77,19 +77,46 @@ Responses return through the same path and always use the canonical `{ view, mes
 | --- | --- |
 | `host/HostConnection.js` | Owns Host-side connection state and transport send/disconnect callbacks. |
 | `host/RoomMembership.js` | Tracks one tab's actor or viewer membership in a room. |
-| `ui/View.js` | Owns client requests, responses, local delivery, and WebSocket reconnects. |
+| `ui/Session.js` | Owns client requests, responses, local delivery, and WebSocket reconnects. |
 | `ui/controllers/ConnectionController.js` | Owns the Hosted connection form and probe diagnostics. |
 | `server.js` | Owns Node HTTP/WebSocket infrastructure, process lifecycle, and socket adaptation. |
 | `host/Host.js` | Validates requests and coordinates rooms, membership, publication, throttling, automation, and cleanup. |
 | `host/HostRequest.js` | Holds validated request data. |
 | `host/HostRequestContext.js` | Holds resolved context for one host request. |
-| `host/RoomLifecycle.js` | Owns deferred empty-room checks and timer cleanup. |
+| `host/RoomLifecycle.js` | Owns deferred room closure, knockout starts, bot-return timers, and cleanup. |
 | `host/ConnectionRegistry.js` | Owns Home subscriptions and room-membership indexes. |
+
+### State and resource ownership
+
+Store authoritative state on the object whose lifetime it describes. Owners perform their own reset and cleanup;
+other layers request an operation or consume a snapshot rather than maintaining a parallel copy.
+
+| Owner | Structures and lifetime |
+| --- | --- |
+| `Card` / `CardCollection` | Card identity and collection items. Counts and penalties are derived. |
+| `Actor` / `BotActor` | Identity, hand, draw allowance, actor state, and idle monitoring. Bot decisions use those same fields. |
+| `TurnOrder` | Actor map, ordered actor keys, turn owner, and direction. Its map and key list are maintained together. |
+| `Match` | Draw/play collections, pending declaration, declared suit, match state, and last discarding actor. |
+| `Knockout` | Continuation state and lost bot names. Names accumulate while nonqualifiers are pruned and are consumed on bot restoration. Ordinary matches retain no names (`null`). |
+| `Room` | Room identity, actor capacity, viewer identities, activity, serialized mutation queue, and state-change callbacks. Room operations coordinate its match and membership changes. |
+| `Host` | Registered rooms, runtime capabilities/policy, lifecycle scheduling, automation, and orchestration guards. It retains no duplicate bot roster. |
+| `ConnectionRegistry` / `RoomMembership` | Transport memberships, Home subscriptions, and room indexes. Membership maps a tab to its current connection and optional actor name. |
+| `HostConnection` / `RequestThrottle` | Connection resources/authentication and request-rate history, respectively. Neither stores match outcomes. |
+| `HostRequest` / `HostRequestContext` | Validated command data and resolved references for one request only. |
+| `Session` / `SessionState` | Client transport, reconnect resources, tab identity, sort preference, and persisted navigation state. `RoomSession` owns admission intent and reconnect admission history. |
+| UI controllers | DOM references, latest display snapshots, selection, dialog transitions, and presentation timers. Results retain the displayed snapshot so later roster changes do not alter the result. |
+| `server.js` | HTTP/WebSocket servers, socket adaptation, process maintenance, and shutdown resources. |
+
+Room viewer identities and transport memberships serve distinct purposes: core counts room viewers without depending
+on connections; the registry authenticates and routes those viewers. Host coordinates both during join, leave, and
+elimination. Human players are never retained for automatic restoration; they remain viewers until they rejoin.
+
+UI action guards are convenience checks against the latest snapshot. Core remains authoritative when a command arrives.
 
 Changes belong to the layer that owns the concern:
 
-- browser connection and reconnection behavior belongs in `ui/View.js`;
-- Hosted connection selection and probing belong in `ConnectionView` in `ui/View.js`;
+- browser connection and reconnection behavior belongs in `ui/Session.js`;
+- Hosted connection selection and probing belong in `ConnectionSession` in `ui/Session.js`;
 - HTTP, WebSocket-server, and process-facing behavior belongs in `server.js`;
 - connection and membership indexing belongs in `host/ConnectionRegistry.js`;
 - authentication, command coordination, publication, and room cleanup belong in `Host.js`;
@@ -156,35 +183,35 @@ they do not restate this pipeline.
 
 #### Canonical startup and command pipeline
 
-1. `main.js` chooses `HomeView`, `ConnectionView`, or `RoomView` from the page; each owns its page lifecycle.
-2. `ConnectionView` verifies a Hosted server on its own page. `View.connect()` then selects the Host location: in Direct
-   mode the browser runs `View` and `Host` in-process; in Hosted mode View uses WebSocket to reach `server.js` and `Host`.
+1. `main.js` chooses `HomeSession`, `ConnectionSession`, or `RoomSession` from the page; each owns its page lifecycle.
+2. `ConnectionSession` verifies a Hosted server on its own page. `Session.connect()` then selects the Host location: in Direct
+   mode the browser runs `Session` and `Host` in-process; in Hosted mode Session uses WebSocket to reach `server.js` and `Host`.
 3. `Host.accept()` creates a `HostConnection` in `ConnectionRegistry` and publishes the initial Home snapshot after startup.
-4. `View.request()` adds the tab identifier and current sort key. The selected transport delivers the request to
+4. `Session.request()` adds the tab identifier and current sort key. The selected transport delivers the request to
    `Host`, where `HostRequest` and `HostRequestContext` validate and resolve it, `RequestThrottle` throttles it, and `Host` dispatches it.
 5. The handler authenticates the membership and invokes the relevant `Host` or `Room` operation. Room mutations are queued,
    update activity and monitoring as required, and call `Room.onAnyChange`.
 6. `Host` uses `StateMapper` to create recipient-specific data and publishes it through `HostConnection`. The transport
-   returns it to `View`, which sends it to the page controller for a complete render.
+   returns it to `Session`, which sends it to the page controller for a complete render.
 
 Unless a subsection says otherwise, “send,” “publish,” and “render” refer to steps 4–6 of this pipeline.
 
 #### Home and Room admission
 
-`HomeView` reads the preferred mode from `ViewState`. The standalone `ConnectionView` discovers
+`HomeSession` reads the preferred mode from `SessionState`. The standalone `ConnectionSession` discovers
 and verifies its endpoint; `ConnectionController` renders the endpoint, attempt, probe duration, timeout, and failure
 diagnostics. A successful WebSocket probe establishes availability, not game admission. When the client opens,
 `HomeController` sends `list`, stores the advertised capabilities, and
-renders the directory through `RoomRowUtils`. Before navigating, it validates form input and `HomeView` stores the mode
-and complete `create`, `view`, or `join` admission intent in `ViewState`.
+renders the directory through `RoomRowUtils`. Before navigating, it validates form input and `HomeSession` stores the mode
+and complete `create`, `view`, or `join` admission intent in `SessionState`.
 
-`RoomView` restores that intent, constructs `RoomController` and `FaqController`, and opens the shared client. An
-unaccompanied initial Home snapshot is ignored on the Room page. On open, `RoomController` sends the saved intent:
+`RoomSession` restores that intent, constructs `RoomController` and `FaqController`, and opens the shared client. An
+unaccompanied initial Home snapshot is ignored on the Room page. On open, `RoomController` delegates to `RoomSession.openRoom()`, which sends its saved intent:
 
 - `create`: `Host` validates admission, creates and registers the `Room`, attaches change and optional idle callbacks,
   joins the first human, and fills remaining seats with Bots when its `customBots` policy is `fill`. `ConnectionRegistry`
   records membership; the Host sends Room state and a welcome notification and refreshes the Home directory. After
-  success, `RoomView` persists `join` instead of `create` so reconnect cannot recreate the Room.
+  success, `RoomSession` persists `join` instead of `create` so reconnect cannot recreate the Room.
 - `view`: `Room.view()` adds the tab as a Viewer and updates Room activity only for a new viewer. `ConnectionRegistry` then
   records viewer membership and the Host sends viewer-specific state.
 - `join`: `Host` checks lifecycle, capacity, name uniqueness, and membership eligibility. `Room.joinActor()` creates the
@@ -216,7 +243,7 @@ All dialogs inherit display and dismissal behavior from `ViewController`; their 
 
 | Dialog | Opens when | Closes or updates when |
 | --- | --- | --- |
-| Alert | A controller receives a normalized server or client notification. | Its dismiss button hides it. Admission failures and Room-closure notices are saved in `ViewState`, carried Home, and displayed there. |
+| Alert | A controller receives a normalized server or client notification. | Its dismiss button hides it. Admission failures and Room-closure notices are saved in `SessionState`, carried Home, and displayed there. |
 | Countdown | A local Actor renders a `waiting`-to-`active` transition. | Its timer reaches zero or the Actor dismisses it. Viewers and other transitions do not open it. |
 | Suit selection | The local Actor owns a pending `declare` decision. | Submission sends `declare`; any snapshot without that local pending decision hides it. Temporary dismissal schedules redisplay while it remains pending. |
 | Results | A local Actor first renders a transition into `finished`. | Dismissal clears its rendered details. Later finished snapshots do not reopen it; a non-finished snapshot keeps it hidden. |
@@ -229,18 +256,19 @@ moves that Actor to viewing state, publishes the Room, and sends the affected cl
 
 When the check expires, `Host` verifies that the Room is still empty, detaches its callbacks, unregisters it, refreshes
 the Home directory, and sends affected Room memberships a single response containing Home state and a `Room closed`
-notification. `RoomView` saves the warning, disconnects, and returns Home, where the alert flow displays it.
+notification. `RoomSession` saves the warning, disconnects, and returns Home, where the alert flow displays it.
 
 #### Departure and hosted reconnect
 
-On `leave`, `RoomController` clears the admission intent, disconnects, and navigates Home while the canonical pipeline
+On `leave`, `RoomController` submits the command and asks `RoomSession` to clear the admission intent, disconnect,
+and navigate Home while the canonical pipeline
 removes the Viewer or Actor. `Room` recycles a departing Actor's hand when applicable and refreshes activity and idle
 monitoring; `ConnectionRegistry` removes membership; `Host` applies Bot continuation or empty-Room cleanup and publishes to
 remaining memberships. A transport closure performs the same server-side membership cleanup.
 
-On a Hosted connection loss, `View` reports status and performs bounded reconnect attempts without
-changing authoritative Room state. A new socket produces a replacement `HostConnection`; the controller sends `list` or
-its saved admission intent again using the same tab identifier. `Host` and `ConnectionRegistry` replace stale connection ownership
+On a Hosted connection loss, `Session` reports status and performs bounded reconnect attempts without
+changing authoritative Room state. A new socket produces a replacement `HostConnection`; the Home controller sends `list`, or
+`RoomSession` resubmits its admission intent using the same tab identifier. `Host` and `ConnectionRegistry` replace stale connection ownership
 and publish a fresh authoritative snapshot, which the controller renders completely before normal handling resumes.
 
 ### 5.4 Room states
@@ -259,7 +287,8 @@ owner; resuming waiting after finished clears it.
 
 ### 6.1 Ownership of activity
 
-`Actor.lastActiveAt` measures activity for one seated Actor. It is used to decide whether that Actor is idle.
+`Actor` owns its idle timer. `recordActivity()` restarts that timer when monitoring is enabled; no unused actor
+activity timestamp is retained.
 `Room.lastActiveAt` measures activity for the Room and is used for room-level recency and empty-room cleanup.
 
 `TurnOrder` MUST NOT track activity. Turn order is not activity, and adding timestamps to the circle would duplicate
@@ -272,10 +301,10 @@ passing, and declaring a suit. Starting a match or resuming waiting after finish
 activity for the relevant lifecycle.
 
 Viewer activity MUST update only `Room.lastActiveAt`. A viewer becoming an Actor MUST update the new
-`Actor.lastActiveAt` and `Room.lastActiveAt`. Joining, leaving a viewer, and moving an Actor to viewing state update
+Actor idle monitoring and `Room.lastActiveAt`. Joining, leaving a viewer, and moving an Actor to viewing state update
 Room activity when the membership change actually occurs.
 
-Failed commands MUST NOT be treated as successful Actor activity. Internal lifecycle transitions may refresh timestamps
+Failed commands MUST NOT be treated as successful Actor activity. Internal lifecycle transitions may refresh room activity and actor idle timers
 when they establish a new monitoring window; they MUST NOT introduce a separate circle timestamp.
 
 ### 6.3 Who is monitored
@@ -453,8 +482,8 @@ static. Discard-pile cards are display-only in every match state.
 
 ### 12.1 Element properties and markup
 
-The element's `value` and `suit` getters read its presentation attributes. `rank` uses the supplied game rank,
-falling back to the canonical rank. It returns `null` for suit-only cards. The `rotation` and `isFaceUp`
+The element's `value` and `suit` getters read its presentation attributes. Supplied rank is retained in `data-rank`
+for card-update comparison. The `rotation` and `isFaceUp`
 setters validate changes and synchronize CSS or accessibility. `isDragging` reads the active drag state, with no
 separate stored boolean.
 

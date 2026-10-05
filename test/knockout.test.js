@@ -221,7 +221,7 @@ test("a bot-only qualified field starts on the timer after the human is eliminat
     }));
 });
 
-test("an eliminated bot is reseated after the final knockout result", async (t) => {
+test("an eliminated bot is recreated by name after the final knockout result", async (t) => {
     class CapturingHost extends Host {
         createRoom(name, limit) {
             this.createdRoom = super.createRoom(name, limit);
@@ -257,6 +257,7 @@ test("an eliminated bot is reseated after the final knockout result", async (t) 
     await delay(100);
     assert.equal(room.match.state, Constants.ROOM_STATE.ACTIVE);
     assert.equal(room.hasActor("CM"), false);
+    assert.deepEqual(room.match.lostBotNames, ["CM"]);
     room.match.turnOrder.setOwner("Alice");
     room.match.collections.play.items = [new Card("5", "hearts")];
     for (const actor of room.match.turnOrder.actors.values()) actor.collection.clear();
@@ -266,5 +267,15 @@ test("an eliminated bot is reseated after the final knockout result", async (t) 
     await request(Constants.COMMANDS.DISCARD, { card: { value: "7", suit: "hearts" } });
     assert.equal(room.match.isKnockoutComplete, true);
     await delay(100);
-    assert.equal(room.match.turnOrder.get("CM"), eliminatedBot);
+    const returningBot = room.match.turnOrder.get("CM");
+    assert.notEqual(returningBot, eliminatedBot);
+    assert.equal(returningBot.name, eliminatedBot.name);
+    assert.deepEqual(room.match.lostBotNames, []);
+    assert.equal(returningBot.state, Constants.ACTOR_STATE.LOST);
+    assert.equal(returningBot.collection.items.length, 0);
+    assert.equal(room.toJSON().match.turnOrder.actors.find(actor => actor.key === eliminatedBot.key).state,
+        Constants.ACTOR_STATE.LOST);
+    await room.startMatch(false);
+    assert.equal(room.match.lostBotNames, null);
+    assert.ok([Constants.ACTOR_STATE.READY, Constants.ACTOR_STATE.ACTIVE].includes(returningBot.state));
 });

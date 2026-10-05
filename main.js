@@ -1,6 +1,6 @@
 "use strict";
 
-import { HomeView, RoomView, ConnectionView } from "./ui/View.js";
+import { HomeSession, RoomSession, ConnectionSession } from "./ui/Session.js";
 import { Constants } from "./core/Constants.js";
 
 
@@ -40,13 +40,13 @@ try {
 
     if (page === Constants.VIEWS.HOME) {
         const roomUrl = new URL("./room.html", document.baseURI);
-        await new HomeView(roomUrl).start();
+        await new HomeSession(roomUrl).start();
     } else if (page === Constants.VIEWS.ROOM) {
         const homeUrl = new URL("./index.html", location.href);
-        await new RoomView(homeUrl).start();
+        await new RoomSession(homeUrl).start();
     } else if (page === Constants.VIEWS.CONNECTION) {
         const homeUrl = new URL("./index.html", location.href);
-        await new ConnectionView(homeUrl).start();
+        await new ConnectionSession(homeUrl).start();
     } else throw new Error(`Unknown page: ${page}`);
 } catch (error) {
     reportError(error);

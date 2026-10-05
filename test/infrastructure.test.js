@@ -13,7 +13,7 @@ import { UserNotification } from "../core/UserNotification.js";
 import { RoomRowUtils } from "../ui/utilities/RoomRowUtils.js";
 import { RequestThrottle } from "../host/Host.js";
 import { NotificationUtils } from "../ui/utilities/NotificationUtils.js";
-import { OpponentUtils } from "../ui/utilities/OpponentUtils.js";
+import { ActorUtils } from "../ui/utilities/ActorUtils.js";
 import { TemplateUtils } from "../ui/utilities/TemplateUtils.js";
 
 const INDEX_HTML = readFileSync(new URL("../room.html", import.meta.url), "utf8");
@@ -80,7 +80,7 @@ test("browser controller, custom element, and template utility families share th
         assert.equal(typeof ConnectionController.prototype.initialize, "function");
         assert.equal(typeof ConnectionController.prototype.render, "function");
 
-        for (const Type of [OpponentUtils, RoomRowUtils]) {
+        for (const Type of [ActorUtils, RoomRowUtils]) {
             assert.equal(Type.prototype instanceof TemplateUtils, true);
             assert.equal(typeof Type.load, "function");
             assert.equal(typeof Type.create, "function");
@@ -91,7 +91,7 @@ test("browser controller, custom element, and template utility families share th
             assert.equal(typeof PlayingCard.prototype[method], "function");
         }
 
-        for (const property of ["value", "suit", "rank", "rotation", "isDragging", "isFaceUp"]) {
+        for (const property of ["value", "suit", "rotation", "isDragging", "isFaceUp"]) {
             const descriptor = Object.getOwnPropertyDescriptor(PlayingCard.prototype, property);
             assert.equal(typeof descriptor.get, "function", property);
             assert.equal(
@@ -145,8 +145,8 @@ test("ValidationUtils validates integer categories without coercion", () => {
 });
 
 test("Serializable handles nested models, dates, arrays, objects, maps, sets, and field filters", () => {
-    const child = new Serializable({ value: 2 });
-    const model = new Serializable({
+    const child = Object.assign(new Serializable(), { value: 2 });
+    const model = Object.assign(new Serializable(), {
         child,
         date: new Date("2026-01-02T03:04:05.000Z"),
         array: [child, new Set([3])],

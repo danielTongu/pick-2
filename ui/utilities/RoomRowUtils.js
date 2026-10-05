@@ -28,11 +28,6 @@ export class RoomRowUtils extends TemplateUtils {
     static componentUrl = import.meta.url;
 
     /**
-     * @type {boolean} Whether cloned roots must satisfy the declared contract.
-     */
-    static isTemplateRootValidationEnabled = false;
-
-    /**
      * @param {HTMLTableRowElement} element - Room row.
      * @param {Object} room - Room snapshot.
      */

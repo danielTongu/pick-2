@@ -13,14 +13,14 @@ const { VALUE, SUIT } = Constants.CARD;
 
 test("an unshuffled deck contains 54 unique cards", () => {
     const deck = CardCollection.createDeck(false);
-    const ids = deck.toArray().map((card) => card.id);
+    const ids = deck.items.map((card) => card.id);
 
     assert.equal(deck.items.length, 54);
     assert.equal(new Set(ids).size, 54);
     assert.equal(ids.filter((id) => id.startsWith("joker-")).length, 2);
 });
 
-test("deck drawing and insertion preserve top and bottom order", () => {
+test("deck drawing preserves last-in first-out order", () => {
     const deck = CardCollection.createDeck(false);
     deck.clear();
 
@@ -28,12 +28,11 @@ test("deck drawing and insertion preserve top and bottom order", () => {
     const three = new Card(VALUE.THREE.id, SUIT.CLUBS);
     const four = new Card(VALUE.FOUR.id, SUIT.CLUBS);
 
-    deck.addManyFirst([two, three]);
+    deck.addMany([two, three]);
     deck.add(four);
 
-    assert.deepEqual(deck.takeMany(3).map(String), ["4-clubs", "3-clubs", "2-clubs"]);
+    assert.deepEqual([deck.take(), deck.take(), deck.take()].map(String), ["4-clubs", "3-clubs", "2-clubs"]);
     assert.equal(deck.take(), null);
-    assert.throws(() => deck.takeMany(-1), /non-negative integer/);
 });
 
 test("hands draw, discard, and total card penalties", () => {
@@ -41,7 +40,6 @@ test("hands draw, discard, and total card penalties", () => {
 
     assert.equal(hand.items.length, 2);
     assert.equal(hand.penalty, 70);
-    assert.equal(hand.has(new Card(VALUE.TWO.id, SUIT.CLUBS)), true);
 
     const discarded = hand.remove(new Card(VALUE.TWO.id, SUIT.CLUBS));
     assert.equal(discarded.id, "2-clubs");
@@ -67,10 +65,10 @@ test("hand sorting is permanent for existing cards but does not auto-sort new dr
     ]);
 
     hand.sort("rank");
-    assert.deepEqual(hand.toArray().map(String), ["3-hearts", "8-spades", "k-clubs"]);
+    assert.deepEqual(hand.items.map(String), ["3-hearts", "8-spades", "k-clubs"]);
 
     hand.add(new Card(VALUE.TWO.id, SUIT.DIAMONDS));
-    assert.deepEqual(hand.toArray().map(String), ["3-hearts", "8-spades", "k-clubs", "2-diamonds"]);
+    assert.deepEqual(hand.items.map(String), ["3-hearts", "8-spades", "k-clubs", "2-diamonds"]);
     assert.throws(() => hand.sort(null), /Invalid card sort key/);
     assert.throws(() => hand.sort("value"), /Invalid card sort key/);
 });

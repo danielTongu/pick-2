@@ -71,21 +71,14 @@ export class LocalActorController extends ViewController {
     #passButton;
 
     /**
-     * @type {boolean} Current controller capability or lifecycle flag.
-     */
-    #canRestartFinishedMatch;
-
-    /**
      * Creates an actor-area controller.
      *
      * @param {string} selector - Actor-area selector.
-     * @param {boolean} canRestartFinishedMatch - Whether Play is available after a finished match.
      * @throws {Error} When required markup, callback, or input data violates the controller contract.
      */
-    constructor(selector, canRestartFinishedMatch) {
+    constructor(selector) {
         super(selector);
-        this.#canRestartFinishedMatch = canRestartFinishedMatch === true;
-        const playRegion = this.root.closest(':is([data-game-region="act"], [data-game-region="view"])');
+        const playRegion = this.root.closest('[data-has-local-actor]');
 
         if (!(playRegion instanceof HTMLElement)) {
             throw new Error("Actor area must belong to the room play area.");
@@ -142,15 +135,6 @@ export class LocalActorController extends ViewController {
     }
 
     /**
-     * Controls whether a finished Local room can restart.
-     *
-     * @param {boolean} value - Restart capability.
-     */
-    setCanRestartFinishedMatch(value) {
-        this.#canRestartFinishedMatch = value === true;
-    }
-
-    /**
      * Initializes local-actor event bindings.
      */
     initialize() {
@@ -175,8 +159,8 @@ export class LocalActorController extends ViewController {
      * @throws {Error} When required markup, callback, or input data violates the controller contract.
      */
     show(actor, room, sortKey) {
-        this.#playRegion.dataset.gameRegion = "act";
-        this.#renderRootState(actor, room);
+        this.#playRegion.dataset.hasLocalActor = "true";
+        this.#renderRootState(actor);
         this.#renderHeader(actor);
         this.#renderControls(actor, room, sortKey);
         this.#renderCards(actor, room, sortKey);
@@ -187,19 +171,17 @@ export class LocalActorController extends ViewController {
      */
     hide() {
         this.#clear();
-        this.#playRegion.dataset.gameRegion = "view";
+        this.#playRegion.dataset.hasLocalActor = "false";
     }
 
     /**
      * Clears local-actor UI state.
      */
     #clear() {
-        this.root.dataset.isTurnOwner = "false";
-        this.root.dataset.isWinner = "false";
+        this.root.dataset.actorState = Constants.ACTOR_STATE.READY;
         this.#actorStatus.dataset.actorName = "";
         this.#actorCardCount.dataset.itemCount = "0";
         this.#drawAllowanceOutput.dataset.drawAllowance = "0";
-        this.#drawButton.disabled = true;
         this.#handElement.replaceChildren();
     }
 
@@ -242,11 +224,9 @@ export class LocalActorController extends ViewController {
     /**
      * Renders turn ownership and final actor state on the local-area root.
      * @param {Object} actor - Local actor snapshot.
-     * @param {Object} room - Authoritative room snapshot.
      */
-    #renderRootState(actor, room) {
-        DomUtils.setBooleanState(this.root, "isTurnOwner", room.match.turnOrder?.ownerKey === actor.key);
-        DomUtils.setBooleanState(this.root, "isWinner", actor.state === Constants.ACTOR_STATE.WON);
+    #renderRootState(actor) {
+        this.root.dataset.actorState = actor.state;
     }
 
     /**
@@ -259,29 +239,18 @@ export class LocalActorController extends ViewController {
     }
 
     /**
-     * Enables controls from canonical actor ownership and Room lifecycle state.
+     * Renders draw allowance, sort selection, and the Play action label.
      * @param {Object} actor - Local actor snapshot.
      * @param {Object} room - Authoritative room snapshot.
      * @param {string} sortKey - Selected hand sort order.
      */
     #renderControls(actor, room, sortKey) {
         this.#drawAllowanceOutput.dataset.drawAllowance = String(actor.drawAllowance);
-        this.#drawButton.disabled = !LocalActorController.#isDrawButtonUsable(actor, room);
         this.#sortControl.value = sortKey;
-        this.#sortControl.disabled = false;
-        const canStartGame =
-            room.match.state === Constants.ROOM_STATE.WAITING ||
-            (this.#canRestartFinishedMatch && room.match.state === Constants.ROOM_STATE.FINISHED);
-
-        this.#playButton.disabled = room.match.pending !== null || !canStartGame || room.match.turnOrder?.actorCount < 2 ||
-            (room.match.isKnockout && !room.match.isKnockoutComplete && !room.match.nextMatchAvailable);
         this.#playButton.dataset.mode = room.match.nextMatchAvailable === true
             ? Constants.PLAY_BUTTON_MODE.NEXT_MATCH
             : Constants.PLAY_BUTTON_MODE.CHOOSE;
-        this.#passButton.disabled =
-            room.match.pending !== null ||
-            room.match.state !== Constants.ROOM_STATE.ACTIVE ||
-            room.match.turnOrder?.ownerKey !== actor.key;
+
     }
 
     /**
@@ -293,42 +262,13 @@ export class LocalActorController extends ViewController {
     #renderCards(actor, room, sortKey) {
         const orderedCards = new CardCollection(actor.collection.items).sorted(sortKey);
         const ownerKey = room.match.turnOrder?.ownerKey ?? null;
-        const allowsFreeTransactions =
-            room.match.state === Constants.ROOM_STATE.WAITING ||
-            (room.match.state === Constants.ROOM_STATE.FINISHED && !room.match.isKnockout);
-        const canDiscard =
-            room.match.pending === null &&
-            (allowsFreeTransactions ||
-                (room.match.state === Constants.ROOM_STATE.ACTIVE &&
-                    (!ownerKey || ownerKey === actor.key)));
+        const allowsFreeTransactions = room.match.state === Constants.ROOM_STATE.WAITING
+            || (room.match.state === Constants.ROOM_STATE.FINISHED && !room.match.isKnockout);
+        const canDiscard = room.match.pending === null && (allowsFreeTransactions
+            || (room.match.state === Constants.ROOM_STATE.ACTIVE && (!ownerKey || ownerKey === actor.key)));
         const destination = canDiscard ? DomUtils.require("#table-play-area > [data-is-drag-over]", HTMLElement) : null;
 
         CardListUtils.update(this.#handElement, orderedCards.reverse(), destination);
     }
 
-    /**
-     * Returns whether the local actor may draw in the authoritative Room state.
-     * @param {Object} actor - Local actor snapshot.
-     * @param {Object} room - Authoritative room snapshot.
-     * @returns {boolean} Whether drawing is enabled.
-     */
-    static #isDrawButtonUsable(actor, room) {
-        if (room.match.pending !== null) {
-            return false;
-        }
-
-        if (room.match.state === Constants.ROOM_STATE.WAITING ||
-            (room.match.state === Constants.ROOM_STATE.FINISHED && !room.match.isKnockout)) {
-            return true;
-        }
-
-        let isDrawAllowed = room.match.state === Constants.ROOM_STATE.ACTIVE && actor.drawAllowance > 0;
-
-        if (room.match.state === Constants.ROOM_STATE.ACTIVE) {
-            const ownerKey = room.match.turnOrder?.ownerKey ?? null;
-            isDrawAllowed = !ownerKey || (isDrawAllowed && ownerKey === actor.key);
-        }
-
-        return isDrawAllowed;
-    }
 }

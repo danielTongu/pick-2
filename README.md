@@ -45,7 +45,7 @@ npm run test:coverage
 pick-2/
 ├── index.html              Pick 2 Home
 ├── room.html               Active Pick 2 Room
-├── ui/View.js              Home, Connection, and Room view objects
+├── ui/Session.js           Home, Connection, and Room sessions
 ├── main.js                 Browser startup and dependency wiring
 ├── server.js              Hosted Node entry point
 ├── core/                   Cards, collections, actors, turns, rules, hosting, bots, and mapping
@@ -55,8 +55,8 @@ pick-2/
 └── docs/                   Design and maintenance documentation
 ```
 
-The Home and Room controllers use the browser `View` as their client API. In direct mode, the browser runs both `View` and `Host`, with
-in-process delivery handled by `View`. Hosted setup has its own Connection page; afterward, `View` reaches the server-side `Host` through
+The Home and Room controllers use the browser `Session` as their client API. In direct mode, the browser runs both `Session` and `Host`, with
+in-process delivery handled by `Session`. Hosted setup has its own Connection page; afterward, `Session` reaches the server-side `Host` through
 WebSocket and the Node server. Both return the same
 `{ view, message, data }` envelope. See the [runtime architecture](docs/pick-2.md#31-runtime-architecture) for the
 request flow and file map.

@@ -94,60 +94,6 @@ export class DomUtils {
     }
 
     /**
-     * Validates an element id.
-     *
-     * @param {*} element - Element to validate.
-     * @param {string} id - Required id.
-     * @returns {HTMLElement} Valid element.
-     * @throws {Error} When required markup, callback, or input data violates the controller contract.
-     */
-    static assertId(element, id) {
-        DomUtils.assertElement(element);
-
-        if (element.id !== id) {
-            throw new Error(`DOM element must have id "${id}".`);
-        }
-
-        return element;
-    }
-
-    /**
-     * Validates an element tag name.
-     *
-     * @param {*} element - Element to validate.
-     * @param {string} tagName - Required tag name.
-     * @returns {HTMLElement} Valid element.
-     * @throws {Error} When required markup, callback, or input data violates the controller contract.
-     */
-    static assertTagName(element, tagName) {
-        DomUtils.assertElement(element);
-
-        if (element.tagName !== String(tagName).toUpperCase()) {
-            throw new Error(`DOM element must be <${String(tagName).toLowerCase()}>.`);
-        }
-
-        return element;
-    }
-
-    /**
-     * Validates an element class name.
-     *
-     * @param {*} element - Element to validate.
-     * @param {string} className - Required class name.
-     * @returns {HTMLElement} Valid element.
-     * @throws {Error} When required markup, callback, or input data violates the controller contract.
-     */
-    static assertClassName(element, className) {
-        DomUtils.assertElement(element);
-
-        if (!element.classList.contains(className)) {
-            throw new Error(`DOM element must have class "${className}".`);
-        }
-
-        return element;
-    }
-
-    /**
      * Shows an element.
      *
      * @param {HTMLElement} element - Element to show.
@@ -165,26 +111,6 @@ export class DomUtils {
     static hide(element) {
         DomUtils.assertElement(element);
         element.hidden = true;
-    }
-
-    /**
-     * Empties an element.
-     *
-     * @param {HTMLElement} element - Element to empty.
-     */
-    static empty(element) {
-        DomUtils.assertElement(element);
-        element.replaceChildren();
-    }
-
-    /**
-     * Removes an element.
-     *
-     * @param {HTMLElement} element - Element to remove.
-     */
-    static remove(element) {
-        DomUtils.assertElement(element);
-        element.remove();
     }
 
     /**

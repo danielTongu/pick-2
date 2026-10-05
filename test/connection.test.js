@@ -5,9 +5,9 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import test from "node:test";
 
-import { ViewState } from "../ui/View.js";
+import { SessionState } from "../ui/Session.js";
 
-/** Installs the browser values used by ViewState and restores them afterward. */
+/** Installs the browser values used by SessionState and restores them afterward. */
 function useBrowserState(serverOrigin, callback) {
     const originals = new Map();
     const storage = new Map();
@@ -48,13 +48,13 @@ function useBrowserState(serverOrigin, callback) {
     }
 }
 
-test("ViewState normalizes configured and current Hosted hosts", () => {
+test("SessionState normalizes configured and current Hosted hosts", () => {
     useBrowserState("", () => {
-        assert.equal(ViewState.getModePreference(), null);
-        assert.equal(ViewState.getMode(), "direct");
-        assert.equal(ViewState.getConfiguredServerOrigin(), null);
-        assert.equal(ViewState.getCurrentHostUrl(), "wss://example.test/");
-        assert.equal(ViewState.getHostedUrl(), "wss://example.test/");
+        assert.equal(SessionState.getModePreference(), null);
+        assert.equal(SessionState.getMode(), "direct");
+        assert.equal(SessionState.getConfiguredServerOrigin(), null);
+        assert.equal(SessionState.getCurrentHostUrl(), "wss://example.test/");
+        assert.equal(SessionState.getHostedUrl(), "wss://example.test/");
     });
 
     const cases = new Map([
@@ -66,32 +66,32 @@ test("ViewState normalizes configured and current Hosted hosts", () => {
 
     for (const [origin, expectedUrl] of cases) {
         useBrowserState(`  ${origin}  `, () => {
-            assert.equal(ViewState.getConfiguredServerOrigin(), origin.trim());
-            assert.equal(ViewState.getHostedUrl(), expectedUrl);
+            assert.equal(SessionState.getConfiguredServerOrigin(), origin.trim());
+            assert.equal(SessionState.getHostedUrl(), expectedUrl);
         });
     }
 
     useBrowserState("ftp://server.test", () => {
-        assert.throws(() => ViewState.getHostedUrl(), /Unsupported server protocol/);
+        assert.throws(() => SessionState.getHostedUrl(), /Unsupported server protocol/);
     });
     useBrowserState("", () => {
-        assert.throws(() => ViewState.resolveHostedUrl("https://user:secret@server.test"), /cannot include credentials/);
+        assert.throws(() => SessionState.resolveHostedUrl("https://user:secret@server.test"), /cannot include credentials/);
     });
 });
 
-test("ViewState stores and clears a verified Hosted host", () => {
+test("SessionState stores and clears a verified Hosted host", () => {
     useBrowserState("https://server.test", () => {
-        ViewState.setHostedUrl("wss://direct.test/");
-        assert.equal(ViewState.getHostedUrl(), "wss://direct.test/");
-        ViewState.clearHostedUrl();
-        assert.equal(ViewState.getHostedUrl(), "wss://server.test/");
+        SessionState.setHostedUrl("wss://direct.test/");
+        assert.equal(SessionState.getHostedUrl(), "wss://direct.test/");
+        SessionState.clearHostedUrl();
+        assert.equal(SessionState.getHostedUrl(), "wss://server.test/");
     });
 });
 
 test("the standalone Connection page verifies Hosted servers", () => {
     const homeHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
     const connectionHtml = readFileSync(new URL("../connection.html", import.meta.url), "utf8");
-    const view = readFileSync(new URL("../ui/View.js", import.meta.url), "utf8");
+    const view = readFileSync(new URL("../ui/Session.js", import.meta.url), "utf8");
     const main = readFileSync(new URL("../main.js", import.meta.url), "utf8");
     const styles = readFileSync(new URL("../ui/styles/connection.css", import.meta.url), "utf8");
     const controller = readFileSync(
@@ -108,12 +108,12 @@ test("the standalone Connection page verifies Hosted servers", () => {
     assert.match(connectionHtml, /id="connection-direct-link" href="\.\/index\.html\?mode=direct"/);
     assert.match(connectionHtml, /class="connection-actions">[\s\S]*?id="connection-connect-button"[\s\S]*?id="connection-direct-link"[\s\S]*?<\/div>[\s\S]*?<\/form>/);
     assert.match(connectionHtml, /href="\.\/ui\/styles\/connection\.css"/);
-    assert.match(main, /new ConnectionView\(homeUrl\)\.start\(\)/);
-    assert.match(view, /ViewState\.setHostedUrl\(endpoint\)/);
+    assert.match(main, /new ConnectionSession\(homeUrl\)\.start\(\)/);
+    assert.match(view, /SessionState\.setHostedUrl\(endpoint\)/);
     assert.match(view, /location\.replace\(this\.#homeUrl\("hosted"\)\)/);
     assert.match(view, /isAutomatic && available === false/);
     assert.match(view, /new URL\("\.\/connection\.html", location\.href\)/);
-    assert.match(view, /ViewState\.getCurrentHostUrl\(\)/);
+    assert.match(view, /SessionState\.getCurrentHostUrl\(\)/);
     assert.match(view, /new WebSocket\(this\.#endpoint\)/);
     assert.match(view, /Constants\.CONNECTION_PROBE_TIMEOUT_MS/);
     assert.match(controller, /this\.root\.dataset\.elapsedMs/);
@@ -129,7 +129,7 @@ test("the standalone Connection page verifies Hosted servers", () => {
 });
 
 test("Connection page navigates on success and only automatically falls back after a real failure", async () => {
-    const viewSource = readFileSync(new URL("../ui/View.js", import.meta.url), "utf8");
+    const viewSource = readFileSync(new URL("../ui/Session.js", import.meta.url), "utf8");
     const source = viewSource.slice(
         viewSource.indexOf("/** One bounded browser WebSocket availability probe. */"),
         viewSource.indexOf("/** Coordinates Home controllers, transport selection, and Room navigation. */")
@@ -157,14 +157,14 @@ test("Connection page navigates on success and only automatically falls back aft
         const context = {
             URL, URLSearchParams,
             setTimeout, clearTimeout,
-            View: FakeView,
+            Session: FakeView,
             FakeController,
             WebSocket: FakeWebSocket,
             Constants: {
                 CONNECTION_PROBE_TIMEOUT_MS: 5,
                 CONNECTION_STATUS: {CONNECTING: "connecting", CONNECTED: "connected", ERROR: "error", UNCONFIGURED: "unconfigured"}
             },
-            ViewState: {
+            SessionState: {
                 setMode(mode) { state.mode = mode; },
                 setHostedUrl(url) { state.hostedUrl = url; },
                 getConfiguredServerOrigin() { return "ws://server.test/"; },
@@ -175,7 +175,7 @@ test("Connection page navigates on success and only automatically falls back aft
             window: { addEventListener(_name, handler) { if (outcome === null) queueMicrotask(handler); } }
         };
         await runInNewContext(
-            `(async function () { ${source}; await new ConnectionView(new URL("https://example.test/index.html")).start(); })()`,
+            `(async function () { ${source}; await new ConnectionSession(new URL("https://example.test/index.html")).start(); })()`,
             context
         );
         return state;

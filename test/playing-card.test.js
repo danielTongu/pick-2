@@ -138,10 +138,10 @@ test("PlayingCard properties and pointer lifecycle", async (t) => {
 
         await t.test("shares model properties and keeps derived values read-only", () => {
             const element = PlayingCard.create(model);
-            for (const name of ["value", "suit", "rank", "rotation"]) {
+            for (const name of ["value", "suit", "rotation"]) {
                 assert.equal(element[name], model[name]);
             }
-            for (const name of ["value", "suit", "rank", "isDragging"]) {
+            for (const name of ["value", "suit", "isDragging"]) {
                 assert.throws(() => {
                     element[name] = 0;
                 }, TypeError);
@@ -163,12 +163,12 @@ test("PlayingCard properties and pointer lifecycle", async (t) => {
                 assert.equal(element.isFaceUp, false);
             }
             element.update({ value: "2", suit: "clubs", rank: -1 });
-            assert.equal(element.rank, -1);
+            assert.equal(element.dataset.rank, "-1");
             assert.equal(element.isFaceUp, false);
             assert.equal(element.rotation, null);
             element.update({ suit: "hearts" });
             assert.equal(element.value, "");
-            assert.equal(element.rank, null);
+            assert.equal(Object.hasOwn(element.dataset, "rank"), false);
             assert.throws(() => element.update({ suit: "purple" }), /Invalid card suit/);
         });
 

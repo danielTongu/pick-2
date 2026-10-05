@@ -84,66 +84,14 @@ export class CardCollection extends Serializable {
         return added;
     }
 
-    /**
-
-     * Prepends one normalized item and returns it.
-     * @param {Card|Object} item - Card to prepend.
-     * @returns {Card} Stored card.
-     */
-    addFirst(item) {
-        const value = Card.from(item);
-        this.items.unshift(value);
-        return value;
-    }
-
-    /**
-
-     * Prepends normalized items while preserving supplied order.
-     * @param {Array<Card|Object>} items - Cards to prepend.
-     * @returns {Card[]} Stored cards.
-     */
-    addManyFirst(items) {
-        ValidationUtils.array(items, "CardCollection cards");
-        const added = [];
-        for (let index = items.length - 1; index >= 0; index -= 1) {
-            added.unshift(this.addFirst(items[index]));
-        }
-        return added;
-    }
-
     /** Removes and returns the last item, or null when empty. */
     take() {
         return this.items.pop() ?? null;
     }
 
-    /**
-
-     * Removes up to the requested number of items from the end.
-     * @param {number} count - Maximum cards to remove.
-     * @returns {Card[]} Removed cards.
-     */
-    takeMany(count) {
-        ValidationUtils.nonNegativeInteger(count, "Take count");
-        const taken = [];
-        while (taken.length < count && this.items.length > 0) {
-            taken.push(this.take());
-        }
-        return taken;
-    }
-
     /** Returns the last item without removing it. */
     peek() {
         return this.items[this.items.length - 1] ?? null;
-    }
-
-    /**
-
-     * Returns whether the collection contains an item identity.
-     * @param {Card|Object|string} item - Card identity to find.
-     * @returns {boolean} Whether it is present.
-     */
-    has(item) {
-        return this.#findIndex(item) >= 0;
     }
 
     /**
@@ -192,11 +140,6 @@ export class CardCollection extends Serializable {
             [this.items[index], this.items[other]] = [this.items[other], this.items[index]];
         }
         return this;
-    }
-
-    /** Returns a shallow item-array copy. */
-    toArray() {
-        return [...this.items];
     }
 
     *[Symbol.iterator]() {

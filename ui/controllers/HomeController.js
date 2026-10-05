@@ -126,7 +126,7 @@ export class HomeController extends ViewController {
     }
 
     /**
-     * @param {import("../View.js").View} view - Active Home view.
+     * @param {import("../Session.js").Session} view - Active Home session.
      */
     setView(view) {
         this.view = view;

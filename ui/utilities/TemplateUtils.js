@@ -28,26 +28,6 @@ export class TemplateUtils {
     static componentUrl = "";
 
     /**
-     * @type {boolean} Whether cloned roots must satisfy the declared contract.
-     */
-    static isTemplateRootValidationEnabled = true;
-
-    /**
-     * @type {string} Required cloned-root identifier, or empty when unrestricted.
-     */
-    static rootId = "";
-
-    /**
-     * @type {string} Required cloned-root tag name, or empty when unrestricted.
-     */
-    static rootTagName = "";
-
-    /**
-     * @type {string} Required cloned-root class, or empty when unrestricted.
-     */
-    static rootClassName = "";
-
-    /**
      * Loads this fragment's template once.
      *
      * @returns {Promise<void>}
@@ -62,7 +42,7 @@ export class TemplateUtils {
      * Loads a template from a fragment-relative HTML file.
      *
      * @param {string} templateId - Template element id.
-     * @param {string} componentUrl - Retained fragment URL for API compatibility.
+     * @param {string} componentUrl - Owning module URL used to resolve the fragment.
      * @param {string} templateFile - Fragment-relative template file.
      * @returns {Promise<HTMLTemplateElement>} Loaded template.
      */
@@ -116,10 +96,6 @@ export class TemplateUtils {
 
         const element = this.cloneTemplateElement(template);
 
-        if (this.isTemplateRootValidationEnabled) {
-            this.assertRootElement(element);
-        }
-
         this.updateElement(element, data);
 
         return element;
@@ -132,7 +108,7 @@ export class TemplateUtils {
      * @param {*} data - Fragment data.
      */
     static updateElement(element, data) {
-        this.assertRootElement(element);
+        DomUtils.assertElement(element);
         ValidationUtils.object(data, `${this.name}.updateElement() data`);
     }
 
@@ -153,27 +129,4 @@ export class TemplateUtils {
         return element;
     }
 
-    /**
-     * Validates a fragment root element using subclass root metadata.
-     *
-     * @param {*} element - Element to validate.
-     * @returns {HTMLElement} Valid root element.
-     */
-    static assertRootElement(element) {
-        DomUtils.assertElement(element);
-
-        if (this.rootId) {
-            DomUtils.assertId(element, this.rootId);
-        }
-
-        if (this.rootTagName) {
-            DomUtils.assertTagName(element, this.rootTagName);
-        }
-
-        if (this.rootClassName) {
-            DomUtils.assertClassName(element, this.rootClassName);
-        }
-
-        return element;
-    }
 }

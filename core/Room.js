@@ -88,7 +88,6 @@ export class Room extends Serializable {
      */
     recordActivity() {
         this.lastActiveAt = Date.now();
-
         return this.lastActiveAt;
     }
 
@@ -194,18 +193,26 @@ export class Room extends Serializable {
         return this.#removeActor(actorNameOrKey, null);
     }
 
-    /** Restores a sidelined bot instance after the knockout is complete. */
-    async reseatActor(actor) {
-        return this._enqueue(function reseatOperation() {
-            ValidationUtils.instanceOf(actor, BotActor, "Sidelined bot");
-            if (!(this.match instanceof Knockout) || !this.match.isKnockoutComplete ||
-                this.isFull() || this.hasActor(actor.key)) {
-                throw new UserNotification("Bot cannot return to this room yet.");
+    /**
+     * Repopulates the completed knockout's retained bot names as lost actors.
+     * @returns {Promise<void>} Resolves when retained bots are restored.
+     */
+    async restoreLostBots() {
+        return this._enqueue(function restoreOperation() {
+            if (!(this.match instanceof Knockout) || !this.match.isKnockoutComplete) {
+                return;
             }
-            actor.reset();
-            this.match.turnOrder.add(actor);
-            this.#publishMutation();
-            return actor;
+            const names = this.match.lostBotNames;
+            while (names.length > 0) {
+                const actor = new BotActor(names[0]);
+                if (this.isFull() || this.hasActor(actor.key)) {
+                    throw new UserNotification("Bot cannot return to this room yet.");
+                }
+                actor.state = Constants.ACTOR_STATE.LOST;
+                this.match.turnOrder.add(actor);
+                names.shift();
+                this.#publishMutation();
+            }
         }.bind(this));
     }
 
@@ -224,15 +231,16 @@ export class Room extends Serializable {
      * Starts a match in the room.
      *
      * @param {boolean|null} knockout - Initial Knockout choice, or null to continue.
-     * @returns {Promise<void>}
+     * @returns {Promise<Actor[]>} Eliminated actors removed when advancing a knockout.
      */
     async startMatch(knockout = null) {
         return this._enqueue(
             /** Initializes the Pick 2 match inside the room queue. */
             function startOperation() {
                 const isKnockout = this.#beforeStartMatch(knockout);
+                let eliminated = [];
                 if (this.match instanceof Knockout && this.match.nextMatchAvailable) {
-                    this.match.prepareNextMatch();
+                    eliminated = this.match.prepareNextMatch();
                 } else {
                     this.match = isKnockout ? new Knockout(this.match.turnOrder) : new Match(this.match.turnOrder);
                 }
@@ -244,6 +252,7 @@ export class Room extends Serializable {
                 this.#selectRandomFirstActor();
                 this.match.state = Constants.ROOM_STATE.ACTIVE;
                 this.#publishMutation();
+                return eliminated;
             }.bind(this)
         );
     }
@@ -820,6 +829,9 @@ export class Room extends Serializable {
 
 /** Owns one ordinary match's cards, turn order, lifecycle, and outcome. */
 export class Match extends Serializable {
+    /** @type {string[]|null} Lost bot names; ordinary matches retain none. */
+    lostBotNames = null;
+
     /** Creates a waiting match using the room's existing seated actors. */
     constructor(turnOrder = new TurnOrder()) {
         super();
@@ -983,6 +995,7 @@ export class Knockout extends Match {
     constructor(turnOrder = new TurnOrder()) {
         super(turnOrder);
         this.nextMatchAvailable = false;
+        this.lostBotNames = [];
     }
 
     /** A finished knockout without two qualifiers is complete. */
@@ -990,16 +1003,23 @@ export class Knockout extends Match {
         return this.state === Constants.ROOM_STATE.FINISHED && !this.nextMatchAvailable;
     }
 
-    /** Excludes nonqualifiers at the next start, after results have remained visible. */
+    /**
+     * Excludes nonqualifiers and retains lost bot names for the final return.
+     * @returns {Actor[]} Removed actors whose memberships may need updating.
+     */
     prepareNextMatch() {
-        if (!this.nextMatchAvailable) return;
+        if (!this.nextMatchAvailable) return [];
+        const eliminated = [];
         for (const actor of [...this.turnOrder.actors.values()]) {
             if (actor.state !== Constants.ACTOR_STATE.QUALIFIED) {
                 actor.stopIdleMonitoring();
+                if (actor instanceof BotActor) this.lostBotNames.push(actor.name);
                 this.turnOrder.remove(actor.key);
+                eliminated.push(actor);
             }
         }
         this.nextMatchAvailable = false;
+        return eliminated;
     }
 
     /** Uses elimination for three or more actors and ordinary results for a duel. */
