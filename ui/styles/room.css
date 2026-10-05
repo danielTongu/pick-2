@@ -268,11 +268,11 @@ ul#opponent-list > li > div::after {
 }
 
 #table-play-area > .playing-card-area[data-is-drag-over="true"] {
-    border-style: solid;
+    border-width: 2px;
 }
 
 #table-play-area > .playing-card-area:empty::after {
-    content: "Discard Here";
+    content: "drag card here";
     font-weight: 500;
     letter-spacing: 0.04em;
 
