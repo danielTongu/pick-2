@@ -264,11 +264,12 @@ ul#opponent-list > li > div::after {
     min-height: 0;
     display: grid;
     place-items: center;
-    border: 1px dashed var(--cyan);
+    outline: 1px dashed var(--cyan);
+    transition: outline-offset 0.25s ease;
 }
 
 #table-play-area > .playing-card-area[data-is-drag-over="true"] {
-    border-width: 2px;
+    outline-offset: -10px;
 }
 
 #table-play-area > .playing-card-area:empty::after {
@@ -283,13 +284,13 @@ ul#opponent-list > li > div::after {
 }
 
 #table-play-area > .playing-card-area > playing-card {
-     margin: 0;
+    margin: 0;
+
     position: absolute;
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%) rotate(var(--card-rotation));
     transform-origin: center center;
-
 
     transition:
         transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
