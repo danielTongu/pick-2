@@ -89,12 +89,14 @@
 [data-game-region] {
     --play-area-color: color-mix(in srgb, var(--white) 55%, transparent);
     --card-row-floor: calc(var(--card-height-min, 91px) + 2rem);
-    min-height: 80vh;
 
     position: relative;
     display: grid;
     grid-template-rows: var(--play-area-rows);
     grid-auto-rows: 0;
+    gap: 1rem;
+
+    min-height: max(calc(var(--card-height-min) * 4), 40vw);
 
     padding: 5px;
     border: 1px solid var(--line);
@@ -242,20 +244,31 @@ ul#opponent-list > li > div::after {
 /* ---------- PLAY AREA ---------- */
 
 #table-play-area {
+    container-type: size;
+    display: grid;
+    place-items: center;
+    min-width: 0;
     min-height: 0;
-    padding: 2rem 0;
 }
 
 #table-play-area > .playing-card-area {
     --card-gap: 21px;
     --card-area-font-size: 1em;
     --card-area-white-space: normal;
+    --card-height: min(87cqh, 87cqw);
 
     position: relative;
-    height: 100%;
+    width: min(100cqw, 100cqh);
+    height: auto;
+    aspect-ratio: 1;
     min-height: 0;
     display: grid;
     place-items: center;
+    border: 1px dashed var(--cyan);
+}
+
+#table-play-area > .playing-card-area[data-is-drag-over="true"] {
+    border-style: solid;
 }
 
 #table-play-area > .playing-card-area:empty::after {
@@ -269,27 +282,14 @@ ul#opponent-list > li > div::after {
     transform: translate(-50%, -50%);
 }
 
-#table-play-area > .playing-card-area::before {
-    content: "";
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
-    height: 100%;
-    width: min(calc(var(--card-height) * 1), 100%);
-    outline: 1px dashed var(--cyan);
-    transition: width 0.2s ease-in-out;
-}
-
-#table-play-area > .playing-card-area[data-is-drag-over="true"]::before {
-    width: min(calc(var(--card-height) * 3), 100%);
-}
-
 #table-play-area > .playing-card-area > playing-card {
+     margin: 0;
     position: absolute;
     left: 50%;
     top: 50%;
     transform: translate(-50%, -50%) rotate(var(--card-rotation));
     transform-origin: center center;
+
 
     transition:
         transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -448,15 +448,15 @@ ul#opponent-list > li > div::after {
 
 /* ---------- STATE-DRIVEN STYLING ---------- */
 
-[data-game-region="act"][data-state="active"] [data-is-turn-owner="true"] {
+[data-game-region][data-state="active"] [data-is-turn-owner="true"] {
     animation: turn-owner-border-strobe 1.2s ease-in-out infinite;
 }
 
-[data-game-region="act"][data-state="finished"] [data-is-winner="true"] {
+[data-game-region][data-state="finished"] [data-is-winner="true"] {
     border-color: var(--gold) !important;
 }
 
-[data-game-region="act"][data-connection-mode="direct"] #actor-idle-warning {
+[data-game-region][data-connection-mode="direct"] #actor-idle-warning {
     display: none;
 }
 
