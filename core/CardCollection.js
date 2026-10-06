@@ -8,28 +8,6 @@ import { Card } from "./Card.js";
 /** Stores normalized cards for a deck, hand, or play pile. */
 export class CardCollection extends Serializable {
     /**
-     * Creates the canonical 54-card Pick 2 deck in deterministic or shuffled order.
-     * @param {boolean} [isShuffled] - Whether to randomize the deck.
-     * @returns {CardCollection} New deck.
-     */
-    static createDeck(isShuffled = true) {
-        ValidationUtils.boolean(isShuffled, "Deck shuffle flag");
-        const cards = [];
-
-        for (const suit of Constants.CARD.STANDARD_SUITS) {
-            for (const value of Constants.CARD.STANDARD_VALUES) {
-                cards.push(new Card(value, suit));
-            }
-        }
-
-        cards.push(new Card(Constants.CARD.VALUE.JOKER.id, Constants.CARD.SUIT.BLACK));
-        cards.push(new Card(Constants.CARD.VALUE.JOKER.id, Constants.CARD.SUIT.RED));
-
-        const deck = new CardCollection(cards);
-        return isShuffled ? deck.shuffle() : deck;
-    }
-
-    /**
 
      * Creates card storage and normalizes every initial card.
      * @param {Array<Card|Object>} [cards] - Initial cards.
@@ -55,6 +33,72 @@ export class CardCollection extends Serializable {
         return this.items.reduce(function totalPenalty(total, item) {
             return total + (Number.isFinite(item.rank) ? item.rank : 0);
         }, 0);
+    }
+
+    /**
+     * Creates the canonical 54-card Pick 2 deck in deterministic or shuffled order.
+     * @param {boolean} [isShuffled] - Whether to randomize the deck.
+     * @returns {CardCollection} New deck.
+     */
+    static createDeck(isShuffled = true) {
+        ValidationUtils.boolean(isShuffled, "Deck shuffle flag");
+        const cards = [];
+
+        for (const suit of Constants.CARD.STANDARD_SUITS) {
+            for (const value of Constants.CARD.STANDARD_VALUES) {
+                cards.push(new Card(value, suit));
+            }
+        }
+
+        cards.push(new Card(Constants.CARD.VALUE.JOKER.id, Constants.CARD.SUIT.BLACK));
+        cards.push(new Card(Constants.CARD.VALUE.JOKER.id, Constants.CARD.SUIT.RED));
+
+        const deck = new CardCollection(cards);
+        return isShuffled ? deck.shuffle() : deck;
+    }
+
+    /**
+     * Finds legal discards without changing hand order or applying strategy.
+     * @param {Card|null} topCard - Public top discard.
+     * @param {string|null} declaredSuit - Active declared suit.
+     * @param {number} drawAllowance - Active draw penalty or ordinary allowance.
+     * @returns {Card[]} Legal cards in held order.
+     */
+    getLegalCards(topCard, declaredSuit = null, drawAllowance = 1) {
+        return this.items.filter(function legal(card) {
+            return card.isLegalOn(topCard, declaredSuit, drawAllowance);
+        });
+    }
+
+    /**
+     * Counts each standard suit, optionally excluding a proposed discard.
+     * @param {Card|null} excludedCard - Card to omit by identity.
+     * @returns {Object<string,number>} Standard suit counts.
+     */
+    getSuitCounts(excludedCard = null) {
+        const counts = {};
+        for (const suit of Constants.CARD.STANDARD_SUITS) counts[suit] = 0;
+        for (const card of this.items) {
+            if (card.id !== excludedCard?.id && counts[card.suit] !== undefined) counts[card.suit] += 1;
+        }
+        return counts;
+    }
+
+    /**
+     * Finds the most represented standard suit; tied suits use canonical suit order.
+     * @param {Card|null} excludedCard - Proposed discard to omit.
+     * @returns {string|null} Dominant suit, or null if no standard-suit card remains.
+     */
+    getDominantSuit(excludedCard = null) {
+        let selected = null;
+        let highestCount = 0;
+        for (const [suit, count] of Object.entries(this.getSuitCounts(excludedCard))) {
+            if (count > highestCount) {
+                selected = suit;
+                highestCount = count;
+            }
+        }
+        return selected;
     }
 
     /**

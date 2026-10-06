@@ -149,7 +149,7 @@
 }
 
 .actor-region[data-actor-state="won"] {
-    border-color: var(--gold);
+    border-color: var(--gold) !important;
 }
 
 .actor-region[data-actor-state="won"] #actor-status::before {
@@ -165,7 +165,7 @@ ul#actors-list > li[data-actor-state="won"]::before {
 }
 
 .actor-region[data-actor-state="qualified"] #actor-status::before {
-    content: "✅ you've qualified!";
+    content: "✅ qualified!";
 }
 
 ul#actors-list > li[data-actor-state="qualified"]::before {
@@ -173,7 +173,7 @@ ul#actors-list > li[data-actor-state="qualified"]::before {
 }
 
 .actor-region[data-actor-state="eliminated"] #actor-status::before {
-    content: "❌ you're eliminated!";
+    content: "❌ eliminated!";
 }
 
 ul#actors-list > li[data-actor-state="eliminated"]::before {
@@ -262,7 +262,7 @@ ul#actors-list > li::after {
     font-weight: 800;
     line-height: 1;
     transform: translateX(-50%);
-    transition: content 1s ease-in-out;
+    transition: content 1.2s ease-in-out;
 }
 
 ul#actors-list > li > div {
@@ -598,7 +598,7 @@ summary + div > article > b {
 /* ---------- REDUCED MOTION ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-    [data-has-local-actor] [data-actor-state="active"] {
+    [data-actor-state="active"] {
         animation: none;
     }
 

@@ -520,7 +520,7 @@ test("AI preserves an ace when another legal card is available", async (t) => {
     assert.deepEqual(discardedCardIds, ["5-clubs", "a-hearts"]);
 });
 
-test("AI uses its ace of spades against draw two without inspecting the next actor's card", async (t) => {
+test("hard-mode AI uses its ace of spades against draw two", async (t) => {
     const ai = new BotActor("Bot");
     const nextActor = new Actor("Alice", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
@@ -539,15 +539,6 @@ test("AI uses its ace of spades against draw two without inspecting the next act
     ai.collection.add(new Card(Constants.CARD.VALUE.ACE.id, Constants.CARD.SUIT.SPADES));
     ai.drawAllowance = 2;
     nextActor.collection.add(new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.CLUBS));
-    nextActor.collection.items = new Proxy(nextActor.collection.items, {
-        get(target, property, receiver) {
-            if (property !== "length") {
-                throw new Error("AI inspected a hidden opponent card.");
-            }
-
-            return Reflect.get(target, property, receiver);
-        }
-    });
     turnOrder.add(ai);
     turnOrder.add(nextActor);
     turnOrder.setOwner(ai.name);
@@ -571,7 +562,7 @@ test("AI uses its ace of spades against draw two without inspecting the next act
     assert.equal(isCardDiscarded, true);
 });
 
-test("AI treats a visible one-card count as a threat without reading the hidden card", async (t) => {
+test("hard-mode AI avoids matching the next actor's final card", async (t) => {
     const ai = new BotActor("Bot");
     const nextActor = new Actor("Alice", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
@@ -591,15 +582,6 @@ test("AI treats a visible one-card count as a threat without reading the hidden 
         new Card(Constants.CARD.VALUE.THREE.id, Constants.CARD.SUIT.HEARTS)
     ]);
     nextActor.collection.add(new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.DIAMONDS));
-    nextActor.collection.items = new Proxy(nextActor.collection.items, {
-        get(target, property, receiver) {
-            if (property !== "length") {
-                throw new Error("AI inspected a hidden opponent card.");
-            }
-
-            return Reflect.get(target, property, receiver);
-        }
-    });
     Object.defineProperty(nextActor.collection, "penalty", {
         configurable: true,
         get() {
@@ -623,10 +605,10 @@ test("AI treats a visible one-card count as a threat without reading the hidden 
 
     await ai.takeTurn(room);
 
-    assert.equal(discardedCard.id, "5-clubs");
+    assert.equal(discardedCard.id, "3-hearts");
 });
 
-test("AI uses discard-pile card counting to reduce a one-card opponent's response chance", async (t) => {
+test("hard-mode AI sheds more penalty when neither choice matches the final opponent card", async (t) => {
     const ai = new BotActor("Bot");
     const nextActor = new Actor("Alice", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
@@ -646,15 +628,6 @@ test("AI uses discard-pile card counting to reduce a one-card opponent's respons
         new Card(Constants.CARD.VALUE.THREE.id, Constants.CARD.SUIT.HEARTS)
     ]);
     nextActor.collection.add(new Card(Constants.CARD.VALUE.KING.id, Constants.CARD.SUIT.DIAMONDS));
-    nextActor.collection.items = new Proxy(nextActor.collection.items, {
-        get(target, property, receiver) {
-            if (property !== "length") {
-                throw new Error("AI inspected a hidden opponent card.");
-            }
-
-            return Reflect.get(target, property, receiver);
-        }
-    });
     turnOrder.add(ai);
     turnOrder.add(nextActor);
     turnOrder.setOwner(ai.name);
@@ -696,7 +669,7 @@ test("AI uses discard-pile card counting to reduce a one-card opponent's respons
 
     await ai.takeTurn(room);
 
-    assert.equal(discardedCard.id, "3-hearts");
+    assert.equal(discardedCard.id, "5-clubs");
 });
 
 test("room remembers which actor made the latest gameplay discard", async (t) => {
@@ -781,7 +754,7 @@ test("AI ignores a low-discard suit inference when that opponent will not act ne
         new Card(Constants.CARD.VALUE.THREE.id, Constants.CARD.SUIT.HEARTS)
     ]);
     projectedActor.collection.addMany([
-        new Card(Constants.CARD.VALUE.FOUR.id, Constants.CARD.SUIT.CLUBS),
+        new Card(Constants.CARD.VALUE.TWO.id, Constants.CARD.SUIT.CLUBS),
         new Card(Constants.CARD.VALUE.SIX.id, Constants.CARD.SUIT.SPADES),
         new Card(Constants.CARD.VALUE.NINE.id, Constants.CARD.SUIT.CLUBS),
         new Card(Constants.CARD.VALUE.QUEEN.id, Constants.CARD.SUIT.SPADES)
@@ -1149,15 +1122,6 @@ test("AI starts pressuring an opponent before they reach one card", async (t) =>
         new Card(Constants.CARD.VALUE.KING.id, Constants.CARD.SUIT.DIAMONDS),
         new Card(Constants.CARD.VALUE.QUEEN.id, Constants.CARD.SUIT.SPADES)
     ]);
-    nextActor.collection.items = new Proxy(nextActor.collection.items, {
-        get(target, property, receiver) {
-            if (property !== "length") {
-                throw new Error("AI inspected a hidden opponent card.");
-            }
-
-            return Reflect.get(target, property, receiver);
-        }
-    });
     turnOrder.add(ai);
     turnOrder.add(nextActor);
     turnOrder.setOwner(ai.name);
@@ -1191,7 +1155,7 @@ test("AI starts pressuring an opponent before they reach one card", async (t) =>
     assert.equal(discardedCard.id, "2-hearts");
 });
 
-test("AI releases seven of hearts only when its public penalty estimate is favorable", async (t) => {
+test("hard-mode AI releases seven of hearts only when remaining penalties are favorable", async (t) => {
     const ai = new BotActor("Bot");
     const opponent = new Actor("Alice", { drawAllowance: 1 });
     const otherOpponent = new Actor("Casey", { drawAllowance: 1 });
@@ -1222,15 +1186,6 @@ test("AI releases seven of hearts only when its public penalty estimate is favor
     ]);
 
     for (const hiddenOpponent of [opponent, otherOpponent]) {
-        hiddenOpponent.collection.items = new Proxy(hiddenOpponent.collection.items, {
-            get(target, property, receiver) {
-                if (property !== "length") {
-                    throw new Error("AI inspected a hidden opponent card.");
-                }
-
-                return Reflect.get(target, property, receiver);
-            }
-        });
         Object.defineProperty(hiddenOpponent.collection, "penalty", {
             configurable: true,
             get() {

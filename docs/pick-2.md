@@ -94,7 +94,8 @@ other layers request an operation or consume a snapshot rather than maintaining 
 | Owner | Structures and lifetime |
 | --- | --- |
 | `Card` / `CardCollection` | Card identity and collection items. Counts and penalties are derived. |
-| `Actor` / `BotActor` | Identity, hand, draw allowance, actor state, and idle monitoring. Bot decisions use those same fields. |
+| `Actor` / `BotActor` | Identity, hand, draw allowance, actor state, and idle monitoring. BotActor executes delayed commands through Room. |
+| `BotStrategy` / `CardOdds` | One-decision snapshots of the bot hand, reachable opponent hands, and public match information; pure probability calculations. The draw collection and distant hands remain unknown. |
 | `TurnOrder` | Actor map, ordered actor keys, turn owner, and direction. Its map and key list are maintained together. |
 | `Match` | Draw/play collections, pending declaration, declared suit, match state, and last discarding actor. |
 | `Knockout` | Continuation state and lost bot names. Names accumulate while nonqualifiers are pruned and are consumed on bot restoration. Ordinary matches retain no names (`null`). |
@@ -362,9 +363,55 @@ All ranks MUST use the shared card-rank policy in `Constants`; no UI or bot may 
 
 ## 8. Automated Actors
 
-Bots use the same legal command and card rules as human Actors. Their strategy MAY use their own cards, public turn
-order, visible hand counts, card effects, and discard history. It MUST NOT inspect opponents' hidden card identities or
-private hand penalties.
+Bots use hard mode by default and follow the same legal command and card rules as human Actors.
+Targeting is dynamic: legal cards and pending declarations determine which actors can receive the
+next two turns under the current direction and actor count. The bot inspects those reachable hands,
+represents other actors by identity and card count, and never inspects the draw collection.
+A projected turn returning to the bot has no opponent target; it is scored as hand continuation.
+With one opponent, both jack and eight return the turn to the bot, so no separate reverse or
+skip opponent position is queried.
+
+BotActor handles turn timing and submits commands. BotStrategy copies its decision information and
+separates penalty shedding, opponent pressure, remaining-hand setup, and special-card conservation.
+It checks actual projected opponents' cards for legal responses, attack defenses, and suit declarations, and
+computes their remaining penalties when considering seven of hearts. For distant opponents it uses
+CardOdds and an unknown-card pool reconstructed from the canonical deck minus its own hand, inspected
+reachable opponent hands, and the live public play collection. No difficulty toggle is required.
+
+CardCollection owns `getLegalCards`, `getSuitCounts`, and `getDominantSuit` as read-only queries.
+BotStrategy calls these directly on copied collections; Actor provides no forwarding wrappers.
+The dominant suit describes frequency, not a strategic decision; predicted declarations check its
+safety before considering other suits.
+
+The decision pipeline collects all rule-legal cards, maps each discard to its first and following
+actors and draw allowance, then applies conservation and strategy scoring. Suit-changing candidates
+carry their selected declaration through scoring; pending declarations use the same evaluation.
+Suit choice prioritizes avoiding a next-actor or following-actor finish, then the most common held
+suit. Equal counts favor held penalty and then unknown-card scarcity.
+
+Finishing-risk checks include seven of hearts in a multi-card opponent hand. The bot compares
+its penalty after the candidate discard with that opponent's penalty after seven of hearts; a
+match-ending response has no projected following turn. Hand setup rewards the share of remaining
+penalty kept playable, rather than only the number of connected cards.
+
+Card selection first avoids giving the projected actor a playable final card. When every viable
+choice allows an immediate opponent finish, it sheds the highest card penalty to improve its
+remaining result and knockout qualification chances. Jack and eight targets follow actor-count
+rules and the current turn direction.
+
+Selection separates penalty shedding, draw defense, and opponent pressure scoring, with distinct
+offensive and defensive priorities. Attack projects the first responding actor's
+legal replies and the next actor's finishing opportunity. A forced penalty draw clears the allowance
+but leaves the top discard in place, so an unprovoked joker can expose a following one-card actor.
+If a safer play lets the intermediate actor block that finish, the bot keeps its attack card. If the
+finish cannot be prevented by any available response, it prioritizes shedding penalty. Defense during
+an active draw attack prioritizes legal counterattacks and shields without vetoing them for a later
+finishing threat. Unknown newly drawn cards remain uncertain; the bot never inspects the draw pile.
+
+Without an active draw attack, a Bot preserves its ace of spades and draws when it has no other legal card.
+After drawing, it plays a legal non-ace option when available. If the ace of spades is its only legal option,
+it releases that shield only when the next opponent in the current turn direction does not have exactly one card;
+otherwise it passes and keeps the shield. This decision uses the opponent's visible hand count, never hidden cards.
 
 Because discarded cards may return to the deck when the discard pile is recycled, bot decisions MUST use the live public
 discard pile rather than a permanent assumption that a discarded card is unavailable.
