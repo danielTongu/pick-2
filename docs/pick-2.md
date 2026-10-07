@@ -341,11 +341,11 @@ the winner or tied winners.
 
 `Room.js` defines `Room`, `Match`, and `Knockout` together. A Room retains membership, viewers, serialized card commands, activity, and publication; its current Match owns the turn order, collections, card transfers, pending decision, and ordinary result rules. `Knockout extends Match` and overrides elimination and next-match preparation. Room and UI access match state through `room.match`; transport snapshots nest those fields under `match`.
 
-Play offers One match or Knockout once at least two Actors are seated. One match retains the existing single-match result. Knockout starts a series where a match that began with
+Start offers One match or Knockout once at least two Actors are seated. One match retains the existing single-match result. Knockout starts a series where a match that began with
 three or more Actors marks every Actor tied for the highest remaining hand penalty as eliminated and the others as
 qualified. The Host converts eliminated humans to Viewers and sidelines eliminated Bots until the Knockout ends. The Room
 marks Actors `QUALIFIED` or `ELIMINATED`, retaining the finished `turnOrder` and its result metrics until the next match begins. At that start, the Room removes eliminated Actors from the order, and the Host demotes eliminated humans and sidelines eliminated Bots. A finished Knockout has no next match when fewer than two Actors qualified. The next match starts after `ROOM_WAIT_MS` (30 seconds), or any seated human can start it sooner
-with Play. Idle monitoring continues while they wait. One survivor wins immediately, and no survivors means a tie. A match played one-on-one uses the ordinary
+with Start. Idle monitoring continues while they wait. One survivor wins immediately, and no survivors means a tie. A match played one-on-one uses the ordinary
 lowest-penalty winner or tie result, with no penalty elimination. If one Actor leaves an active Knockout one-on-one, the
 other wins by forfeit. The results dialog reads the finished `turnOrder` directly; a departed Actor's metrics are no
 longer available after that Actor leaves.
@@ -589,11 +589,7 @@ ordinary local variables are not APIs and do not require JSDoc. The architecture
 8. Update this document, the README, and the in-page FAQ whenever public behavior, policy, or operational behavior
    changes.
 
-The collapsed Home guide contains the game introduction and browser play instructions, without describing how seats are filled. An About Pick 2 & how to play article sits immediately above
-`home-directory` and uses native `details` to stay collapsed by default. Its rules, scoring, and Knockout content
-are present in the HTML and can be expanded without JavaScript or a connection. Keep this guide aligned with core
-rules and the in-room FAQ. Home has canonical search metadata and appears in `sitemap.xml`; dynamic Room and
-Connection pages remain excluded from indexing. Room retains its existing FAQ without a separate guide link.
+The collapsed Home guide, About Pick 2 & rooms, sits immediately above `home-directory` and introduces the game and covers the steps before entering a room: connection modes, creating or joining a room, and watching live rooms. The in-room FAQ takes over with seating, match setup, playing, special cards, scoring, and Knockout. Both share the same nested `details` structure and `ui/styles/faq.css`, and contain their content in HTML, so they can be expanded without JavaScript or a connection. Home has canonical search metadata and appears in `sitemap.xml`; dynamic Room and Connection pages remain excluded from indexing.
 
 ## 15. Operations
 

@@ -10,6 +10,7 @@
         <link rel="stylesheet" href="./ui/styles/base.css" />
         <link rel="stylesheet" href="./ui/styles/table.css" />
         <link rel="stylesheet" href="./ui/styles/room.css" />
+        <link rel="stylesheet" href="./ui/styles/faq.css" />
         <link rel="stylesheet" href="./ui/styles/dialogs.css" />
         <link rel="stylesheet" href="./ui/styles/playing-card.css" />
     </head>
@@ -84,123 +85,143 @@
                                 <span>Sort</span>
                                 <select id="sort-key-select"></select>
                             </label>
-                            <button id="room-play-button" type="button" data-mode="choose">Play</button>
+                            <button id="room-play-button" type="button" data-mode="choose">Start</button>
                             <button id="turn-pass-button" type="button">Pass</button>
                         </footer>
                     </div>
                 </article>
             </section>
-            <details id="game-faq">
-                <summary id="faq-header">
-                    <b>FAQ</b>
-                    <span>Answers to common questions, plus quick card references.</span>
+            <details id="room-faq" class="faq" aria-labelledby="room-faq-title">
+                <summary>
+                    <b id="room-faq-title">FAQ</b>
+                    <span>Match setup, rules, special cards, and scoring.</span>
                 </summary>
-                <div>
+                <section>
                     <details>
                         <summary>
                             <b>01</b>
                             <span>Getting started</span>
                         </summary>
-                        <div>
-                            <article>
-                                <b>How do I join a game?</b>
-                                <span>Select <em>Join</em> to take an open seat. Your hand and controls appear at the bottom.</span>
-                            </article>
-                            <article>
+                        <section>
+                            <div>
+                                <b>How do I take a seat?</b>
+                                <span>Before a match starts, select <em>Join</em> to take an open seat. Your hand and controls appear below the table.</span>
+                            </div>
+                            <div>
                                 <b>What can I do before the match starts?</b>
-                                <span>Before the match, use + to add cards, select a card to flip it, or drag it to the discard pile.</span>
-                            </article>
-                            <article>
-                                <b>How does a match start?</b>
-                                <span>When at least two actors are seated, select <em>Play</em>. Choose Yes for Knockout or No for one match. Every hand refreshes with seven cards.</span>
-                            </article>
-                            <article>
-                                <b>How do I arrange my hand?</b>
-                                <span>Use <em>Sort</em> to arrange your cards. The selected order is saved when you move.</span>
-                            </article>
-                        </div>
+                                <span>Practice with the controls: use + to draw a card, select a card to flip it, or drag it to the discard pile. A new match replaces your practice hand.</span>
+                            </div>
+                            <div>
+                                <b>How do I start a match?</b>
+                                <span>Once at least two players are seated, select <em>Start</em> and choose One match or Knockout. Each player receives seven cards. The deck contains 52 standard cards and two jokers.</span>
+                            </div>
+                            <div>
+                                <b>What is a penalty?</b>
+                                <span>A hand penalty is the total points for cards left in your hand at the end of a match. Lower is better. A draw penalty requires you to draw two or four cards unless you play a defending card.</span>
+                            </div>
+                        </section>
                     </details>
                     <details>
                         <summary>
                             <b>02</b>
                             <span>Playing and winning</span>
                         </summary>
-                        <div>
-                            <article>
+                        <section>
+                            <div>
                                 <b>Which card can I play?</b>
-                                <span>Match the top discard by suit or value, or play a wild card. Drag your card to the discard pile.</span>
-                            </article>
-                            <article>
-                                <b>Can I play after drawing?</b>
-                                <span>Draw your allowed cards. You may still play afterward; otherwise select <em>Pass</em>.</span>
-                            </article>
-                            <article>
+                                <span>Match the top discard’s suit or value, or play a wild card: a joker or ace of spades. Drag your card to the discard pile.</span>
+                            </div>
+                            <div>
+                                <b>What happens after a suit is chosen?</b>
+                                <span>Play the chosen suit, any ace, or a joker. If the top discard is wild and no suit or draw penalty is active, you may play any card.</span>
+                            </div>
+                            <div>
+                                <b>How do I draw or pass?</b>
+                                <span>Use + to draw one card, or the full amount of a draw penalty. After drawing one card, you may still play. Select <em>Pass</em> to end your turn and draw any cards still owed.</span>
+                            </div>
+                            <div>
+                                <b>How do I defend a draw penalty?</b>
+                                <span>Defend a two with a two, joker, or ace of spades; defend a joker with a joker or ace of spades. A defending two passes two cards to the next player; a joker passes four. Ace of spades cancels the penalty. Penalties do not add up. Drawing the penalty ends your turn.</span>
+                            </div>
+                            <div>
+                                <b>How do I arrange my hand?</b>
+                                <span>Use <em>Sort</em> to order your cards by rank or suit, or select none.</span>
+                            </div>
+                            <div>
                                 <b>When does a match end?</b>
-                                <span>Play your final card or the seven of hearts to end the match.</span>
-                            </article>
-                            <article>
-                                <b>Who wins?</b>
-                                <span>In one match, the lowest remaining hand penalty wins. In Knockout, actors tied for the highest penalty leave after matches with three or more actors; the final one-on-one match decides the result.</span>
-                            </article>
-                        </div>
+                                <span>Legally playing your final card or the seven of hearts ends the match immediately. No further card effect is applied.</span>
+                            </div>
+                            <div>
+                                <b>Who wins one match?</b>
+                                <span>The player with the lowest hand penalty wins. Players tied for the lowest total share the win. An empty hand scores zero.</span>
+                            </div>
+                            <div>
+                                <b>How does Knockout work?</b>
+                                <span>Knockout is a series of matches. In matches with three or more players, everyone tied for the highest hand penalty is eliminated. If only one player remains, they win; if none remain, the series is tied. The final two play one match: the lowest hand penalty wins, and equal totals tie.</span>
+                            </div>
+                            <div>
+                                <b>When does the next Knockout match start?</b>
+                                <span>If at least two players qualify, the next match starts after 30 seconds. A qualified human player can select <em>Start</em> to begin sooner. Each match deals fresh seven-card hands.</span>
+                            </div>
+                            <div><!--purposely empty for balance--></div>
+                        </section>
                     </details>
                     <details>
                         <summary>
                             <b>03</b>
                             <span>Special cards</span>
                         </summary>
-                        <div>
-                            <article>
+                        <section>
+                            <div>
                                 <b>Eight</b>
-                                <span>Skips the next actor.</span>
+                                <span>Skips the next player’s turn.</span>
                                 <div class="playing-card-area" id="eights"></div>
-                            </article>
-                            <article>
+                            </div>
+                            <div>
                                 <b>Jack</b>
-                                <span>Reverses direction with three or more actors; skips the other actor with two.</span>
+                                <span>Reverses turn order with three or more players. With two players, skips the other player’s turn.</span>
                                 <div class="playing-card-area" id="jacks"></div>
-                            </article>
-                            <article>
-                                <b>Ace</b>
-                                <span>Choose the next suit. The ace of spades is the exception.</span>
+                            </div>
+                            <div>
+                                <b>Ace of clubs, diamonds, or hearts</b>
+                                <span>Lets you choose the suit the next player must follow. Must be legally played first.</span>
                                 <div class="playing-card-area" id="aces-except-spades"></div>
-                            </article>
-                            <article>
+                            </div>
+                            <div>
                                 <b>Two</b>
-                                <span>Gives the next actor a two-card draw penalty unless they defend. Penalties do not accumulate.</span>
+                                <span>Gives the next player a two-card draw penalty unless they defend.</span>
                                 <div class="playing-card-area" id="twos"></div>
-                            </article>
-                            <article>
+                            </div>
+                            <div>
                                 <b>Seven of hearts</b>
-                                <span>Ends the game immediately and triggers scoring.</span>
+                                <span>Ends the match immediately and triggers scoring. Must be legally played first.</span>
                                 <div class="playing-card-area" id="seven-of-hearts"></div>
-                            </article>
-                            <article>
+                            </div>
+                            <div>
                                 <b>Joker</b>
-                                <span>Plays on any card and gives the next actor a four-card draw penalty unless they defend. Penalties do not accumulate.</span>
+                                <span>Wild. Plays on any card and gives the next player a four-card draw penalty unless they defend.</span>
                                 <div class="playing-card-area" id="jokers"></div>
-                            </article>
-                            <article>
+                            </div>
+                            <div>
                                 <b>Ace of spades</b>
-                                <span>Plays on any card and blocks a draw penalty.</span>
+                                <span>Wild. Plays on any card and cancels a draw penalty. Does not let you choose a suit.</span>
                                 <div class="playing-card-area" id="ace-of-spades"></div>
-                            </article>
-
-                            <article><!--purposely empty for balance--></article>
-                        </div>
+                            </div>
+                            <div><!--purposely empty for balance--></div>
+                        </section>
                     </details>
                     <details>
                         <summary>
                             <b>04</b>
                             <span>How is my penalty calculated?</span>
                         </summary>
-                        <div id="ranks-tables">
-                            <p>Your penalty is the sum of the ranks of the cards left in your hand when the match ends. For example, a two (20) and a king (13) add up to 33 penalty. The lowest penalty wins.</p>
+                        <section id="ranks-tables">
+                            <p>Add the points shown below for each card left in your hand at the end of the match. An empty hand scores zero. For example, a two (20) and a king (13) score 33.</p>
                             <table>
                                 <thead>
                                     <tr>
                                         <th scope="col">Card</th>
-                                        <th scope="col">Rank</th>
+                                        <th scope="col">Points</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -230,7 +251,7 @@
                                 <thead>
                                     <tr>
                                         <th scope="col">Card</th>
-                                        <th scope="col">Rank</th>
+                                        <th scope="col">Points</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -257,9 +278,9 @@
                                     </tr>
                                 </tbody>
                             </table>
-                        </div>
+                        </section>
                     </details>
-                </div>
+                </section>
             </details>
             <!-- dialogs -->
             <aside id="alert-dialog" class="dialog-overlay" data-status="info" aria-labelledby="alert-title" aria-describedby="alert-message" hidden>
@@ -285,7 +306,7 @@
             <aside id="play-dialog" class="dialog-overlay" data-state="closed" aria-labelledby="play-dialog-title" aria-describedby="play-dialog-description">
                 <div class="dialog-panel">
                     <header>
-                        <h1 id="play-dialog-title">Play</h1>
+                        <h1 id="play-dialog-title">Start</h1>
                         <p>select mode</p>
                     </header>
                     <section id="play-dialog-description">
@@ -365,7 +386,7 @@
                 </aside>
                 <nav id="app-footer-navigation" aria-label="Footer navigation">
                     <a href="#app-header">Back to top ↑</a>
-                    <a id="room-faq-link" href="#game-faq">FAQ</a>
+                    <a id="room-faq-link" href="#room-faq">FAQ</a>
                 </nav>
                 <aside id="app-footer-note">
                     <div>

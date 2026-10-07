@@ -1,0 +1,103 @@
+/* ---------- FAQ ---------- */
+
+.faq {
+    color: var(--ink);
+    font-size: medium;
+    border: 1px solid var(--line);
+    border-radius: var(--container-radius);
+    overflow: hidden;
+}
+
+.faq summary::-webkit-details-marker {
+    display: none;
+}
+
+.faq summary {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    border-top: 1px solid var(--line);
+    cursor: pointer;
+}
+
+.faq summary > b {
+    color: var(--light-green);
+    font-family: var(--display-font);
+}
+
+.faq summary > span {
+    letter-spacing: -0.02em;
+}
+
+.faq summary::after {
+    content: "+";
+    color: var(--light-green);
+    font-size: xx-large;
+    text-align: right;
+}
+
+.faq > summary {
+    grid-template-columns: auto 1fr;
+    grid-template-areas: "header aside" "footer aside";
+}
+
+.faq > summary > b {
+    grid-area: header;
+}
+
+.faq > summary > span {
+    grid-area: footer;
+}
+
+.faq > summary::after {
+    grid-area: aside;
+}
+
+.faq[open] > summary::after,
+.faq details[open] > summary::after {
+    content: "−";
+}
+
+.faq details[open] > summary,
+.faq summary:hover {
+    background: var(--line);
+}
+
+.faq details > summary + section {
+    display: grid;
+    grid-template-columns: 1fr;
+    border: 3px solid var(--line);
+}
+
+.faq summary + section > div {
+    display: grid;
+    gap: 0.2rem;
+    min-height: 6.5rem;
+    padding: 1rem;
+    border: 3px solid var(--line);
+}
+
+.faq summary + section > div > b {
+    color: var(--gray);
+}
+
+#ranks-tables > p {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding: 1rem;
+    border: 3px solid var(--line);
+}
+
+#ranks-tables table {
+    --table-heading-padding: 8px 12px;
+    --table-cell-padding: 8px 12px;
+    --table-border: 3px solid var(--line);
+}
+
+@media (min-width: 721px) {
+    .faq details > summary + section {
+        grid-template-columns: 1fr 1fr;
+    }
+}

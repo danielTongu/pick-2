@@ -367,7 +367,7 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.match(homeTemplate, /id="list-panel"/);
     assert.doesNotMatch(homeTemplate, /id="(?:request-mode-control|list-panel)" hidden/);
     assert.match(homeTemplate, /<tbody id="list-table-body">[\s\S]*?class="empty-row"/);
-    assert.doesNotMatch(homeMarkup, /id="game-faq"/);
+    assert.doesNotMatch(homeMarkup, /id="room-faq"/);
     assert.match(gameHtml, /data-has-local-actor="false"/);
     assert.doesNotMatch(gameHtml, /pick-2-shared-root/);
     assert.doesNotMatch(homeTemplate, /id="connection-view"/);
@@ -386,14 +386,14 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     );
     assert.doesNotMatch(gameHtml, /<span class="playing-card-area" data-is-drag-over="false"><\/span>/);
     assert.doesNotMatch(gameHtml, /id="actor-region"/);
-    assert.match(gameHtml, /<details id="game-faq">/);
-    assert.doesNotMatch(gameHtml, /<details id="game-faq" open>/);
-    assert.match(gameHtml, /<b>FAQ<\/b>/);
+    assert.match(gameHtml, /<details id="room-faq" class="faq" aria-labelledby="room-faq-title">/);
+    assert.doesNotMatch(gameHtml, /<details id="room-faq" open>/);
+    assert.match(gameHtml, /<b id="room-faq-title">FAQ<\/b>/);
     assert.match(gameHtml, /<b>Which card can I play\?<\/b>/);
-    assert.match(gameHtml, /<b>Who wins\?<\/b>/);
+    assert.match(gameHtml, /<b>Who wins one match\?<\/b>/);
     assert.match(gameHtml, /How is my penalty calculated\?/);
-    assert.match(gameHtml, /two \(20\) and a king \(13\) add up to 33 penalty/);
-    assert.match(gameHtml, /id="room-faq-link" href="#game-faq">FAQ<\/a>/);
+    assert.match(gameHtml, /two \(20\) and a king \(13\) score 33/);
+    assert.match(gameHtml, /id="room-faq-link" href="#room-faq">FAQ<\/a>/);
     assert.doesNotMatch(gameHtml, /data-match-region|id="faq-section"/);
     assert.match(gameHtml, /<tr class="placeholder-row"[^>]*>[\s\S]*?<td>--<\/td>/);
     assert.doesNotMatch(gameHtml, /id="room-mode-label"|id="connection-status-indicator"/);
@@ -433,13 +433,13 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.doesNotMatch(homeMarkup + gameHtml, /<caption\b/);
     assert.match(homeTemplate, /<button id="enter-button">Enter room<\/button>/);
     assert.match(homeTemplate, /<button id="alert-ok-button">OK<\/button>/);
-    assert.match(gameHtml, /<button id="room-play-button" type="button" data-mode="choose">Play<\/button>/);
+    assert.match(gameHtml, /<button id="room-play-button" type="button" data-mode="choose">Start<\/button>/);
     assert.match(gameHtml, /<button id="room-invite-button" type="button" hidden>Invite<\/button>/);
     assert.match(gameHtml, /<button id="countdown-ok-button">OK<\/button>/);
     assert.match(gameHtml, /<button id="suit-selection-timeout-button">timeout<\/button>/);
     assert.match(gameHtml, /<button id="suit-selection-submit-button">Submit<\/button>/);
     assert.match(gameHtml, /<button id="results-dismiss-button">dismiss<\/button>/);
-    assert.match(homeHtml, /<article id="home-guide"[^>]*>\s*<details>\s*<summary>[\s\S]*?<\/details>\s*<\/article>\s*<article id="home-directory">/);
+    assert.match(homeHtml, /<details id="home-faq"[^>]*>\s*<summary>[\s\S]*?<\/details>\s*<article id="home-directory">/);
     assert.doesNotMatch(homeHtml, /<details[^>]*\bopen\b/);
     assert.doesNotMatch(gameHtml, /href="\.\/rules\.html"/);
     assert.match(main, /new Host\("direct", "fill", false\)/);
@@ -482,7 +482,7 @@ test("the finished dialog opens once per finish and clears for a new game", () =
     assert.doesNotMatch(controller, /#handleCardReturn|COMMANDS\.RETURN/);
 });
 
-test("Play offers a knockout choice and room tables show the selected mode", () => {
+test("Start offers a knockout choice and room tables show the selected mode", () => {
     const roomHtml = readFileSync(new URL("../room.html", import.meta.url), "utf8");
     const homeHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
     const rowHtml = readFileSync(new URL("../ui/templates/room-row.html", import.meta.url), "utf8");
@@ -536,7 +536,7 @@ test("the shared table stylesheet owns foundational row states", () => {
 });
 
 test("responsive styles are mobile-first with one tablet and desktop stage", () => {
-    const styleNames = ["../ui/styles/base.css", "../ui/styles/home.css", "../ui/styles/room.css"];
+    const styleNames = ["../ui/styles/base.css", "../ui/styles/home.css", "../ui/styles/faq.css"];
 
     for (const styleName of styleNames) {
         const css = readFileSync(new URL(styleName, import.meta.url), "utf8");

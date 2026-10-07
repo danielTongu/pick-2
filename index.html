@@ -24,6 +24,7 @@
         <link rel="stylesheet" href="ui/styles/base.css" />
         <link rel="stylesheet" href="ui/styles/table.css" />
         <link rel="stylesheet" href="ui/styles/home.css" />
+        <link rel="stylesheet" href="ui/styles/faq.css" />
         <link rel="stylesheet" href="ui/styles/playing-card.css" />
         <link rel="stylesheet" href="ui/styles/dialogs.css" />
 
@@ -75,86 +76,60 @@
                         </aside>
                     </div>
                 </header>
-                <article id="home-guide" aria-labelledby="home-guide-title">
-                    <details>
-                        <summary><h2 id="home-guide-title">About Pick 2 &amp; how to play</h2><span class="guide-toggle" aria-hidden="true"></span></summary>
-                        <div class="rules-content">
-                            <header class="rules-intro">
-                                <p>Pick 2 is a card game where you match suits or values, use special cards, and try to empty your hand.
-                                    Play free in your browser, with no download or account required.</p>
-                                <p>Each player starts with seven cards from a standard deck plus two jokers.</p>
-                            </header>
-                            <div class="rules-basics">
-                                <section>
-                                    <h3>Start a match</h3>
-                                    <ol>
-                                        <li>Enter your name and a room name below, then choose Create or Join.</li>
-                                        <li>Select Enter room.</li>
-                                        <li>Select Play in the room: No for one match, Yes for Knockout.</li>
-                                    </ol>
-                                </section>
-                                <section>
-                                    <h3>Take your turn</h3>
-                                    <ul>
-                                        <li><strong>Play:</strong> drag a card matching the top discard’s suit or value. Jokers and the ace of spades are wild.</li>
-                                        <li><strong>Draw:</strong> use + to draw one card. You can still play afterward.</li>
-                                        <li><strong>Pass:</strong> end your turn. Any remaining draw allowance is drawn automatically.</li>
-                                    </ul>
-                                    <p>After a suit is declared, play that suit, any ace, or a joker. Any card can follow a wild when no suit or penalty is active.</p>
-                                </section>
-                            </div>
+                <details id="home-faq" class="faq" aria-labelledby="home-faq-title">
+                    <summary>
+                        <b id="home-faq-title">About Pick 2 &amp; rooms</b>
+                        <span>About the game and choosing a room.</span>
+                    </summary>
+                    <section>
+                        <details>
+                            <summary>
+                                <b>01</b>
+                                <span>About Pick 2</span>
+                            </summary>
                             <section>
-                                <h3>Special cards</h3>
-                                <dl class="special-card-list">
-                                    <div><dt>Two</dt><dd>The next player draws two, unless they defend.</dd></div>
-                                    <div><dt>Joker</dt><dd>Wild. The next player draws four, unless they defend.</dd></div>
-                                    <div><dt>Eight</dt><dd>Skips the next player.</dd></div>
-                                    <div><dt>Jack</dt><dd>Reverses direction; skips the other player in a two-player match.</dd></div>
-                                    <div><dt>Ace of clubs, diamonds or hearts</dt><dd>Once legally played, lets you choose the next suit.</dd></div>
-                                    <div><dt>Ace of spades</dt><dd>Wild. Cancels a draw penalty without choosing a suit.</dd></div>
-                                    <div><dt>Seven of hearts</dt><dd>Once legally played, ends the match and triggers scoring.</dd></div>
-                                </dl>
-                                <p class="rules-note"><strong>Draw penalties:</strong> defend a two with a two, joker, or ace of spades; defend a joker with a joker or ace of spades.
-                                    A defensive two passes a two-card penalty; a joker passes four. Penalties do not accumulate. Drawing the penalty ends your turn.</p>
+                                <div>
+                                    <b>What is Pick 2?</b>
+                                    <span>A card game of matching suits and values, using special cards, and trying to empty your hand.</span>
+                                </div>
+                                <div>
+                                    <b>What do I need to play?</b>
+                                    <span>Just your browser. Play free, with no download or account required.</span>
+                                </div>
                             </section>
-                            <div class="rules-basics">
-                                <section>
-                                    <h3>Scoring &amp; winning</h3>
-                                    <p>Your final card or a legal seven of hearts ends the match, before any further card effect. Add the ranks left in each hand: lowest total wins; equal lowest totals tie.</p>
-                                    <div class="score-table-wrapper">
-                                        <table aria-label="Remaining hand penalties">
-                                            <thead><tr><th scope="col">Card</th><th scope="col">Points</th></tr></thead>
-                                            <tbody>
-                                                <tr><th scope="row">3–10, except seven of hearts</th><td>Face value</td></tr>
-                                                <tr><th scope="row">Jack / Queen / King</th><td>11 / 12 / 13</td></tr>
-                                                <tr><th scope="row">Ace, except spades</th><td>14</td></tr>
-                                                <tr><th scope="row">Two / Seven of hearts</th><td>20 / 30</td></tr>
-                                                <tr><th scope="row">Joker / Ace of spades</th><td>40 / 50</td></tr>
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                    <p>Empty hand: zero points. A two and a king: 33.</p>
-                                </section>
-                                <section>
-                                    <h3>Knockout</h3>
-                                    <p>Play a series with fresh hands each match.</p>
-                                    <ul>
-                                        <li><strong>Three or more players:</strong> everyone tied for the highest penalty is eliminated.</li>
-                                        <li><strong>Next match:</strong> starts after 30 seconds, or sooner when a qualified human selects Play.</li>
-                                        <li><strong>Final two:</strong> lowest penalty wins; a tie stays a tie.</li>
-                                    </ul>
-                                    <p>One qualifier wins the series. No qualifiers means a tie.</p>
-                                </section>
-                            </div>
-                        </div>
-                    </details>
-                </article>
+                        </details>
+                        <details>
+                            <summary>
+                                <b>02</b>
+                                <span>Choosing a room</span>
+                            </summary>
+                            <section>
+                                <div>
+                                    <b>What is the difference between Direct and Hosted?</b>
+                                    <span>Direct runs rooms in your browser. Hosted connects you to shared rooms where you can meet other players.</span>
+                                </div>
+                                <div>
+                                    <b>Should I create or join a room?</b>
+                                    <span>Create opens a new room with your chosen number of seats. Join takes an available seat in the room you name. Your actor name identifies you in the room.</span>
+                                </div>
+                                <div>
+                                    <b>Can I watch without playing?</b>
+                                    <span>Yes. Select a Live rooms row to enter as a viewer without taking a seat. The list shows room status and seat counts; use the status filter to narrow it down.</span>
+                                </div>
+                                <div>
+                                    <b>Where can I learn the rules?</b>
+                                    <span>The room’s FAQ explains how to take a seat, start a match, play your cards, and understand the results.</span>
+                                </div>
+                            </section>
+                        </details>
+                    </section>
+                </details>
                 <article id="home-directory">
                     <aside id="registration">
                         <header class="panel-header">
                             <div>
                                 <span class="section-kicker">New room</span>
-                                <h2>Find or start a room</h2>
+                                <h2>Find or register a room</h2>
                             </div>
                             <span class="step" aria-hidden="true">01</span>
                         </header>

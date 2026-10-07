@@ -23,14 +23,13 @@ Open [http://localhost:8080](http://localhost:8080). Use `npm run dev` for watch
 For static hosting, serve the repository root. `index.html` is Pick 2 Home and `room.html` is the active Room. Direct
 play is always available; Home enables Hosted mode when its configured WebSocket host is reachable.
 
-In a Room with at least two Actors, Play asks whether to start a **Knockout**. No plays one match; Yes starts successive matches. A Knockout match with at least three Actors qualifies everyone except those tied
-for the highest hand penalty for the next match. The finished order remains visible until that next match starts after a short delay, or a qualified human Actor presses Play sooner. Eliminated Actors leave the order at that start.
+In a Room with at least two Actors, Start asks whether to start a **Knockout**. No plays one match; Yes starts successive matches. A Knockout match with at least three Actors qualifies everyone except those tied
+for the highest hand penalty for the next match. The finished order remains visible until that next match starts after a short delay, or a qualified human Actor presses Start sooner. Eliminated Actors leave the order at that start.
 The final two play a regular match. Qualified humans remain subject to the idle timeout while waiting, and eliminated
 Bots return after the Knockout ends.
 
 The canonical public URL is `https://danieltongu.github.io/pick-2/`, and the root `sitemap.xml` contains that page.
-Home includes a collapsible About Pick 2 & how to play article above the room directory. Its rules, scoring, and Knockout guide
-are present in the HTML and can be expanded without JavaScript.
+Home includes a collapsible About Pick 2 & rooms guide above the room directory. It covers connection modes, creating or joining rooms, and watching live rooms. The Room FAQ covers match setup, play, scoring, and Knockout. Both guides can be expanded without JavaScript.
 
 ## Commands
 

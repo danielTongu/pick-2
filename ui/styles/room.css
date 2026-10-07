@@ -37,7 +37,7 @@
     display: grid;
     grid-template-columns: 1fr;
     gap: 24px;
-    padding: 24px 0 32px;
+    margin: 2rem 0;
     color: var(--ink);
 }
 
@@ -480,100 +480,6 @@ ul#actors-list > li > div::after {
     outline: 0;
 }
 
-/* ---------- FAQ ---------- */
-
-#game-faq {
-    color: var(--ink);
-    font-size: medium;
-}
-
-summary::-webkit-details-marker {
-    display: none;
-}
-
-summary {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem;
-    border-top: 1px solid var(--line);
-    cursor: pointer;
-}
-
-summary > b {
-    color: var(--light-green);
-    font-family: var(--display-font);
-}
-
-summary > span {
-    letter-spacing: -0.02em;
-}
-
-summary::after {
-    content: "+";
-    color: var(--light-green);
-    font-size: xx-large;
-    text-align: right;
-}
-
-#game-faq > summary {
-    grid-template-columns: auto 1fr;
-    grid-template-areas: "header aside" "footer aside";
-}
-
-#game-faq > summary > b {
-    grid-area: header;
-}
-
-#game-faq > summary > span {
-    grid-area: footer;
-}
-
-#game-faq > summary::after {
-    grid-area: aside;
-}
-
-details[open] > summary::after {
-    content: "−";
-}
-
-details[open]:not(#game-faq) > summary,
-summary:hover {
-    background: var(--line);
-}
-
-#game-faq details > summary + div {
-    display: grid;
-    grid-template-columns: 1fr;
-    border: 3px solid var(--line);
-}
-
-summary + div > article {
-    display: grid;
-    gap: 0.2rem;
-    min-height: 6.5rem;
-    padding: 1rem;
-    border: 3px solid var(--line);
-}
-
-summary + div > article > b {
-    color: var(--gray);
-}
-
-#ranks-tables > p {
-    grid-column: 1 / -1;
-    margin: 0;
-    padding: 1rem;
-    border: 3px solid var(--line);
-}
-
-#ranks-tables table {
-    --table-heading-padding: 8px 12px;
-    --table-cell-padding: 8px 12px;
-    --table-border: 3px solid var(--line);
-}
-
 /* ---------- ANIMATION ---------- */
 
 @keyframes turn-owner-border-strobe {
@@ -584,14 +490,6 @@ summary + div > article > b {
 
     50% {
         border-color: var(--line);
-    }
-}
-
-/* ---------- RESPONSIVE ---------- */
-
-@media (min-width: 721px) {
-    #game-faq details > summary + div {
-        grid-template-columns: 1fr 1fr;
     }
 }
 

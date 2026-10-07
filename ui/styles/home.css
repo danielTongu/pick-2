@@ -69,8 +69,8 @@
 
 .hero {
     display: grid;
-    gap:1rem;
-    padding-top: 5rem;
+    gap: 1rem;
+    margin: 2rem 0;
     border-bottom: 1px solid var(--line);
     color: var(--ink);
 }
@@ -200,7 +200,7 @@
     display: grid;
     grid-template-columns: 1fr;
     gap: 18px;
-    padding: 18px 0;
+    margin: 2rem 0;
 }
 
 #registration,
@@ -405,21 +405,6 @@ form > footer {
 }
 
 @media (min-width: 721px) {
-    .rules-content {
-        padding: 1.5rem;
-    }
-
-    .rules-basics,
-    .special-card-list {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1.5rem;
-    }
-
-    .special-card-list {
-        gap: 0.75rem;
-    }
-
     .hero > :last-child {
         grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
     }
@@ -432,142 +417,4 @@ form > footer {
     #list-panel {
         padding: 32px;
     }
-}
-
-/* ----- COLLAPSIBLE HOME GUIDE ----- */
-
-#home-guide {
-    margin-top: 1rem;
-    border: 1px solid var(--line);
-    border-radius: var(--container-radius);
-}
-
-#home-guide summary {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem;
-    color: var(--ink);
-    cursor: pointer;
-    list-style: none;
-}
-
-#home-guide summary::-webkit-details-marker {
-    display: none;
-}
-
-#home-guide summary h2 {
-    margin: 0;
-    font-size: 1.1rem;
-}
-
-.guide-toggle::before {
-    content: "+";
-    color: var(--light-green);
-    font-size: 1.5rem;
-}
-
-#home-guide details[open] .guide-toggle::before {
-    content: "−";
-}
-
-#home-guide details[open] summary {
-    border-bottom: 1px solid var(--line);
-}
-
-.rules-content {
-    margin-inline: auto;
-    padding: 1rem;
-    color: var(--ink);
-    font-size: 1rem;
-    line-height: 1.6;
-}
-
-.rules-content a {
-    color: var(--light-green);
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
-}
-
-.rules-content section {
-    padding-block: 1rem;
-    border-top: 1px solid var(--line);
-}
-
-.rules-content section h3 {
-    margin: 0 0 0.75rem;
-    font-size: 1.2rem;
-    line-height: 1.3;
-}
-
-.rules-content ol,
-.rules-content ul {
-    padding-left: 1.5rem;
-}
-
-.rules-content li + li {
-    margin-top: 0.75rem;
-}
-
-.special-card-list > div {
-    padding: 0.75rem;
-    border: 1px solid var(--line);
-    border-radius: 0.5rem;
-}
-
-.special-card-list dt {
-    font-weight: 700;
-    color: var(--peach);
-}
-
-.special-card-list dd {
-    margin: 0.25rem 0 0;
-}
-
-.score-table-wrapper {
-    overflow-x: auto;
-}
-
-.rules-content table {
-    --table-heading-padding: 0.75rem;
-    --table-cell-padding: 0.75rem;
-
-    text-wrap: wrap;
-    text-align: left;
-}
-
-.rules-content th,
-.rules-content td {
-    padding: 0.75rem;
-}
-
-.rules-content tbody th {
-    font-weight: 400;
-    letter-spacing: normal;
-    text-transform: none;
-}
-
-.rules-content thead {
-    color: var(--peach);
-}
-
-.rules-content p {
-    margin: 0 0 1rem;
-}
-
-.rules-intro {
-    padding-bottom: 0.5rem;
-}
-
-.special-card-list {
-    display: grid;
-    gap: 0.75rem;
-    margin: 0 0 1rem;
-}
-
-.rules-note {
-    padding: 1rem;
-    border-left: 3px solid var(--light-green);
-    background: color-mix(in srgb, var(--dark-green) 35%, transparent);
 }
