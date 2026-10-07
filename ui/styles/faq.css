@@ -41,6 +41,7 @@
 .faq > summary {
     grid-template-columns: auto 1fr;
     grid-template-areas: "header aside" "footer aside";
+    border-top: 0;
 }
 
 .faq > summary > b {

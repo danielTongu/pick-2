@@ -386,9 +386,9 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     );
     assert.doesNotMatch(gameHtml, /<span class="playing-card-area" data-is-drag-over="false"><\/span>/);
     assert.doesNotMatch(gameHtml, /id="actor-region"/);
-    assert.match(gameHtml, /<details id="room-faq" class="faq" aria-labelledby="room-faq-title">/);
+    assert.match(gameHtml, /<details id="room-faq" class="faq" aria-labelledby="faq-title">/);
     assert.doesNotMatch(gameHtml, /<details id="room-faq" open>/);
-    assert.match(gameHtml, /<b id="room-faq-title">FAQ<\/b>/);
+    assert.match(gameHtml, /<b id="faq-title">FAQ<\/b>/);
     assert.match(gameHtml, /<b>Which card can I play\?<\/b>/);
     assert.match(gameHtml, /<b>Who wins one match\?<\/b>/);
     assert.match(gameHtml, /How is my penalty calculated\?/);
