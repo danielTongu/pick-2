@@ -68,8 +68,8 @@
                     <div>
                         <aside>
                             <h2 id="hero-title"><span>Play Pick 2.</span><em>Online.</em></h2>
-                            <p>To start, enter your name and a room name, choose Create or Join, then select Enter room.
-                                Select a Live rooms row to watch a room.</p>
+                            <p>To play as an <strong>Actor</strong>, fill in the <a href="#registration-form">form</a>. To watch as a <strong>Viewer</strong>, click a <a href="#list-table">room row</a>.
+                                See the <a href="#home-faq">FAQ</a> for more information.</p>
                         </aside>
                         <aside>
                             <span data-game-preview aria-hidden="true"></span>
@@ -78,7 +78,7 @@
                 </header>
                 <details id="home-faq" class="faq" aria-labelledby="faq-title">
                     <summary>
-                        <b id="faq-title">About Pick 2 &amp; rooms</b>
+                        <b id="faq-title">FAQ</b>
                         <span>About the game and choosing a room.</span>
                     </summary>
                     <section>
@@ -95,6 +95,14 @@
                                 <div>
                                     <b>What do I need to play?</b>
                                     <span>Just your browser. Play free, with no download or account required.</span>
+                                </div>
+                                <div>
+                                    <b>What does it mean to be an Actor?</b>
+                                    <span>An Actor is a player who takes a seat, holds a hand of cards, and makes moves on their turn.</span>
+                                </div>
+                                <div>
+                                    <b>What does it mean to be a Viewer?</b>
+                                    <span>A Viewer is a spectator who follows the game without a seat, a hand, or a turn. Before a match starts, a Viewer can select Join in the room to become an Actor if a seat is available.</span>
                                 </div>
                             </section>
                         </details>
@@ -114,7 +122,7 @@
                                 </div>
                                 <div>
                                     <b>Can I watch without playing?</b>
-                                    <span>Yes. Select a Live rooms row to enter as a viewer without taking a seat. The list shows room status and seat counts; use the status filter to narrow it down.</span>
+                                    <span>Yes. Select a <a href="#list-panel">Live Rooms</a> row to enter as a viewer without taking a seat. The list shows room status and seat counts; use the status filter to narrow it down.</span>
                                 </div>
                                 <div>
                                     <b>Where can I learn the rules?</b>
@@ -127,11 +135,11 @@
                 <article id="home-directory">
                     <aside id="registration">
                         <header class="panel-header">
+                            <span class="section-kicker">actor registry</span>
                             <div>
-                                <span class="section-kicker">New room</span>
-                                <h2>Find or register a room</h2>
+                                <h2>Create or Join</h2>
+                                <span class="step" aria-hidden="true">01</span>
                             </div>
-                            <span class="step" aria-hidden="true">01</span>
                         </header>
                         <form id="registration-form">
                             <div id="field-group">
@@ -168,19 +176,19 @@
                     </aside>
                     <aside id="list-panel">
                         <header class="panel-header">
+                            <span class="section-kicker">viewer entry – select a row</span>
                             <div>
-                                <span class="section-kicker">Now playing</span>
-                                <h2>Live rooms</h2>
+                                <h2>Rooms</h2>
+                                 <label id="filter-control">
+                                    <span class="visually-hidden">Status</span>
+                                    <select id="status-filter">
+                                        <option value="">All rooms</option>
+                                        <option value="waiting">Waiting</option>
+                                        <option value="active">Active</option>
+                                        <option value="finished">Finished</option>
+                                    </select>
+                                </label>
                             </div>
-                            <label id="filter-control">
-                                <span class="visually-hidden">Status</span>
-                                <select id="status-filter">
-                                    <option value="">All rooms</option>
-                                    <option value="waiting">Waiting</option>
-                                    <option value="active">Active</option>
-                                    <option value="finished">Finished</option>
-                                </select>
-                            </label>
                         </header>
                         <div class="table-container">
                             <table id="list-table">

@@ -138,6 +138,11 @@
     line-height: 1.65;
 }
 
+.hero p a {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+}
+
 [data-game-preview] {
     container-type: inline-size;
     display: block;
@@ -224,12 +229,12 @@
     box-shadow: 0 20px 55px color-mix(in srgb, var(--dark-green) 17%, transparent);
 }
 
-.panel-header {
+.panel-header > div {
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: start;
-    gap: 18px;
-    margin-bottom: 34px;
+    gap: 1rem;
+    margin-bottom: 1rem;
 }
 
 .panel-header h2 {
