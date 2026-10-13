@@ -21,8 +21,8 @@
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--connection-accent) 15%, transparent);
 }
 
-body[data-connection-status="connecting"] #app-header > aside::before,
-body[data-connection-status="reconnecting"] #app-header > aside::before {
+#app-header > aside[data-connection-status="connecting"]::before,
+#app-header > aside[data-connection-status="reconnecting"]::before {
     animation: status-ripple 1.6s ease-out infinite;
 }
 
@@ -41,7 +41,6 @@ body[data-connection-status="reconnecting"] #app-header > aside::before {
     display: grid;
     grid-template-columns: 1fr;
     gap: 24px;
-    margin: 2rem 0;
     color: var(--ink);
 }
 
@@ -58,7 +57,7 @@ body[data-connection-status="reconnecting"] #app-header > aside::before {
     min-width: 660px;
 }
 
-#info-table .placeholder-row td {
+#info-table #placeholder-row td {
     color: var(--gray);
     font-weight: 400;
 }
@@ -102,7 +101,7 @@ body[data-connection-status="reconnecting"] #app-header > aside::before {
 
     min-height: max(calc(var(--card-height-min) * 4), 40vw);
 
-    padding: 5px;
+    padding: 1rem 5px 5px;
     border: 1px solid var(--line);
     border-radius: var(--container-radius);
     background: var(--dark-green);
@@ -111,27 +110,27 @@ body[data-connection-status="reconnecting"] #app-header > aside::before {
 }
 
 /* player: 3 rows (opponents, table, player) */
-#game-region[data-has-local-player="true"] {
+#room-view[data-membership="player"] #game-region {
     --play-area-rows:
         minmax(var(--card-height-min), 0.2fr)
         minmax(calc(var(--card-row-floor) * 2), 0.3fr)
         minmax(calc(var(--card-row-floor) * 5/2), 0.5fr);
 }
 
-/* viewer: 2 rows (opponents, table) — no player region in the DOM */
-#game-region[data-has-local-player="false"] {
+/* viewer: 2 rows (opponents, table), with the player region hidden */
+#room-view[data-membership="viewer"] #game-region {
     --play-area-rows:
         minmax(var(--card-height-min), 0.2fr)
         minmax(var(--card-row-floor), 0.8fr);
 }
 
-#game-region[data-has-local-player="false"] > #local-player-region,
-#game-region[data-connection-mode="direct"] > #local-player-region #player-idle-warning {
+#room-view[data-membership="viewer"] #game-region > #local-player-region,
+main[data-connection-mode="direct"] #game-region > #local-player-region #player-idle-warning {
     display: none;
 }
 
-#game-region:not([data-match-state="waiting"], [data-match-state="finished"]) #room-play-button,
-#game-region:not([data-match-state="active"]) #turn-pass-button {
+#player-commands:not([data-match-state="waiting"], [data-match-state="finished"]) #room-play-button,
+#player-commands:not([data-match-state="active"]) #turn-pass-button {
     display: none;
 }
 
@@ -429,7 +428,7 @@ ul#players-list > li > div::after {
     content: attr(data-idle-seconds) " ";
 }
 
-[data-match-state] #player-status::before {
+#player-status::before {
     content: attr(data-player-name);
     text-transform: capitalize;
 }
@@ -507,4 +506,14 @@ ul#players-list > li > div::after {
     #table-play-area > [data-is-drag-over] > playing-card {
         transition: none;
     }
+}
+
+/* Membership and host capabilities control Room navigation presentation. */
+#room-view[data-membership="player"] #room-join-button,
+main:not([data-connection-mode="hosted"]) #room-invite-button {
+    display: none !important;
+}
+
+body[data-ui-preview="true"] #info-table-body > #placeholder-row {
+    display: none !important;
 }

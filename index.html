@@ -2,30 +2,30 @@
 <html lang="en">
     <head>
         <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport" />
         <title>Play Pick 2 Online | Card Game</title>
-        <meta name="description" content="Play Pick 2 online for free in your browser. Match suits or values, use special cards, and try to empty your hand. No download required." />
+        <meta content="Play Pick 2 online for free in your browser. Match suits or values, use special cards, and try to empty your hand. No download required." name="description" />
 
-        <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-        <link rel="canonical" href="https://danieltongu.github.io/pick-2/" />
-        <link rel="sitemap" href="https://danieltongu.github.io/pick-2/sitemap.xml" />
-        <meta name="google-site-verification" content="1y4PstMN0Q7yR-3xCeDPlAHfFBGO3HrWMhTDX8tGJnk" />
-        <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Pick 2" />
-        <meta property="og:title" content="Play Pick 2 Online | Card Game" />
-        <meta property="og:description" content="Play Pick 2 online for free in your browser. Match suits or values, use special cards, and try to empty your hand. No download required." />
-        <meta property="og:url" content="https://danieltongu.github.io/pick-2/" />
-        <meta property="og:locale" content="en_US" />
-        <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content="Play Pick 2 Online | Card Game" />
-        <meta name="twitter:description" content="Play Pick 2 online for free in your browser. Match suits or values, use special cards, and try to empty your hand. No download required." />
+        <meta content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" name="robots" />
+        <link href="https://danieltongu.github.io/pick-2/" rel="canonical" />
+        <link href="https://danieltongu.github.io/pick-2/sitemap.xml" rel="sitemap" />
+        <meta content="1y4PstMN0Q7yR-3xCeDPlAHfFBGO3HrWMhTDX8tGJnk" name="google-site-verification" />
+        <meta content="website" property="og:type" />
+        <meta content="Pick 2" property="og:site_name" />
+        <meta content="Play Pick 2 Online | Card Game" property="og:title" />
+        <meta content="Play Pick 2 online for free in your browser. Match suits or values, use special cards, and try to empty your hand. No download required." property="og:description" />
+        <meta content="https://danieltongu.github.io/pick-2/" property="og:url" />
+        <meta content="en_US" property="og:locale" />
+        <meta content="summary" name="twitter:card" />
+        <meta content="Play Pick 2 Online | Card Game" name="twitter:title" />
+        <meta content="Play Pick 2 online for free in your browser. Match suits or values, use special cards, and try to empty your hand. No download required." name="twitter:description" />
 
-        <link rel="stylesheet" href="ui/styles/base.css" />
-        <link rel="stylesheet" href="ui/styles/table.css" />
-        <link rel="stylesheet" href="ui/styles/home.css" />
-        <link rel="stylesheet" href="ui/styles/faq.css" />
-        <link rel="stylesheet" href="ui/styles/playing-card.css" />
-        <link rel="stylesheet" href="ui/styles/dialogs.css" />
+        <link href="ui/styles/base.css" rel="stylesheet" />
+        <link href="ui/styles/table.css" rel="stylesheet" />
+        <link href="ui/styles/home.css" rel="stylesheet" />
+        <link href="ui/styles/faq.css" rel="stylesheet" />
+        <link href="ui/styles/playing-card.css" rel="stylesheet" />
+        <link href="ui/styles/dialogs.css" rel="stylesheet" />
 
         <script type="application/ld+json">
             {
@@ -41,18 +41,18 @@
             }
         </script>
     </head>
-    <body data-connection-status="connecting" data-game="pick2" data-page="home">
-        <main class="site-shell">
+    <body data-game="pick2" data-page="home" data-ui-preview="false">
+        <main id="site-shell">
             <header id="app-header">
                 <h1>
-                    <a id="app-home-link" href="index.html">
-                        <span class="brand-mark">P2</span>
-                        <span class="brand-copy">Pick 2<small>Match cards. Make moves.</small></span>
+                    <a href="index.html" id="app-home-link">
+                        <span id="brand-mark">P2</span>
+                        <span id="brand-copy">Pick 2<small>Match cards. Make moves.</small></span>
                     </a>
                 </h1>
-                <aside class="toggle-switch" aria-label="Connection mode. Local connecting.">
+                <aside aria-label="Connection mode. Local connecting." class="toggle-switch" data-connection-status="connecting">
                     <label>
-                        <input id="direct-mode-input" name="connection-mode" type="radio" value="direct" checked />
+                        <input checked id="direct-mode-input" name="connection-mode" type="radio" value="direct" />
                         <span>Local</span>
                     </label>
                     <label>
@@ -61,9 +61,9 @@
                     </label>
                 </aside>
             </header>
-            <section id="home-view" aria-labelledby="hero-title">
-                <header class="hero">
-                    <div class="eyebrow">Free browser card game</div>
+            <section aria-labelledby="hero-title" id="home-view">
+                <header id="hero">
+                    <div id="eyebrow">Free browser card game</div>
                     <div>
                         <aside>
                             <h2 id="hero-title"><span>Play Pick 2.</span><em>Online.</em></h2>
@@ -71,11 +71,19 @@
                                 See the <a href="#home-faq">FAQ</a> for more information.</p>
                         </aside>
                         <aside>
-                            <span data-game-preview aria-hidden="true"></span>
+                            <span aria-hidden="true" id="card-fan">
+                                <playing-card data-is-face-up="true" data-suit="clubs" data-value="2"><div class="playing-card-center"></div></playing-card>
+                                <playing-card data-is-face-up="true" data-suit="diamonds" data-value="8"><div class="playing-card-center"></div></playing-card>
+                                <playing-card data-is-face-up="true" data-suit="spades" data-value="j"><div class="playing-card-center"></div></playing-card>
+                                <playing-card data-is-face-up="true" data-suit="hearts" data-value="a"><div class="playing-card-center"></div></playing-card>
+                                <playing-card data-is-face-up="true" data-suit="hearts" data-value="7"><div class="playing-card-center"></div></playing-card>
+                                <playing-card data-is-face-up="true" data-suit="black" data-value="joker"><div class="playing-card-center"></div></playing-card>
+                                <playing-card data-is-face-up="true" data-suit="spades" data-value="a"><div class="playing-card-center"></div></playing-card>
+                            </span>
                         </aside>
                     </div>
                 </header>
-                <details id="home-faq" class="faq" aria-labelledby="faq-title">
+                <details aria-labelledby="faq-title" id="home-faq">
                     <summary>
                         <b id="faq-title">FAQ</b>
                         <span>About the game and choosing a room.</span>
@@ -137,30 +145,30 @@
                             <span class="section-kicker">player registry</span>
                             <div>
                                 <h2>Create or Join</h2>
-                                <span class="step" aria-hidden="true">01</span>
+                                <span aria-hidden="true" id="step">01</span>
                             </div>
                         </header>
                         <form id="registration-form">
                             <div id="field-group">
                                 <label>
                                     <span>Player name</span>
-                                    <input id="player-name-input" autocomplete="nickname" minlength="2" maxlength="24" required placeholder="What should we call you?" />
+                                    <input autocomplete="nickname" id="player-name-input" maxlength="24" minlength="2" placeholder="What should we call you?" required />
                                 </label>
                                 <label>
                                     <span>Room name</span>
-                                    <input id="room-name-input" autocomplete="off" minlength="2" maxlength="48" required placeholder="e.g. Friday night" />
+                                    <input autocomplete="off" id="room-name-input" maxlength="48" minlength="2" placeholder="e.g. Friday night" required />
                                 </label>
                                 <label>
                                     <span>Seats</span>
-                                    <input id="player-limit-input" type="number" min="2" max="4" value="4" required />
+                                    <input id="player-limit-input" max="4" min="2" required type="number" value="4" />
                                 </label>
                             </div>
                             <footer>
-                                <p id="request-mode-label" class="control-label">I want to</p>
+                                <p id="request-mode-label">I want to</p>
                                 <div id="request-commands">
-                                    <span id="request-mode-control" class="toggle-switch" role="radiogroup" aria-labelledby="request-mode-label">
+                                    <span aria-labelledby="request-mode-label" class="toggle-switch" id="request-mode-control" role="radiogroup">
                                         <label>
-                                            <input id="create-mode-input" name="registration-mode" type="radio" value="create" checked />
+                                            <input checked id="create-mode-input" name="registration-mode" type="radio" value="create" />
                                             <span>Create</span>
                                         </label>
                                         <label>
@@ -173,13 +181,13 @@
                             </footer>
                         </form>
                     </aside>
-                    <aside id="list-panel">
+                    <aside data-directory-state="populated" id="list-panel">
                         <header class="panel-header">
                             <span class="section-kicker">viewer entry – select a row</span>
                             <div>
                                 <h2>Rooms</h2>
                                  <label id="filter-control">
-                                    <span class="visually-hidden">Status</span>
+                                    <span id="visually-hidden">Status</span>
                                     <select id="status-filter">
                                         <option value="">All rooms</option>
                                         <option value="waiting">Waiting</option>
@@ -204,8 +212,10 @@
                                     </tr>
                                 </thead>
                                 <tbody id="list-table-body">
-                                    <tr class="empty-row">
-                                        <td colspan="8"><span class="empty-state-mark" aria-hidden="true"></span>No rooms available.</td>
+                                    <tr class="ui-fixture"><td data-name="Friday night"></td><td data-state="waiting"><i class="status-indicator"></i></td><td data-knockout="no"></td><td data-turn-order-player-count="3"></td><td data-viewers="1"></td><td data-player-limit="4"></td><td data-last-active-at="now"></td><td data-created-at="today"></td></tr>
+                                    <tr class="ui-fixture"><td data-name="Quick match"></td><td data-state="active"><i class="status-indicator"></i></td><td data-knockout="no"></td><td data-turn-order-player-count="4"></td><td data-viewers="1"></td><td data-player-limit="4"></td><td data-last-active-at="now"></td><td data-created-at="today"></td></tr>
+                                    <tr id="empty-row">
+                                        <td colspan="8"><span aria-hidden="true" id="empty-state-mark"></span>No rooms available.</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -213,13 +223,13 @@
                     </aside>
                 </article>
             </section>
-            <aside id="alert-dialog" class="dialog-overlay" data-status="info" aria-labelledby="alert-title" aria-describedby="alert-message" hidden>
+            <aside aria-describedby="alert-message" aria-labelledby="alert-title" class="dialog-overlay" data-status="info" hidden id="alert-dialog">
                 <div class="dialog-panel">
                     <header>
-                        <span data-icon="info" aria-hidden="true"></span>
-                        <h1 id="alert-title"></h1>
+                        <span aria-hidden="true" id="alert-icon"></span>
+                        <h1 id="alert-title">Room is full</h1>
                     </header>
-                    <section id="alert-message"></section>
+                    <section id="alert-message">Try another room or create one of your own.</section>
                     <button id="alert-ok-button">OK</button>
                 </div>
             </aside>
@@ -229,17 +239,17 @@
                     <strong>Pick 2</strong>
                     <div>Match cards. Make moves.</div>
                 </aside>
-                <nav id="app-footer-navigation" aria-label="Footer navigation">
+                <nav aria-label="Footer navigation" id="app-footer-navigation">
                     <a href="#app-header">Back to top ↑</a>
                 </nav>
                 <aside id="app-footer-note">
                     <div>
-                        <time id="copyright-year" datetime="2026"></time>
+                        <time datetime="2026" id="copyright-year"></time>
                         <span>Pick 2. All rights reserved</span>
                     </div>
                 </aside>
             </footer>
         </main>
-        <script type="module" src="main.js"></script>
+        <script src="main.js" type="module"></script>
     </body>
 </html>

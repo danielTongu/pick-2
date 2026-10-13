@@ -34,7 +34,7 @@ function createFanCard(card) {
 
 /** Renders the Pick2 Home preview fan. */
 function renderSpecialCardFan() {
-    const fan = document.querySelector("[data-game-preview]");
+    const fan = document.querySelector("#card-fan");
     if (!(fan instanceof HTMLElement)) return;
 
     const { SUIT, VALUE } = Constants.CARD;
@@ -196,10 +196,11 @@ export class HomeController extends ViewController {
      * @param {string} mode - Active play mode.
      */
     selectMode(mode) {
+        DomUtils.require("#list-panel", HTMLElement).dataset.directoryState = "empty";
         const isHosted = mode === "hosted";
         this.#directModeInput.checked = !isHosted;
         this.#hostedModeInput.checked = isHosted;
-        DomUtils.require("body", HTMLElement).dataset.connectionStatus = "connecting";
+        this.#connectionStatus.dataset.connectionStatus = "connecting";
         this.#roomTableBody.replaceChildren();
         this.#renderEmptyRoomMessage();
         this.#renderConnectionStatus();
@@ -235,7 +236,7 @@ export class HomeController extends ViewController {
      * @param {string} status
      */
     handleConnectionStatus(status) {
-        DomUtils.require("body", HTMLElement).dataset.connectionStatus = status;
+        this.#connectionStatus.dataset.connectionStatus = status;
         this.#renderConnectionStatus();
     }
 
@@ -264,6 +265,7 @@ export class HomeController extends ViewController {
             this.#renderEmptyRoomMessage();
         }
 
+        DomUtils.require("#list-panel", HTMLElement).dataset.directoryState = this.#roomTableBody.querySelector("tr:not(#empty-row)") === null ? "empty" : "populated";
         DomUtils.require("#join-mode-input", HTMLInputElement).disabled = this.#capabilities.join !== true;
         DomUtils.require("#create-mode-input", HTMLInputElement).disabled = this.#capabilities.create !== true;
     }
@@ -274,7 +276,7 @@ export class HomeController extends ViewController {
         const cell = document.createElement("td");
         cell.colSpan = 8;
         cell.textContent = "No rooms available.";
-        row.className = "empty-row";
+        row.id = "empty-row";
         row.appendChild(cell);
         this.#roomTableBody.appendChild(row);
     }
@@ -283,7 +285,7 @@ export class HomeController extends ViewController {
     #renderConnectionStatus() {
         const isHosted = this.#hostedModeInput.checked;
         const modeLabel = isHosted ? "Live" : "Local";
-        const connectionState = DomUtils.require("body", HTMLElement).dataset.connectionStatus ?? "connecting";
+        const connectionState = this.#connectionStatus.dataset.connectionStatus ?? "connecting";
 
         const statusLabel =
             {

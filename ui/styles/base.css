@@ -25,7 +25,7 @@
 
     --line: rgba(255, 255, 255, 0.14);
     --shadow: 0 26px 70px rgba(0, 0, 0, 0.32);
-    --shadow-black: 0 0.35rem 1rem rgba(0, 0, 0, 0.22);
+    --shadow-black: 0 0.35rem 1rem rgba(0, 0, 0, 0.27);
 }
 
 * {
@@ -113,7 +113,7 @@ a {
 
 /* ----- UTILITIES ----- */
 
-.visually-hidden {
+#visually-hidden {
     position: absolute !important;
     width: 1px !important;
     height: 1px !important;
@@ -132,13 +132,13 @@ a {
 
 /* ----- PAGE SHELL ----- */
 
-.site-shell {
+#site-shell {
     width: calc(100% - 24px);
     margin: 0 auto;
 }
 
 #app-header {
-    padding:1rem 0;
+    padding: 1rem 0;
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
@@ -149,7 +149,7 @@ a {
 
 /* ----- APP HEADER ----- */
 
-.brand-copy {
+#brand-copy {
     font-size: medium;
     letter-spacing: -0.02em;
 }
@@ -165,7 +165,7 @@ a {
     gap: 12px;
 }
 
-.brand-mark {
+#brand-mark {
     width: 55px;
     height: 55px;
     display: grid;
@@ -180,16 +180,16 @@ a {
     box-shadow: 0 8px 22px rgba(23, 23, 19, 0.18);
 }
 
-.brand-copy,
-.brand-copy small {
+#brand-copy,
+#brand-copy small {
     display: block;
 }
 
-.brand-copy {
+#brand-copy {
     font-weight: 700;
 }
 
-.brand-copy small {
+#brand-copy small {
     display: none;
     margin-top: 3px;
     color: var(--gray);
@@ -221,7 +221,7 @@ a {
 }
 
 #copyright-year:before {
-    content:"\00A9 " attr(datetime);
+    content: "\00A9 " attr(datetime);
 }
 
 #app-footer-navigation {
@@ -244,11 +244,11 @@ a {
 
 
 @media (min-width: 721px) {
-    .site-shell {
+    #site-shell {
         width: min(1240px, calc(100% - 40px));
     }
 
-    .brand-copy small {
+    #brand-copy small {
         display: block;
     }
 }
@@ -278,9 +278,35 @@ a {
 }
 
 /* One page-level connection state, editable without JavaScript. */
-body[data-connection-status] { --connection-accent: var(--green); }
-body[data-connection-status="connecting"],
-body[data-connection-status="reconnecting"] { --connection-accent: var(--gold); }
-body[data-connection-status="disconnected"],
-body[data-connection-status="error"],
-body[data-connection-status="unconfigured"] { --connection-accent: var(--red); }
+[data-connection-status] {
+    --connection-accent: var(--green);
+}
+
+[data-connection-status="connecting"],
+[data-connection-status="reconnecting"] {
+    --connection-accent: var(--gold);
+}
+
+[data-connection-status="disconnected"],
+[data-connection-status="error"],
+[data-connection-status="unconfigured"] {
+    --connection-accent: var(--red);
+}
+
+/* Static fixtures never participate in the running game. */
+body:not([data-ui-preview="true"]) .ui-fixture {
+    display: none !important;
+}
+
+#connection-status-label > span {
+    display: none;
+}
+
+[data-connection-mode="direct"] #connection-local-label,
+[data-connection-mode="hosted"] #connection-live-label,
+[data-connection-status="connecting"] #connection-connecting-label,
+[data-connection-status="reconnecting"] #connection-reconnecting-label,
+[data-connection-status="disconnected"] #connection-disconnected-label,
+[data-connection-status="error"] #connection-disconnected-label {
+    display: inline;
+}

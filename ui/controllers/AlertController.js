@@ -10,11 +10,6 @@ export class AlertController extends ViewController {
     /**
      * @type {HTMLElement} Required UI element owned by this controller.
      */
-    #icon;
-
-    /**
-     * @type {HTMLElement} Required UI element owned by this controller.
-     */
     #title;
 
     /**
@@ -30,7 +25,6 @@ export class AlertController extends ViewController {
      */
     constructor(selector) {
         super(selector);
-        this.#icon = DomUtils.requireChild(this.root, "[data-icon]", HTMLElement);
         this.#title = DomUtils.requireChild(this.root, "#alert-title", HTMLElement);
         this.#message = DomUtils.requireChild(this.root, "#alert-message", HTMLElement);
         this.bindDismissButton("#alert-ok-button");
@@ -44,7 +38,6 @@ export class AlertController extends ViewController {
      */
     show(message) {
         this.root.dataset.status = message.status;
-        this.#icon.dataset.icon = message.status;
         this.#title.textContent = message.title;
         this.#message.textContent = message.message;
 

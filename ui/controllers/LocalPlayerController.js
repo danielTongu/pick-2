@@ -21,11 +21,6 @@ export class LocalPlayerController extends ViewController {
     #sortHandler = null;
 
     /**
-     * @type {HTMLElement} Required UI element owned by this controller.
-     */
-    #playRegion;
-
-    /**
      * @type {HTMLSpanElement} Required player identity and status output.
      */
     #playerStatus;
@@ -78,13 +73,6 @@ export class LocalPlayerController extends ViewController {
      */
     constructor(selector) {
         super(selector);
-        const playRegion = this.root.closest('[data-has-local-player]');
-
-        if (!(playRegion instanceof HTMLElement)) {
-            throw new Error("Player area must belong to the room play area.");
-        }
-
-        this.#playRegion = playRegion;
         this.#playerStatus = DomUtils.requireChild(this.root, "[data-player-name]", HTMLSpanElement);
         this.#playerCardCount = DomUtils.requireChild(this.root, "[data-item-count]", HTMLSpanElement);
         this.#handElement = DomUtils.requireChild(this.root, "#player-hand > .playing-card-area", HTMLSpanElement);
@@ -159,10 +147,9 @@ export class LocalPlayerController extends ViewController {
      * @throws {Error} When required markup, callback, or input data violates the controller contract.
      */
     show(player, room, sortKey) {
-        this.#playRegion.dataset.hasLocalPlayer = "true";
         this.#renderRootState(player);
         this.#renderHeader(player);
-        this.#renderControls(player, room, sortKey);
+        this.#renderControls(player, sortKey);
         this.#renderCards(player, room, sortKey);
     }
 
@@ -171,7 +158,6 @@ export class LocalPlayerController extends ViewController {
      */
     hide() {
         this.#clear();
-        this.#playRegion.dataset.hasLocalPlayer = "false";
     }
 
     /**
@@ -239,18 +225,13 @@ export class LocalPlayerController extends ViewController {
     }
 
     /**
-     * Renders draw allowance, sort selection, and the Play action label.
+     * Renders draw allowance and sort selection.
      * @param {Object} player - Local player snapshot.
-     * @param {Object} room - Authoritative room snapshot.
      * @param {string} sortKey - Selected hand sort order.
      */
-    #renderControls(player, room, sortKey) {
+    #renderControls(player, sortKey) {
         this.#drawAllowanceOutput.dataset.drawAllowance = String(player.drawAllowance);
         this.#sortControl.value = sortKey;
-        this.#playButton.dataset.mode = room.match.nextMatchAvailable === true
-            ? Constants.PLAY_BUTTON_MODE.NEXT_MATCH
-            : Constants.PLAY_BUTTON_MODE.CHOOSE;
-
     }
 
     /**

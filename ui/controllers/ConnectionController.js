@@ -12,8 +12,6 @@ export class ConnectionController extends ViewController {
     /** @type {HTMLElement} Visible header connection status label. */
     #statusLabelOutput;
 
-    /** @type {HTMLElement} Status message and failure detail. */
-    #messageOutput;
 
     /** @type {HTMLElement} Configured Live server label. */
     #originOutput;
@@ -46,7 +44,6 @@ export class ConnectionController extends ViewController {
         super("#connection-view");
         this.#connectionStatus = DomUtils.require("#app-header > aside", HTMLElement);
         this.#statusLabelOutput = DomUtils.require("#connection-status-label", HTMLElement);
-        this.#messageOutput = DomUtils.require("#connection-message", HTMLElement);
         this.#originOutput = DomUtils.require("#connection-origin", HTMLElement);
         this.#connectButton = DomUtils.require("#connection-connect-button", HTMLButtonElement);
         this.#form = DomUtils.require("#connection-form", HTMLFormElement);
@@ -77,15 +74,15 @@ export class ConnectionController extends ViewController {
 
     /**
      * Renders one probe status and the diagnostics actually available in the browser.
-     * @param {string} status - Connection status from Constants.CONNECTION_STATUS.
+     * @param {string} status - Connection status from Constants.STATUS.
      * @param {{endpoint?:string, attempt?:number, candidate?:number, candidateCount?:number, elapsedMs?:number|null, failure?:string}} [metrics={}] - Probe diagnostics.
      */
     render(status, metrics = {}) {
         const statusLabel = {
-            [Constants.CONNECTION_STATUS.CONNECTING]: "Connecting…",
-            [Constants.CONNECTION_STATUS.CONNECTED]: "Connected",
-            [Constants.CONNECTION_STATUS.ERROR]: "Unavailable",
-            [Constants.CONNECTION_STATUS.UNCONFIGURED]: "Not configured"
+            [Constants.STATUS.CONNECTING]: "Connecting…",
+            [Constants.STATUS.CONNECTED]: "Connected",
+            [Constants.STATUS.ERROR]: "Unavailable",
+            [Constants.STATUS.UNCONFIGURED]: "Not configured"
         }[status] ?? status;
         const endpoint = metrics.endpoint ?? "";
         const failure = metrics.failure ?? "";
@@ -94,17 +91,9 @@ export class ConnectionController extends ViewController {
         const candidate = metrics.candidate ?? 0;
         const candidateCount = metrics.candidateCount ?? 0;
 
-        this.root.dataset.endpoint = endpoint;
-        this.root.dataset.attempt = String(attempt);
-        this.root.dataset.candidate = String(candidate);
-        this.root.dataset.candidateCount = String(candidateCount);
-        this.root.dataset.elapsedMs = elapsedMs === null ? "" : String(elapsedMs);
-        this.root.dataset.timeoutMs = String(Constants.CONNECTION_PROBE_TIMEOUT_MS);
-        this.root.dataset.failure = failure ? "true" : "false";
-        DomUtils.require("body", HTMLElement).dataset.connectionStatus = status;
+        DomUtils.require("#site-shell", HTMLElement).dataset.connectionStatus = status;
         this.#connectionStatus.setAttribute("aria-label", `Connection mode. Live ${statusLabel}.`);
         this.#statusLabelOutput.textContent = statusLabel;
-        this.#messageOutput.dataset.detail = failure;
         this.#endpointOutput.textContent = endpoint || "Not configured";
         this.#attemptOutput.textContent = attempt === 0 ? "—" :
             `#${attempt}${candidateCount > 1 ? ` · candidate ${candidate} of ${candidateCount}` : ""}`;
@@ -115,8 +104,8 @@ export class ConnectionController extends ViewController {
         DomUtils.require("#hosted-mode-input", HTMLInputElement).checked = true;
         DomUtils.require("#direct-mode-input", HTMLInputElement).checked = false;
 
-        const isPending = status === Constants.CONNECTION_STATUS.CONNECTING;
-        this.#connectButton.disabled = isPending || status === Constants.CONNECTION_STATUS.UNCONFIGURED;
+        const isPending = status === Constants.STATUS.CONNECTING;
+        this.#connectButton.disabled = isPending || status === Constants.STATUS.UNCONFIGURED;
         this.#connectButton.textContent = isPending ? "Connecting…" : "Retry Live";
     }
 }

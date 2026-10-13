@@ -117,7 +117,7 @@ test("the standalone Connection page verifies Hosted servers", () => {
 
     assert.doesNotMatch(homeHtml, /id="connection-view"/);
     assert.doesNotMatch(homeHtml, /Connection settings/);
-    assert.match(connectionHtml, /<body data-connection-status="connecting" data-game="pick2" data-page="connection">/);
+    assert.match(connectionHtml, /<main id="site-shell" data-connection-status="connecting">/);
     assert.match(connectionHtml, /id="connection-view"/);
     assert.match(connectionHtml, /id="connection-form"/);
     assert.match(connectionHtml, /<output id="connection-origin">/);
@@ -125,7 +125,7 @@ test("the standalone Connection page verifies Hosted servers", () => {
     assert.doesNotMatch(connectionHtml, /class="connection-status"|type="url"/);
     assert.match(connectionHtml, /id="connection-connect-button" type="submit"/);
     assert.match(connectionHtml, /id="connection-direct-link" href="\.\/index\.html\?mode=direct"/);
-    assert.match(connectionHtml, /class="connection-actions">[\s\S]*?id="connection-connect-button"[\s\S]*?id="connection-direct-link"[\s\S]*?<\/div>[\s\S]*?<\/form>/);
+    assert.match(connectionHtml, /id="connection-actions">[\s\S]*?id="connection-connect-button"[\s\S]*?id="connection-direct-link"[\s\S]*?<\/div>[\s\S]*?<\/form>/);
     assert.match(connectionHtml, /href="\.\/ui\/styles\/connection\.css"/);
     assert.match(main, /new ConnectionSession\(homeUrl\)\.start\(\)/);
     assert.match(view, /SessionState\.setHostedUrl\(endpoint\)/);
@@ -135,13 +135,13 @@ test("the standalone Connection page verifies Hosted servers", () => {
     assert.doesNotMatch(view, /getCurrentHostUrl/);
     assert.match(view, /new WebSocket\(this\.#endpoint\)/);
     assert.match(view, /Constants\.CONNECTION_PROBE_TIMEOUT_MS/);
-    assert.match(controller, /this\.root\.dataset\.elapsedMs/);
+    assert.match(controller, /this\.#durationOutput\.textContent/);
     assert.match(connectionHtml, /id="connection-diagnostics"/);
     assert.match(connectionHtml, /id="connection-endpoint"/);
     assert.match(connectionHtml, /id="connection-duration"/);
     assert.match(view, /#scheduleReconnect\(generation\)/);
     assert.match(styles, /#connection-title\s*\{[\s\S]*?color:\s*var\(--connection-accent\)/);
-    assert.match(styles, /body\[data-connection-status="error"\] \[data-connection-state~="error"\]/);
+    assert.match(styles, /\[data-connection-status="error"\] \.connection-state\.connection-error/);
     assert.match(styles, /grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 180px\), 1fr\)\)/);
     assert.match(styles, /@media \(max-width: 520px\)/);
     assert.doesNotMatch(styles, /#connection-view\[data-status="connecting"\],\s*#connection-indicator/);
@@ -181,7 +181,7 @@ test("Connection page returns Home on success and stays available after failure"
             WebSocket: FakeWebSocket,
             Constants: {
                 CONNECTION_PROBE_TIMEOUT_MS: 5,
-                CONNECTION_STATUS: {CONNECTING: "connecting", CONNECTED: "connected", ERROR: "error", UNCONFIGURED: "unconfigured"}
+                STATUS: {CONNECTING: "connecting", CONNECTED: "connected", ERROR: "error", UNCONFIGURED: "unconfigured"}
             },
             SessionState: {
                 setMode(mode) { state.mode = mode; },
@@ -225,7 +225,7 @@ test("Connection page returns Home on success and stays available after failure"
     assert.deepEqual((await run(false, "")).redirects, []);
 });
 
-test("ConnectionController renders diagnostics as text and data attributes", () => {
+test("ConnectionController scopes status to the shared container and renders diagnostics as text", () => {
     const source = readFileSync(new URL("../ui/controllers/ConnectionController.js", import.meta.url), "utf8")
         .replace(/^import .+;\n/gm, "")
         .replaceAll("export ", "");
@@ -238,7 +238,7 @@ test("ConnectionController renders diagnostics as text and data attributes", () 
     const context = {
         Constants: {
             CONNECTION_PROBE_TIMEOUT_MS: 3000,
-            CONNECTION_STATUS: {CONNECTING: "connecting", CONNECTED: "connected", ERROR: "error", UNCONFIGURED: "unconfigured"}
+            STATUS: {CONNECTING: "connecting", CONNECTED: "connected", ERROR: "error", UNCONFIGURED: "unconfigured"}
         },
         DomUtils: {require(selector) {
             if (!elements.has(selector)) elements.set(selector, new Element());
@@ -252,13 +252,7 @@ test("ConnectionController renders diagnostics as text and data attributes", () 
         elapsedMs: 42, failure: "WebSocket handshake failed."
     });`, context);
 
-    const root = elements.get("#connection-view");
-    assert.equal(elements.get("body").dataset.connectionStatus, "error");
-    assert.equal(root.dataset.endpoint, "wss://example.test/");
-    assert.equal(root.dataset.attempt, "3");
-    assert.equal(root.dataset.candidate, "2");
-    assert.equal(root.dataset.elapsedMs, "42");
-    assert.equal(root.dataset.timeoutMs, "3000");
+    assert.equal(elements.get("#site-shell").dataset.connectionStatus, "error");
     assert.equal(elements.get("#connection-attempt").textContent, "#3 · candidate 2 of 2");
     assert.equal(elements.get("#connection-duration").textContent, "42 ms");
     assert.equal(elements.get("#connection-failure").textContent, "WebSocket handshake failed.");

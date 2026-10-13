@@ -1,6 +1,6 @@
 /* ---------- FAQ ---------- */
 
-.faq {
+:is(#home-faq, #room-faq) {
     color: var(--ink);
     font-size: medium;
     border: 1px solid var(--line);
@@ -8,11 +8,11 @@
     overflow: hidden;
 }
 
-.faq summary::-webkit-details-marker {
+:is(#home-faq, #room-faq) summary::-webkit-details-marker {
     display: none;
 }
 
-.faq summary {
+:is(#home-faq, #room-faq) summary {
     display: grid;
     grid-template-columns: auto 1fr auto;
     align-items: center;
@@ -22,57 +22,57 @@
     cursor: pointer;
 }
 
-.faq summary > b {
+:is(#home-faq, #room-faq) summary > b {
     color: var(--light-green);
     font-family: var(--display-font);
 }
 
-.faq summary > span {
+:is(#home-faq, #room-faq) summary > span {
     letter-spacing: -0.02em;
 }
 
-.faq summary::after {
+:is(#home-faq, #room-faq) summary::after {
     content: "+";
     color: var(--light-green);
     font-size: xx-large;
     text-align: right;
 }
 
-.faq > summary {
+:is(#home-faq, #room-faq) > summary {
     grid-template-columns: auto 1fr;
     grid-template-areas: "header aside" "footer aside";
     border-top: 0;
 }
 
-.faq > summary > b {
+:is(#home-faq, #room-faq) > summary > b {
     grid-area: header;
 }
 
-.faq > summary > span {
+:is(#home-faq, #room-faq) > summary > span {
     grid-area: footer;
 }
 
-.faq > summary::after {
+:is(#home-faq, #room-faq) > summary::after {
     grid-area: aside;
 }
 
-.faq[open] > summary::after,
-.faq details[open] > summary::after {
+:is(#home-faq, #room-faq)[open] > summary::after,
+:is(#home-faq, #room-faq) details[open] > summary::after {
     content: "−";
 }
 
-.faq details[open] > summary,
-.faq summary:hover {
+:is(#home-faq, #room-faq) details[open] > summary,
+:is(#home-faq, #room-faq) summary:hover {
     background: var(--line);
 }
 
-.faq details > summary + section {
+:is(#home-faq, #room-faq) details > summary + section {
     display: grid;
     grid-template-columns: 1fr;
     border: 3px solid var(--line);
 }
 
-.faq summary + section > div {
+:is(#home-faq, #room-faq) summary + section > div {
     display: grid;
     gap: 0.2rem;
     min-height: 6.5rem;
@@ -80,7 +80,7 @@
     border: 3px solid var(--line);
 }
 
-.faq summary + section > div > b {
+:is(#home-faq, #room-faq) summary + section > div > b {
     color: var(--gray);
 }
 
@@ -98,7 +98,7 @@
 }
 
 @media (min-width: 721px) {
-    .faq details > summary + section {
+    :is(#home-faq, #room-faq) details > summary + section {
         grid-template-columns: 1fr 1fr;
     }
 }

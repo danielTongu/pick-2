@@ -46,9 +46,8 @@
     border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--white) 10%);
     border-radius: var(--container-radius);
     background: var(--black);
-    box-shadow:
-        0 24px 70px color-mix(in srgb, var(--black) 50%, transparent),
-        0 0 34px color-mix(in srgb, var(--accent) 26%, transparent);
+    box-shadow: 0 24px 70px color-mix(in srgb, var(--black) 50%, transparent),
+    0 0 34px color-mix(in srgb, var(--accent) 26%, transparent);
     animation: slideUp 0.3s ease;
 }
 
@@ -181,7 +180,7 @@
     --accent: var(--green);
 }
 
-[data-icon] {
+#alert-icon {
     display: grid;
     place-items: center;
     width: 4rem;
@@ -195,19 +194,19 @@
     font-weight: 700;
 }
 
-[data-icon][data-icon="info"]::before {
+#alert-dialog[data-status="info"] #alert-icon::before {
     content: "i";
 }
 
-[data-icon][data-icon="warning"]::before {
+#alert-dialog[data-status="warning"] #alert-icon::before {
     content: "⚠";
 }
 
-[data-icon][data-icon="error"]::before {
+#alert-dialog[data-status="error"] #alert-icon::before {
     content: "✕";
 }
 
-[data-icon][data-icon="success"]::before {
+#alert-dialog[data-status="success"] #alert-icon::before {
     content: "✓";
 }
 
@@ -266,8 +265,8 @@
 }
 
 #suit-selection-panel label {
-    container-type: size;      /* label is its own size container */
-    position: relative;        /* anchors the absolutely positioned radio */
+    container-type: size; /* label is its own size container */
+    position: relative; /* anchors the absolutely positioned radio */
     display: grid;
     place-items: center;
     aspect-ratio: 1;
@@ -277,11 +276,10 @@
     border-radius: var(--container-radius);
     cursor: pointer;
     overflow: hidden;
-    transition:
-        background-color 0.2s ease,
-        border-color 0.2s ease,
-        color 0.2s ease,
-        transform 0.2s ease;
+    transition: background-color 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
 }
 
 #suit-selection-panel input {
@@ -290,11 +288,27 @@
     pointer-events: none;
 }
 
+#suit-selection-panel #suit-hearts {
+    --suit-name: "hearts";
+}
+
+#suit-selection-panel #suit-diamonds {
+    --suit-name: "diamonds";
+}
+
+#suit-selection-panel #suit-clubs {
+    --suit-name: "clubs";
+}
+
+#suit-selection-panel #suit-spades {
+    --suit-name: "spades";
+}
+
 #suit-selection-panel label:hover:after,
 #suit-selection-panel label:has(input:checked):after {
-    content: attr(data-suit);
+    content: var(--suit-name);
     position: absolute;
-    bottom:0;
+    bottom: 0;
     z-index: 1000;
     text-transform: uppercase;
 }
@@ -304,8 +318,8 @@
     outline-offset: 3px;
 }
 
-#suit-selection-panel label[data-suit="hearts"],
-#suit-selection-panel label[data-suit="diamonds"] {
+#suit-selection-panel label#suit-hearts,
+#suit-selection-panel label#suit-diamonds {
     color: var(--red);
 }
 
@@ -340,7 +354,7 @@
     font-style: italic;
 }
 
-#player-stats-table tbody tr[data-is-winner="true"] {
+#player-stats-table tbody tr[data-player-state="won"] {
     color: var(--gold);
 }
 
@@ -384,15 +398,13 @@
 @keyframes countdown-box-shadow-strobe {
     0%,
     100% {
-        box-shadow:
-            inset 0 0 0 2px color-mix(in srgb, var(--white) 8%, transparent),
-            0 0 32px var(--accent);
+        box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--white) 8%, transparent),
+        0 0 32px var(--accent);
     }
 
     50% {
-        box-shadow:
-            inset 0 0 0 2px color-mix(in srgb, var(--white) 24%, transparent),
-            0 0 64px var(--accent);
+        box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--white) 24%, transparent),
+        0 0 64px var(--accent);
     }
 }
 

@@ -36,6 +36,9 @@ window.addEventListener("unhandledrejection", handleUnhandledRejection);
 
 
 try {
+    document.body.dataset.uiPreview = "false";
+    for (const fixture of document.querySelectorAll(".ui-fixture")) fixture.remove();
+
     const page = document.body.dataset.page;
 
     if (page === Constants.VIEWS.HOME) {

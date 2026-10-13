@@ -302,7 +302,7 @@ test("CardCollection supports every sort mode without mutating the collection", 
 test("the shared FAQ initializes canonical card-sort options", () => {
     const controller = readFileSync(new URL("../ui/controllers/FaqController.js", import.meta.url), "utf8");
 
-    assert.match(INDEX_HTML, /<select id="sort-key-select"><\/select>/);
+    assert.match(INDEX_HTML, /<select id="sort-key-select">[\s\S]*?<option[\s\S]*?<\/select>/);
     assert.match(controller, /Constants\.CARD\.SORT_OPTIONS/);
     assert.match(controller, /PlayingCard\.create\(card\)/);
 });

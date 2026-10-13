@@ -2,31 +2,37 @@
 <html lang="en">
     <head>
         <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+        <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport" />
         <title>Game Room</title>
-        <meta name="description" content="Play in a Local or shared Live game room." />
-        <meta name="robots" content="noindex, nofollow" />
-        <link rel="stylesheet" href="./ui/styles/base.css" />
-        <link rel="stylesheet" href="./ui/styles/table.css" />
-        <link rel="stylesheet" href="./ui/styles/room.css" />
-        <link rel="stylesheet" href="./ui/styles/faq.css" />
-        <link rel="stylesheet" href="./ui/styles/dialogs.css" />
-        <link rel="stylesheet" href="./ui/styles/playing-card.css" />
+        <meta content="Play in a Local or shared Live game room." name="description" />
+        <meta content="noindex, nofollow" name="robots" />
+        <link href="./ui/styles/base.css" rel="stylesheet" />
+        <link href="./ui/styles/table.css" rel="stylesheet" />
+        <link href="./ui/styles/room.css" rel="stylesheet" />
+        <link href="./ui/styles/faq.css" rel="stylesheet" />
+        <link href="./ui/styles/dialogs.css" rel="stylesheet" />
+        <link href="./ui/styles/playing-card.css" rel="stylesheet" />
     </head>
-    <body data-connection-status="connecting" data-game="pick2" data-page="room">
-        <main class="site-shell">
+    <body data-game="pick2" data-page="room" data-ui-preview="false">
+        <main data-connection-mode="direct" id="site-shell">
             <header id="app-header">
                 <h1>
-                    <a id="app-home-link" href="./index.html" aria-label="Pick 2 Home">
-                        <span class="brand-mark">P2</span>
-                        <span class="brand-copy">Pick 2<small>Match cards. Make moves.</small></span>
+                    <a aria-label="Pick 2 Home" href="./index.html" id="app-home-link">
+                        <span id="brand-mark">P2</span>
+                        <span id="brand-copy">Pick 2<small>Match cards. Make moves.</small></span>
                     </a>
                 </h1>
-                <aside aria-live="polite">
-                    <span id="connection-status-label">Starting…</span>
+                <aside aria-live="polite" data-connection-status="connecting">
+                    <span id="connection-status-label">
+                        <span id="connection-local-label">Local</span>
+                        <span id="connection-live-label">Live</span>
+                        <span id="connection-connecting-label"> · Connecting…</span>
+                        <span id="connection-reconnecting-label"> · Reconnecting…</span>
+                        <span id="connection-disconnected-label"> · Disconnected</span>
+                    </span>
                 </aside>
             </header>
-            <section id="room-view" aria-label="Room">
+            <section aria-label="Room" data-membership="viewer" id="room-view">
                 <header id="room-header">
                     <div class="table-container">
                         <table id="info-table">
@@ -43,7 +49,17 @@
                                 </tr>
                             </thead>
                             <tbody id="info-table-body">
-                                <tr class="placeholder-row" aria-label="Room details loading">
+                                <tr class="ui-fixture">
+                                    <td data-name="Friday night"></td>
+                                    <td data-state="waiting"><i class="status-indicator"></i></td>
+                                    <td data-knockout="no"></td>
+                                    <td data-turn-order-player-count="3"></td>
+                                    <td data-viewers="1"></td>
+                                    <td data-player-limit="4"></td>
+                                    <td data-last-active-at="now"></td>
+                                    <td data-created-at="today"></td>
+                                </tr>
+                                <tr aria-label="Room details loading" id="placeholder-row">
                                     <td>--</td>
                                     <td>--</td>
                                     <td>--</td>
@@ -56,264 +72,343 @@
                             </tbody>
                         </table>
                     </div>
-                    <nav id="room-commands" aria-label="Room controls">
+                    <nav aria-label="Room controls" id="room-commands">
                         <button id="room-leave-button" type="button">Leave</button>
-                        <button id="room-join-button" type="button" hidden>Join</button>
-                        <button id="room-invite-button" type="button" hidden>Invite</button>
+                        <button id="room-join-button" type="button">Join</button>
+                        <button id="room-invite-button" type="button">Invite</button>
                     </nav>
                 </header>
-                <article id="game-region" data-has-local-player="false" aria-label="Room table" data-connection-mode="direct" data-match-state="waiting">
-                    <ul id="players-list" aria-label="Other players"></ul>
-                    <div id="table-play-area">
-                        <span class="playing-card-area" data-is-drag-over="false" aria-label="Discard pile"></span>
-                    </div>
-                    <div class="player-region" id="local-player-region" aria-label="Your play area" data-player-state="ready">
-                        <header id="player-summary" aria-live="polite" aria-atomic="true">
-                            <span data-player-name="" id="player-status"></span>
-                            <span data-item-count="0"></span>
-                        </header>
-                        <section id="player-hand">
-                            <button id="draw-button" type="button" aria-label="Draw card">
-                                <span data-draw-allowance="0"></span>
-                            </button>
-                            <span class="playing-card-area"></span>
-                        </section>
-                        <aside id="player-idle-warning">You may be removed after <em data-idle-seconds="30">seconds</em> of inactivity.</aside>
-                        <footer id="player-commands" role="group">
-                            <label id="sort-control">
-                                <span>Sort</span>
-                                <select id="sort-key-select"></select>
-                            </label>
-                            <button id="room-play-button" type="button" data-mode="choose">Start</button>
-                            <button id="turn-pass-button" type="button">Pass</button>
-                        </footer>
-                    </div>
-                </article>
-            </section>
-            <details id="room-faq" class="faq" aria-labelledby="faq-title">
-                <summary>
-                    <b id="faq-title">FAQ</b>
-                    <span>Match setup, rules, special cards, and scoring.</span>
-                </summary>
-                <section>
-                    <details>
-                        <summary>
-                            <b>01</b>
-                            <span>Getting started</span>
-                        </summary>
-                        <section>
-                            <div>
-                                <b>How do I take a seat?</b>
-                                <span>Before a match starts, select <em>Join</em> to take an open seat. Your hand and controls appear below the table.</span>
-                            </div>
-                            <div>
-                                <b>What can I do before the match starts?</b>
-                                <span>Practice with the controls: use + to draw a card, select a card to flip it, or drag it to the discard pile. A new match replaces your practice hand.</span>
-                            </div>
-                            <div>
-                                <b>How do I start a match?</b>
-                                <span>Once at least two players are seated, select <em>Start</em> and choose One match or Knockout. Each player receives seven cards. The deck contains 52 standard cards and two jokers.</span>
-                            </div>
-                            <div>
-                                <b>What is a penalty?</b>
-                                <span>A hand penalty is the total points for cards left in your hand at the end of a match. Lower is better. A draw penalty requires you to draw two or four cards unless you play a defending card.</span>
-                            </div>
-                        </section>
-                    </details>
-                    <details>
-                        <summary>
-                            <b>02</b>
-                            <span>Playing and winning</span>
-                        </summary>
-                        <section>
-                            <div>
-                                <b>Which card can I play?</b>
-                                <span>Match the top discard’s suit or value, or play a wild card: a joker or ace of spades. Drag your card to the discard pile.</span>
-                            </div>
-                            <div>
-                                <b>What happens after a suit is chosen?</b>
-                                <span>Play the chosen suit, any ace, or a joker. If the top discard is wild and no suit or draw penalty is active, you may play any card.</span>
-                            </div>
-                            <div>
-                                <b>How do I draw or pass?</b>
-                                <span>Use + to draw one card, or the full amount of a draw penalty. After drawing one card, you may still play. Select <em>Pass</em> to end your turn and draw any cards still owed.</span>
-                            </div>
-                            <div>
-                                <b>How do I defend a draw penalty?</b>
-                                <span>Defend a two with a two, joker, or ace of spades; defend a joker with a joker or ace of spades. A defending two passes two cards to the next player; a joker passes four. Ace of spades cancels the penalty. Penalties do not add up. Drawing the penalty ends your turn.</span>
-                            </div>
-                            <div>
-                                <b>How do I arrange my hand?</b>
-                                <span>Use <em>Sort</em> to order your cards by rank or suit, or select none.</span>
-                            </div>
-                            <div>
-                                <b>When does a match end?</b>
-                                <span>Legally playing your final card or the seven of hearts ends the match immediately. No further card effect is applied.</span>
-                            </div>
-                            <div>
-                                <b>Who wins one match?</b>
-                                <span>The player with the lowest hand penalty wins. Players tied for the lowest total share the win. An empty hand scores zero.</span>
-                            </div>
-                            <div>
-                                <b>How does Knockout work?</b>
-                                <span>Knockout is a series of matches. In matches with three or more players, everyone tied for the highest hand penalty is eliminated. If only one player remains, they win; if none remain, the series is tied. The final two play one match: the lowest hand penalty wins, and equal totals tie.</span>
-                            </div>
-                            <div>
-                                <b>When does the next Knockout match start?</b>
-                                <span>If at least two players qualify, the next match starts after 30 seconds. A qualified human player can select <em>Start</em> to begin sooner. Each match deals fresh seven-card hands.</span>
-                            </div>
-                            <div><!--purposely empty for balance--></div>
-                        </section>
-                    </details>
-                    <details>
-                        <summary>
-                            <b>03</b>
-                            <span>Special cards</span>
-                        </summary>
-                        <section>
-                            <div>
-                                <b>Eight</b>
-                                <span>Skips the next player’s turn.</span>
-                                <div class="playing-card-area" id="eights"></div>
-                            </div>
-                            <div>
-                                <b>Jack</b>
-                                <span>Reverses turn order with three or more players. With two players, skips the other player’s turn.</span>
-                                <div class="playing-card-area" id="jacks"></div>
-                            </div>
-                            <div>
-                                <b>Ace of clubs, diamonds, or hearts</b>
-                                <span>Lets you choose the suit the next player must follow. Must be legally played first.</span>
-                                <div class="playing-card-area" id="aces-except-spades"></div>
-                            </div>
-                            <div>
-                                <b>Two</b>
-                                <span>Gives the next player a two-card draw penalty unless they defend.</span>
-                                <div class="playing-card-area" id="twos"></div>
-                            </div>
-                            <div>
-                                <b>Seven of hearts</b>
-                                <span>Ends the match immediately and triggers scoring. Must be legally played first.</span>
-                                <div class="playing-card-area" id="seven-of-hearts"></div>
-                            </div>
-                            <div>
-                                <b>Joker</b>
-                                <span>Wild. Plays on any card and gives the next player a four-card draw penalty unless they defend.</span>
-                                <div class="playing-card-area" id="jokers"></div>
-                            </div>
-                            <div>
-                                <b>Ace of spades</b>
-                                <span>Wild. Plays on any card and cancels a draw penalty. Does not let you choose a suit.</span>
-                                <div class="playing-card-area" id="ace-of-spades"></div>
-                            </div>
-                            <div><!--purposely empty for balance--></div>
-                        </section>
-                    </details>
-                    <details>
-                        <summary>
-                            <b>04</b>
-                            <span>How is my penalty calculated?</span>
-                        </summary>
-                        <section id="ranks-tables">
-                            <p>Add the points shown below for each card left in your hand at the end of the match. An empty hand scores zero. For example, a two (20) and a king (13) score 33.</p>
-                            <table>
-                                <thead>
+                <details aria-labelledby="faq-title" id="room-faq">
+                    <summary>
+                        <b id="faq-title">FAQ</b>
+                        <span>Match setup, rules, special cards, and scoring.</span>
+                    </summary>
+                    <section>
+                        <details>
+                            <summary>
+                                <b>01</b>
+                                <span>Getting started</span>
+                            </summary>
+                            <section>
+                                <div>
+                                    <b>How do I take a seat?</b>
+                                    <span>Before a match starts, select <em>Join</em> to take an open seat. Your hand and controls appear below the <a
+                                            href="#game-region">table</a>.</span>
+                                </div>
+                                <div>
+                                    <b>What can I do before the match starts?</b>
+                                    <span>Practice with the controls: use + to draw a card, select a card to flip it, or drag it to the discard pile. A new match replaces your practice hand.</span>
+                                </div>
+                                <div>
+                                    <b>How do I start a match?</b>
+                                    <span>Once at least two players are seated, select <em>Start</em> and choose <em>One match</em> or <em>Knockout</em>. Each player receives seven cards. The deck contains 52 standard cards and two jokers.</span>
+                                </div>
+                                <div>
+                                    <b>What is a penalty?</b>
+                                    <span>A hand penalty is the total points for cards left in your hand at the end of a match. Lower is better. A draw penalty requires you to draw two or four cards unless you play a defending card.</span>
+                                </div>
+                            </section>
+                        </details>
+                        <details>
+                            <summary>
+                                <b>02</b>
+                                <span>Playing and winning</span>
+                            </summary>
+                            <section>
+                                <div>
+                                    <b>Which card can I play?</b>
+                                    <span>Match the top discard’s suit or value, or play a wild card: a joker or ace of spades. Drag your card to the discard area.</span>
+                                </div>
+                                <div>
+                                    <b>What happens after a suit is chosen?</b>
+                                    <span>Play the chosen suit, any ace, or a joker. If the top discard is wild and no suit or draw penalty is active, you may play any card.</span>
+                                </div>
+                                <div>
+                                    <b>How do I draw or pass?</b>
+                                    <span>Use + to draw one card, or the full amount of a draw penalty. After drawing one card, you may still play. Select <em>Pass</em> to end your turn and draw any cards still owed.</span>
+                                </div>
+                                <div>
+                                    <b>How do I defend a draw penalty?</b>
+                                    <span>Defend a two with a two, joker, or ace of spades; defend a joker with a joker or ace of spades. A defending two passes two cards to the next player; a joker passes four. Ace of spades cancels the penalty. Penalties do not add up. Drawing the penalty ends your turn.</span>
+                                </div>
+                                <div>
+                                    <b>How do I arrange my hand?</b>
+                                    <span>Use <em>Sort</em> to order your cards by rank or suit, or select none.</span>
+                                </div>
+                                <div>
+                                    <b>When does a match end?</b>
+                                    <span>Legally playing your final card or the seven of hearts ends the match immediately. No further card effect is applied.</span>
+                                </div>
+                                <div>
+                                    <b>Who wins one match?</b>
+                                    <span>The player with the lowest hand penalty wins. Players tied for the lowest total share the win. An empty hand scores zero.</span>
+                                </div>
+                                <div>
+                                    <b>How does Knockout work?</b>
+                                    <span>Knockout is a series of matches. In matches with three or more players, everyone tied for the highest hand penalty is eliminated. If only one player remains, they win; if none remain, the series is tied. The final two play one match: the lowest hand penalty wins, and equal totals tie.</span>
+                                </div>
+                                <div>
+                                    <b>When does the next Knockout match start?</b>
+                                    <span>If at least two players qualify, the next match starts after 30 seconds. A qualified human player can select <em>Start</em> to begin sooner. Each match deals fresh seven-card hands.</span>
+                                </div>
+                                <div><!--purposely empty for balance--></div>
+                            </section>
+                        </details>
+                        <details>
+                            <summary>
+                                <b>03</b>
+                                <span>Special cards</span>
+                            </summary>
+                            <section>
+                                <div>
+                                    <b>Eight</b>
+                                    <span>Skips the next player’s turn.</span>
+                                    <div class="playing-card-area" id="eights">
+                                        <playing-card data-is-face-up="true" data-suit="clubs" data-value="8">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                        <playing-card data-is-face-up="true" data-suit="diamonds" data-value="8">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                        <playing-card data-is-face-up="true" data-suit="hearts" data-value="8">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                        <playing-card data-is-face-up="true" data-suit="spades" data-value="8">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                    </div>
+                                </div>
+                                <div>
+                                    <b>Jack</b>
+                                    <span>Reverses turn order with three or more players. With two players, skips the other player’s turn.</span>
+                                    <div class="playing-card-area" id="jacks">
+                                        <playing-card data-is-face-up="true" data-suit="clubs" data-value="j">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                        <playing-card data-is-face-up="true" data-suit="diamonds" data-value="j">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                        <playing-card data-is-face-up="true" data-suit="hearts" data-value="j">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                        <playing-card data-is-face-up="true" data-suit="spades" data-value="j">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                    </div>
+                                </div>
+                                <div>
+                                    <b>Ace of clubs, diamonds, or hearts</b>
+                                    <span>Lets you choose the suit the next player must follow. Must be legally played first.</span>
+                                    <div class="playing-card-area" id="aces-except-spades">
+                                        <playing-card data-is-face-up="true" data-suit="clubs" data-value="a">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                        <playing-card data-is-face-up="true" data-suit="diamonds" data-value="a">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                        <playing-card data-is-face-up="true" data-suit="hearts" data-value="a">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                    </div>
+                                </div>
+                                <div>
+                                    <b>Two</b>
+                                    <span>Gives the next player a two-card draw penalty unless they defend.</span>
+                                    <div class="playing-card-area" id="twos">
+                                        <playing-card data-is-face-up="true" data-suit="clubs" data-value="2">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                        <playing-card data-is-face-up="true" data-suit="diamonds" data-value="2">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                        <playing-card data-is-face-up="true" data-suit="hearts" data-value="2">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                        <playing-card data-is-face-up="true" data-suit="spades" data-value="2">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                    </div>
+                                </div>
+                                <div>
+                                    <b>Seven of hearts</b>
+                                    <span>Ends the match immediately and triggers scoring. Must be legally played first.</span>
+                                    <div class="playing-card-area" id="seven-of-hearts">
+                                        <playing-card data-is-face-up="true" data-suit="hearts" data-value="7">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                    </div>
+                                </div>
+                                <div>
+                                    <b>Joker</b>
+                                    <span>Wild. Plays on any card and gives the next player a four-card draw penalty unless they defend.</span>
+                                    <div class="playing-card-area" id="jokers">
+                                        <playing-card data-is-face-up="true" data-suit="black" data-value="joker">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                        <playing-card data-is-face-up="true" data-suit="red" data-value="joker">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                    </div>
+                                </div>
+                                <div>
+                                    <b>Ace of spades</b>
+                                    <span>Wild. Plays on any card and cancels a draw penalty. Does not let you choose a suit.</span>
+                                    <div class="playing-card-area" id="ace-of-spades">
+                                        <playing-card data-is-face-up="true" data-suit="spades" data-value="a">
+                                            <div class="playing-card-center"></div>
+                                        </playing-card>
+                                    </div>
+                                </div>
+                                <div><!--purposely empty for balance--></div>
+                            </section>
+                        </details>
+                        <details>
+                            <summary>
+                                <b>04</b>
+                                <span>How is my penalty calculated?</span>
+                            </summary>
+                            <section id="ranks-tables">
+                                <p>Add the points shown below for each card left in your hand at the end of the match.
+                                    An empty hand scores zero. For example, a two (20) and a king (13) score 33.</p>
+                                <table>
+                                    <thead>
                                     <tr>
                                         <th scope="col">Card</th>
                                         <th scope="col">Points</th>
                                     </tr>
-                                </thead>
-                                <tbody>
+                                    </thead>
+                                    <tbody>
                                     <tr>
                                         <td>3–10, except seven of hearts</td>
                                         <td>Face value</td>
                                     </tr>
                                     <tr>
                                         <td>Jack</td>
-                                        <td data-card-value="j" data-card-suit="clubs">11</td>
+                                        <td data-card-suit="clubs" data-card-value="j">11</td>
                                     </tr>
                                     <tr>
                                         <td>Queen</td>
-                                        <td data-card-value="q" data-card-suit="clubs">12</td>
+                                        <td data-card-suit="clubs" data-card-value="q">12</td>
                                     </tr>
                                     <tr>
                                         <td>King</td>
-                                        <td data-card-value="k" data-card-suit="clubs">13</td>
+                                        <td data-card-suit="clubs" data-card-value="k">13</td>
                                     </tr>
                                     <tr>
                                         <td>Ace, except spades</td>
-                                        <td data-card-value="a" data-card-suit="hearts">14</td>
+                                        <td data-card-suit="hearts" data-card-value="a">14</td>
                                     </tr>
-                                </tbody>
-                            </table>
-                            <table>
-                                <thead>
+                                    </tbody>
+                                </table>
+                                <table>
+                                    <thead>
                                     <tr>
                                         <th scope="col">Card</th>
                                         <th scope="col">Points</th>
                                     </tr>
-                                </thead>
-                                <tbody>
+                                    </thead>
+                                    <tbody>
                                     <tr>
                                         <td>Two</td>
-                                        <td data-card-value="2" data-card-suit="clubs">20</td>
+                                        <td data-card-suit="clubs" data-card-value="2">20</td>
                                     </tr>
                                     <tr>
                                         <td>Seven of hearts</td>
-                                        <td data-card-value="7" data-card-suit="hearts">30</td>
+                                        <td data-card-suit="hearts" data-card-value="7">30</td>
                                     </tr>
                                     <tr>
                                         <td>Joker</td>
-                                        <td data-card-value="joker" data-card-suit="red">40</td>
+                                        <td data-card-suit="red" data-card-value="joker">40</td>
                                     </tr>
                                     <tr>
                                         <td>Ace of spades</td>
-                                        <td data-card-value="a" data-card-suit="spades">50</td>
+                                        <td data-card-suit="spades" data-card-value="a">50</td>
                                     </tr>
                                     <tr>
                                         <td></td>
                                         <!--purposely empty for balance-->
                                         <td></td>
                                     </tr>
-                                </tbody>
-                            </table>
+                                    </tbody>
+                                </table>
+                            </section>
+                        </details>
+                    </section>
+                </details>
+                <article aria-label="Room table" id="game-region">
+                    <ul aria-label="Other players" id="players-list">
+                        <li class="ui-fixture player-region" data-item-count="7" data-player-name="Bot Ada" data-player-state="ready"><div></div></li>
+                        <li class="ui-fixture player-region" data-item-count="4" data-player-name="Bot Turing" data-player-state="ready"><div></div></li>
+                    </ul>
+                    <div id="table-play-area">
+                        <span aria-label="Discard pile" class="playing-card-area" data-is-drag-over="false">
+                            <playing-card class="ui-fixture" data-is-face-up="true" data-suit="diamonds" data-value="8"><div class="playing-card-center"></div></playing-card>
+                        </span>
+                    </div>
+                    <div aria-label="Your play area" class="player-region" data-player-state="ready" id="local-player-region">
+                        <header aria-atomic="true" aria-live="polite" id="player-summary">
+                            <span data-player-name="You" id="player-status"></span>
+                            <span data-item-count="7"></span>
+                        </header>
+                        <section id="player-hand">
+                            <button aria-label="Draw card" id="draw-button" type="button">
+                                <span data-draw-allowance="1"></span>
+                            </button>
+                            <span class="playing-card-area">
+                                <playing-card class="ui-fixture" data-is-face-up="true" data-suit="clubs" data-value="2"><div class="playing-card-center"></div></playing-card>
+                                <playing-card class="ui-fixture" data-is-face-up="true" data-suit="hearts" data-value="5"><div class="playing-card-center"></div></playing-card>
+                                <playing-card class="ui-fixture" data-is-face-up="true" data-suit="diamonds" data-value="8"><div class="playing-card-center"></div></playing-card>
+                                <playing-card class="ui-fixture" data-is-face-up="true" data-suit="spades" data-value="j"><div class="playing-card-center"></div></playing-card>
+                                <playing-card class="ui-fixture" data-is-face-up="true" data-suit="hearts" data-value="a"><div class="playing-card-center"></div></playing-card>
+                                <playing-card class="ui-fixture" data-is-face-up="true" data-suit="hearts" data-value="7"><div class="playing-card-center"></div></playing-card>
+                                <playing-card class="ui-fixture" data-is-face-up="true" data-suit="spades" data-value="a"><div class="playing-card-center"></div></playing-card>
+                            </span>
                         </section>
-                    </details>
-                </section>
-            </details>
+                        <aside id="player-idle-warning">You may be removed after <em data-idle-seconds="30">seconds</em> of inactivity.</aside>
+                        <footer data-match-state="active" id="player-commands" role="group">
+                            <label id="sort-control">
+                                <span>Sort</span>
+                                <select id="sort-key-select"><option value="none">none</option><option value="rank">rank</option><option value="suit">suit</option></select>
+                            </label>
+                            <button id="room-play-button" type="button">Start</button>
+                            <button id="turn-pass-button" type="button">Pass</button>
+                        </footer>
+                    </div>
+                </article>
+            </section>
             <!-- dialogs -->
-            <aside id="alert-dialog" class="dialog-overlay" data-status="info" aria-labelledby="alert-title" aria-describedby="alert-message" hidden>
+            <aside aria-describedby="alert-message" aria-labelledby="alert-title" class="dialog-overlay" data-status="info" hidden id="alert-dialog">
                 <div class="dialog-panel">
                     <header>
-                        <span data-icon="info" aria-hidden="true"></span>
-                        <h1 id="alert-title"></h1>
+                        <span aria-hidden="true" id="alert-icon"></span>
+                        <h1 id="alert-title">Room is full</h1>
                     </header>
-                    <section id="alert-message"></section>
+                    <section id="alert-message">Try another room or create one of your own.</section>
                     <button id="alert-ok-button">OK</button>
                 </div>
             </aside>
-            <aside id="countdown-dialog" class="dialog-overlay" aria-labelledby="countdown-title" aria-describedby="countdown-description" hidden>
+            <aside aria-describedby="countdown-description" aria-labelledby="countdown-title" class="dialog-overlay" hidden id="countdown-dialog">
                 <div class="dialog-panel">
                     <header>
                         <h1 id="countdown-title">Get ready</h1>
                         <p id="countdown-description">Game Starting...</p>
                     </header>
-                    <section id="countdown-value" aria-live="polite">5</section>
+                    <section aria-live="polite" id="countdown-value">5</section>
                     <button id="countdown-ok-button">OK</button>
                 </div>
             </aside>
-            <aside id="play-dialog" class="dialog-overlay" data-state="closed" aria-labelledby="play-dialog-title" aria-describedby="play-dialog-description">
+            <aside aria-describedby="play-dialog-description" aria-labelledby="play-dialog-title" class="dialog-overlay" data-state="closed" id="play-dialog">
                 <div class="dialog-panel">
                     <header>
                         <h1 id="play-dialog-title">Start</h1>
                         <p>select mode</p>
                     </header>
                     <section id="play-dialog-description">
-                        <button id="play-one-button" class="play-choice" type="button">
+                        <button class="play-choice" id="play-one-button" type="button">
                             <span class="play-choice-title">One match</span>
                             <span class="play-choice-description">Play one match. The player or players with the lowest penalty win.</span>
                         </button>
-                        <button id="play-knockout-button" class="play-choice" type="button">
+                        <button class="play-choice" id="play-knockout-button" type="button">
                             <span class="play-choice-title">Knockout</span>
                             <span class="play-choice-description">Play a series of matches. After each match, the player or players with the highest penalty are eliminated. The next match starts automatically, or a qualified player can start it sooner. The final two players play one match to decide the winner; a tie remains a tie.</span>
                         </button>
@@ -323,28 +418,28 @@
                     </footer>
                 </div>
             </aside>
-            <aside id="suit-selection-dialog" class="dialog-overlay" aria-labelledby="suit-selection-title" aria-describedby="suit-selection-description" hidden>
+            <aside aria-describedby="suit-selection-description" aria-labelledby="suit-selection-title" class="dialog-overlay" hidden id="suit-selection-dialog">
                 <div class="dialog-panel">
                     <header>
                         <h1 id="suit-selection-title">Choose Suit</h1>
                         <p id="suit-selection-description">Select and submit the next active suit.</p>
                         <p>Cannot recall your cards? <span>Press the timeout button</span>.</p>
                     </header>
-                    <section id="suit-selection-panel" aria-label="Suit">
-                        <label data-suit="hearts">
-                            <input name="suit" type="radio" value="hearts" aria-label="Hearts" />
+                    <section aria-label="Suit" id="suit-selection-panel">
+                        <label id="suit-hearts">
+                            <input aria-label="Hearts" name="suit" type="radio" value="hearts" />
                             <span aria-hidden="true">♥</span>
                         </label>
-                        <label data-suit="diamonds">
-                            <input name="suit" type="radio" value="diamonds" aria-label="Diamonds" />
+                        <label id="suit-diamonds">
+                            <input aria-label="Diamonds" name="suit" type="radio" value="diamonds" />
                             <span aria-hidden="true">♦</span>
                         </label>
-                        <label data-suit="clubs">
-                            <input name="suit" type="radio" value="clubs" aria-label="Clubs" />
+                        <label id="suit-clubs">
+                            <input aria-label="Clubs" name="suit" type="radio" value="clubs" />
                             <span aria-hidden="true">♣</span>
                         </label>
-                        <label data-suit="spades">
-                            <input name="suit" type="radio" value="spades" aria-label="Spades" />
+                        <label id="suit-spades">
+                            <input aria-label="Spades" name="suit" type="radio" value="spades" />
                             <span aria-hidden="true">♠</span>
                         </label>
                     </section>
@@ -354,9 +449,9 @@
                     </footer>
                 </div>
             </aside>
-            <aside id="results-dialog" class="dialog-overlay" aria-labelledby="results-message" hidden>
+            <aside aria-labelledby="results-message" class="dialog-overlay" hidden id="results-dialog">
                 <div class="dialog-panel">
-                    <header><h1 id="results-message">Message</h1></header>
+                    <header><h1 id="results-message">You won 🎉</h1></header>
                     <section id="message-output">
                         <p id="results-context">Statistics for this game</p>
                         <div id="stats-panel">
@@ -369,10 +464,13 @@
                                         <th scope="col">Status</th>
                                     </tr>
                                 </thead>
-                                <tbody id="player-stats-body"></tbody>
+                                <tbody id="player-stats-body">
+                                    <tr class="ui-fixture" data-player-state="won"><td>You</td><td>0</td><td>0</td><td>Won</td></tr>
+                                    <tr class="ui-fixture"><td>Bot Ada</td><td>22</td><td>3</td><td>Lost</td></tr>
+                                </tbody>
                             </table>
                         </div>
-                        <div id="selected-player-items" class="playing-card-area"></div>
+                        <div class="playing-card-area" id="selected-player-items"></div>
                     </section>
                     <button id="results-dismiss-button">dismiss</button>
                 </div>
@@ -383,18 +481,18 @@
                     <strong>Pick 2</strong>
                     <div>Match cards. Make moves.</div>
                 </aside>
-                <nav id="app-footer-navigation" aria-label="Footer navigation">
+                <nav aria-label="Footer navigation" id="app-footer-navigation">
                     <a href="#app-header">Back to top ↑</a>
-                    <a id="room-faq-link" href="#room-faq">FAQ</a>
+                    <a href="#room-faq" id="room-faq-link">FAQ</a>
                 </nav>
                 <aside id="app-footer-note">
                     <div>
-                        <time id="copyright-year" datetime="2026"></time>
+                        <time datetime="2026" id="copyright-year"></time>
                         <span>Pick2. All rights reserved</span>
                     </div>
                 </aside>
             </footer>
         </main>
-        <script type="module" src="main.js"></script>
+        <script src="main.js" type="module"></script>
     </body>
 </html>

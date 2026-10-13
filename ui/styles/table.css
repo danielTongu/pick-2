@@ -73,7 +73,7 @@ tbody tr:focus-visible {
     outline-offset: -3px;
 }
 
-tbody tr[data-is-selected="true"] {
+tbody tr[aria-selected="true"] {
     color: var(--cyan);
 }
 

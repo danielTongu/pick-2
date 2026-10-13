@@ -10,13 +10,13 @@
         <link rel="stylesheet" href="./ui/styles/home.css" />
         <link rel="stylesheet" href="./ui/styles/connection.css" />
     </head>
-    <body data-connection-status="connecting" data-game="pick2" data-page="connection">
-        <main class="site-shell">
+    <body data-game="pick2" data-page="connection">
+        <main id="site-shell" data-connection-status="connecting">
             <header id="app-header">
                 <h1>
                     <a id="app-home-link" href="./index.html?mode=direct" aria-label="Pick 2 Home">
-                        <span class="brand-mark">P2</span>
-                        <span class="brand-copy">Pick 2<small>Match cards. Make moves.</small></span>
+                        <span id="brand-mark">P2</span>
+                        <span id="brand-copy">Pick 2<small>Match cards. Make moves.</small></span>
                     </a>
                 </h1>
                 <aside class="toggle-switch" aria-label="Connection mode. Live connecting.">
@@ -32,28 +32,28 @@
                 </aside>
             </header>
             <section id="connection-view" aria-labelledby="connection-title">
-                <header class="connection-panel-header">
+                <header id="connection-panel-header">
                     <span class="section-kicker">Play together</span>
                     <h2 id="connection-title">
-                        <span data-connection-state="connecting">Let’s get you connected.</span>
-                        <span data-connection-state="reconnecting">Getting back to Live.</span>
-                        <span data-connection-state="connected">You’re connected.</span>
-                        <span data-connection-state="disconnected error">Live is out of reach.</span>
-                        <span data-connection-state="unconfigured">Local play is ready.</span>
+                        <span class="connection-state connection-connecting">Let’s get you connected.</span>
+                        <span class="connection-state connection-reconnecting">Getting back to Live.</span>
+                        <span class="connection-state connection-connected">You’re connected.</span>
+                        <span class="connection-state connection-disconnected connection-error">Live is out of reach.</span>
+                        <span class="connection-state connection-unconfigured">Local play is ready.</span>
                     </h2>
                     <p id="connection-message" aria-live="polite">
-                        <span data-connection-state="connecting reconnecting">We’re checking the Live server. You can switch to Local and play with bots anytime.</span>
-                        <span data-connection-state="connected">Your connection is ready. Loading shared rooms.</span>
-                        <span data-connection-state="disconnected error">We couldn’t reach the Live server. Try again, or keep playing with bots in Local mode.</span>
-                        <span data-connection-state="unconfigured">Live hasn’t been set up yet. You can still play a full game with bots in Local mode.</span>
+                        <span class="connection-state connection-connecting connection-reconnecting">We’re checking the Live server. You can switch to Local and play with bots anytime.</span>
+                        <span class="connection-state connection-connected">Your connection is ready. Loading shared rooms.</span>
+                        <span class="connection-state connection-disconnected connection-error">We couldn’t reach the Live server. Try again, or keep playing with bots in Local mode.</span>
+                        <span class="connection-state connection-unconfigured">Live hasn’t been set up yet. You can still play a full game with bots in Local mode.</span>
                     </p>
                 </header>
                 <form id="connection-form" aria-label="Connection choices">
-                    <div class="connection-actions">
+                    <div id="connection-actions">
                         <button id="connection-connect-button" type="submit" disabled>Connecting…</button>
                         <a id="connection-direct-link" href="./index.html?mode=direct">Play Local</a>
                     </div>
-                    <p class="connection-server"><span>Live server</span><output id="connection-origin">Not configured</output></p>
+                    <p id="connection-server"><span>Live server</span><output id="connection-origin">Not configured</output></p>
                 </form>
                 <details id="connection-details">
                     <summary>Connection details</summary>

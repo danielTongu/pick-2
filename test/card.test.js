@@ -146,10 +146,10 @@ test("the canonical deck contains nineteen special-rule cards", () => {
 });
 
 test("card ranks come from the shared constants source", () => {
-    assert.equal(Constants.getCardRank(VALUE.TWO.id, SUIT.HEARTS), Constants.CARD.RANK.TWO);
+    assert.equal(Constants.getCardRank(VALUE.TWO.id, SUIT.HEARTS), VALUE.TWO.rank);
     assert.equal(Constants.getCardRank(VALUE.SEVEN.id, SUIT.HEARTS), Constants.CARD.RANK.SEVEN_OF_HEARTS);
     assert.equal(Constants.getCardRank(VALUE.ACE.id, SUIT.SPADES), Constants.CARD.RANK.ACE_OF_SPADES);
-    assert.equal(Constants.getCardRank(VALUE.JOKER.id, SUIT.RED), Constants.CARD.RANK.JOKER);
+    assert.equal(Constants.getCardRank(VALUE.JOKER.id, SUIT.RED), VALUE.JOKER.rank);
     assert.equal(Constants.getCardRank(VALUE.QUEEN.id, SUIT.CLUBS), VALUE.QUEEN.rank);
 });
 

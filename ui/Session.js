@@ -664,7 +664,7 @@ export class ConnectionSession extends Session {
                 endpoint = SessionState.getHostedUrl();
             } catch (_error) {
             }
-            this.#controller.render(endpoint ? Constants.CONNECTION_STATUS.ERROR : Constants.CONNECTION_STATUS.UNCONFIGURED, {
+            this.#controller.render(endpoint ? Constants.STATUS.ERROR : Constants.STATUS.UNCONFIGURED, {
                 endpoint, failure: "Live reconnection attempts failed. Retry Live or play Local."
             });
             return;
@@ -713,27 +713,27 @@ export class ConnectionSession extends Session {
         }
         const candidates = configuredUrl === null ? [] : [configuredUrl];
         if (candidates.length === 0) {
-            this.#controller.render(Constants.CONNECTION_STATUS.UNCONFIGURED, {failure: configurationError});
+            this.#controller.render(Constants.STATUS.UNCONFIGURED, {failure: configurationError});
             return false;
         }
 
         for (const [index, endpoint] of candidates.entries()) {
             const attempt = ++this.#probeCount;
             const metrics = {endpoint, attempt, candidate: index + 1, candidateCount: candidates.length};
-            this.#controller.render(Constants.CONNECTION_STATUS.CONNECTING, metrics);
+            this.#controller.render(Constants.STATUS.CONNECTING, metrics);
             this.#probe = new WebSocketProbe(endpoint);
             const outcome = await this.#probe.check();
             if (generation !== this.#generation) return null;
             this.#probe = null;
 
             if (outcome.available) {
-                this.#controller.render(Constants.CONNECTION_STATUS.CONNECTED, {...metrics, elapsedMs: outcome.elapsedMs});
+                this.#controller.render(Constants.STATUS.CONNECTED, {...metrics, elapsedMs: outcome.elapsedMs});
                 SessionState.setHostedUrl(endpoint);
                 SessionState.setMode("hosted");
                 location.replace(this.#homeUrl("hosted"));
                 return true;
             }
-            this.#controller.render(Constants.CONNECTION_STATUS.ERROR, {...metrics, ...outcome});
+            this.#controller.render(Constants.STATUS.ERROR, {...metrics, ...outcome});
         }
         return false;
     }

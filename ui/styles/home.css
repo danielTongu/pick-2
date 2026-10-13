@@ -67,8 +67,8 @@
 
 
 
-body[data-connection-status="connecting"] .toggle-switch > label:has(input:checked) > span,
-body[data-connection-status="reconnecting"] .toggle-switch > label:has(input:checked) > span {
+:is(.toggle-switch[data-connection-status="connecting"], [data-connection-status="connecting"] .toggle-switch) > label:has(input:checked) > span,
+:is(.toggle-switch[data-connection-status="reconnecting"], [data-connection-status="reconnecting"] .toggle-switch) > label:has(input:checked) > span {
     animation: mode-ripple 1.6s ease-out infinite;
 }
 
@@ -85,7 +85,7 @@ body[data-connection-status="reconnecting"] .toggle-switch > label:has(input:che
 
 /* ----- HOME HERO ----- */
 
-.hero {
+#hero {
     display: grid;
     gap: 1rem;
     margin: 2rem 0;
@@ -93,18 +93,18 @@ body[data-connection-status="reconnecting"] .toggle-switch > label:has(input:che
     color: var(--ink);
 }
 
-.hero > :last-child {
+#hero > :last-child {
     display: grid;
     grid-template-columns: 1fr;
     align-items: center;
 }
 
-.hero > :last-child > aside:first-child {
+#hero > :last-child > aside:first-child {
     min-width: 0;
     container-type: inline-size;
 }
 
-.eyebrow,
+#eyebrow,
 .section-kicker {
     color: var(--gray);
     font-weight: 800;
@@ -112,14 +112,14 @@ body[data-connection-status="reconnecting"] .toggle-switch > label:has(input:che
     text-transform: uppercase;
 }
 
-.eyebrow {
+#eyebrow {
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
     gap: 10px;
 }
 
-.eyebrow::before {
+#eyebrow::before {
     content: "";
     width: 7px;
     height: 7px;
@@ -129,7 +129,7 @@ body[data-connection-status="reconnecting"] .toggle-switch > label:has(input:che
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 15%, transparent);
 }
 
-.hero h2 {
+#hero h2 {
     margin: 0 0 1rem;
     font-family: var(--display-font);
     font-size: clamp(1.75rem, 11cqi, 5rem);
@@ -138,30 +138,30 @@ body[data-connection-status="reconnecting"] .toggle-switch > label:has(input:che
     letter-spacing: -0.066em;
 }
 
-.hero h2 span,
-.hero h2 em {
+#hero h2 span,
+#hero h2 em {
     display: block;
     text-wrap: nowrap;
 }
 
-.hero h2 em {
+#hero h2 em {
     color: var(--light-green);
     font-weight: 400;
 }
 
-.hero p {
+#hero p {
     margin: 0;
     color: var(--gray);
     font-size: medium;
     line-height: 1.65;
 }
 
-.hero p a {
+#hero p a {
     text-decoration: underline;
     text-underline-offset: 0.15em;
 }
 
-[data-game-preview] {
+#card-fan {
     container-type: inline-size;
     display: block;
     position: relative;
@@ -170,7 +170,7 @@ body[data-connection-status="reconnecting"] .toggle-switch > label:has(input:che
     aspect-ratio: 3 / 2;
 }
 
-[data-game-preview] > playing-card {
+#card-fan > playing-card {
     --card-height: clamp(100px, 44cqi, 171px);
     --card-left: 50%;
     --card-shift-y: 0%;
@@ -183,35 +183,35 @@ body[data-connection-status="reconnecting"] .toggle-switch > label:has(input:che
     transform-origin: 50% 110%;
 }
 
-[data-game-preview] > playing-card:nth-child(1) {
+#card-fan > playing-card:nth-child(1) {
     --card-left: 20%;
     --card-shift-y: 14%;
     --card-rotation: -24deg;
 }
 
-[data-game-preview] > playing-card:nth-child(2) {
+#card-fan > playing-card:nth-child(2) {
     --card-left: 30%;
     --card-shift-y: 6%;
     --card-rotation: -16deg;
 }
 
-[data-game-preview] > playing-card:nth-child(3) {
+#card-fan > playing-card:nth-child(3) {
     --card-left: 40%;
     --card-rotation: -8deg;
 }
 
-[data-game-preview] > playing-card:nth-child(5) {
+#card-fan > playing-card:nth-child(5) {
     --card-left: 60%;
     --card-rotation: 8deg;
 }
 
-[data-game-preview] > playing-card:nth-child(6) {
+#card-fan > playing-card:nth-child(6) {
     --card-left: 70%;
     --card-shift-y: 6%;
     --card-rotation: 16deg;
 }
 
-[data-game-preview] > playing-card:nth-child(7) {
+#card-fan > playing-card:nth-child(7) {
     --card-left: 78%;
     --card-shift-y: 14%;
     --card-rotation: 24deg;
@@ -229,7 +229,7 @@ body[data-connection-status="reconnecting"] .toggle-switch > label:has(input:che
 #registration,
 #list-panel {
     min-width: 0;
-    padding: 25px;
+    padding: 1rem;
     border-radius: 18px;
 }
 
@@ -264,7 +264,7 @@ body[data-connection-status="reconnecting"] .toggle-switch > label:has(input:che
     letter-spacing: -0.035em;
 }
 
-.step {
+#step {
     color: var(--gray);
     font-family: var(--display-font);
     font-size: medium;
@@ -291,7 +291,7 @@ body[data-connection-status="reconnecting"] .toggle-switch > label:has(input:che
 }
 
 #field-group label > span,
-.control-label {
+#request-mode-label {
     display: block;
     color: var(--gray);
     font-weight: 800;
@@ -412,14 +412,14 @@ form > footer {
     min-width: 660px;
 }
 
-.empty-row td {
+#empty-row td {
     height: 250px;
     color: var(--gray);
     text-align: center;
     vertical-align: middle;
 }
 
-.empty-state-mark {
+#empty-state-mark {
     display: block;
     margin-bottom: 12px;
     color: var(--light-green);
@@ -428,16 +428,17 @@ form > footer {
 }
 
 @media (min-width: 721px) {
-    .hero > :last-child {
+    #hero > :last-child {
         grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
     }
 
     #home-directory {
         grid-template-columns: minmax(341px, 0.7fr) minmax(0, 1fr);
     }
+}
 
-    #registration,
-    #list-panel {
-        padding: 32px;
-    }
+/* Preview the directory independently from transport data. */
+body[data-ui-preview="true"] #list-panel[data-directory-state="empty"] .ui-fixture,
+body[data-ui-preview="true"] #list-panel[data-directory-state="populated"] #empty-row {
+    display: none;
 }

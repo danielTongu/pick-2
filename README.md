@@ -74,3 +74,5 @@ Copyright © Pick 2. All rights reserved.
 
 This software is proprietary and is not free or open-source software. No permission is granted to copy, modify,
 distribute, sublicense, or use it outside the terms provided by its owner.
+
+Home and Room can be previewed without JavaScript using their HTML state attributes. See [the UI preview guide](docs/ui-preview.md) for sample data and state controls.

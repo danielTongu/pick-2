@@ -341,14 +341,14 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     const network = readFileSync(new URL("../server.js", import.meta.url), "utf8");
     const homeCss = readFileSync(new URL("../ui/styles/home.css", import.meta.url), "utf8");
 
-    assert.match(homeHtml, /<body data-connection-status="connecting" data-game="pick2" data-page="home">/);
+    assert.match(homeHtml, /<aside data-connection-status="connecting" class="toggle-switch"/);
     assert.doesNotMatch(homeHtml, /pick-2-shared-root/);
-    assert.match(homeHtml, /<main class="site-shell">/);
+    assert.match(homeHtml, /<main id="site-shell">/);
     assert.match(homeTemplate, /id="registration-form"/);
     assert.match(homeTemplate, /id="list-table-body"/);
     const homeDecoration = readFileSync(new URL("../ui/controllers/HomeController.js", import.meta.url), "utf8");
     const sharedHeaderPattern =
-        /<header id="app-header">\s*<h1>\s*<a id="app-home-link"[\s\S]*?<span class="brand-mark"[\s\S]*?<span class="brand-copy"[^>]*>[\s\S]*?<\/h1>\s*<aside\s+[^>]*/;
+        /<header id="app-header">\s*<h1>\s*<a id="app-home-link"[\s\S]*?<span id="brand-mark"[\s\S]*?<span id="brand-copy"[^>]*>[\s\S]*?<\/h1>\s*<aside\s+[^>]*/;
 
     assert.match(homeTemplate, sharedHeaderPattern);
     assert.match(gameHtml, sharedHeaderPattern);
@@ -366,27 +366,27 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.doesNotMatch(homeTemplate, /<fieldset|id="mode-group"/);
     assert.match(homeTemplate, /id="list-panel"/);
     assert.doesNotMatch(homeTemplate, /id="(?:request-mode-control|list-panel)" hidden/);
-    assert.match(homeTemplate, /<tbody id="list-table-body">[\s\S]*?class="empty-row"/);
+    assert.match(homeTemplate, /<tbody id="list-table-body">[\s\S]*?id="empty-row"/);
     assert.doesNotMatch(homeMarkup, /id="room-faq"/);
-    assert.match(gameHtml, /data-has-local-player="false"/);
+    assert.match(gameHtml, /data-membership="viewer"/);
     assert.doesNotMatch(gameHtml, /pick-2-shared-root/);
     assert.doesNotMatch(homeTemplate, /id="connection-view"/);
     assert.match(readFileSync(new URL("../connection.html", import.meta.url), "utf8"), /id="connection-view"/);
-    assert.match(gameHtml, /data-has-local-player="false"[^>]+data-connection-mode="direct"[^>]+data-match-state="waiting"/);
+    assert.match(gameHtml, /id="player-commands"[^>]+data-match-state="waiting"/);
     assert.match(gameHtml, /data-player-state="ready"/);
     assert.match(
         gameHtml,
-        /id="player-summary"[\s\S]*?<span data-player-name="" id="player-status"><\/span>[\s\S]*?<span data-item-count="0"><\/span>/
+        /id="player-summary"[\s\S]*?<span data-player-name="You" id="player-status"><\/span>[\s\S]*?<span data-item-count="7"><\/span>/
     );
     assert.match(gameHtml, /id="player-hand"/);
     assert.match(gameHtml, /id="table-play-area"[\s\S]*?data-is-drag-over="false"/);
     assert.match(
         gameHtml,
-        /id="player-hand"[\s\S]*?<span class="playing-card-area"><\/span>/
+        /id="player-hand"[\s\S]*?<span class="playing-card-area">[\s\S]*?ui-fixture[\s\S]*?<\/span>/
     );
     assert.doesNotMatch(gameHtml, /<span class="playing-card-area" data-is-drag-over="false"><\/span>/);
     assert.doesNotMatch(gameHtml, /id="player-region"/);
-    assert.match(gameHtml, /<details id="room-faq" class="faq" aria-labelledby="faq-title">/);
+    assert.match(gameHtml, /<details id="room-faq" aria-labelledby="faq-title">/);
     assert.doesNotMatch(gameHtml, /<details id="room-faq" open>/);
     assert.match(gameHtml, /<b id="faq-title">FAQ<\/b>/);
     assert.match(gameHtml, /<b>Which card can I play\?<\/b>/);
@@ -395,22 +395,22 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.match(gameHtml, /two \(20\) and a king \(13\) score 33/);
     assert.match(gameHtml, /id="room-faq-link" href="#room-faq">FAQ<\/a>/);
     assert.doesNotMatch(gameHtml, /data-match-region|id="faq-section"/);
-    assert.match(gameHtml, /<tr class="placeholder-row"[^>]*>[\s\S]*?<td>--<\/td>/);
+    assert.match(gameHtml, /<tr id="placeholder-row"[^>]*>[\s\S]*?<td>--<\/td>/);
     assert.doesNotMatch(gameHtml, /id="room-mode-label"|id="connection-status-indicator"/);
     assert.match(homeHtml, /src="main\.js"/);
     assert.doesNotMatch(homeMarkup, /connection\.js/);
-    assert.match(homeTemplate, /<aside>\s*<span data-game-preview aria-hidden="true"><\/span>\s*<\/aside>/);
+    assert.match(homeTemplate, /<aside>\s*<span id="card-fan" aria-hidden="true">[\s\S]*?<playing-card[\s\S]*?<\/span>\s*<\/aside>/);
     assert.match(
         homeTemplate,
-        /<header class="hero">\s*<div class="eyebrow">[\s\S]*?<div>\s*<aside>[\s\S]*?<aside>\s*<span data-game-preview/
+        /<header id="hero">\s*<div id="eyebrow">[\s\S]*?<div>\s*<aside>[\s\S]*?<aside>\s*<span id="card-fan"/
     );
-    assert.match(homeCss, /\.hero > :last-child\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:/);
+    assert.match(homeCss, /\#hero > :last-child\s*\{[\s\S]*?display:\s*grid;[\s\S]*?grid-template-columns:/);
     const cardCss = readFileSync(new URL("../ui/styles/home.css", import.meta.url), "utf8");
-    assert.match(cardCss, /\[data-game-preview\]\s*\{[\s\S]*?position:\s*relative;/);
-    assert.match(cardCss, /\[data-game-preview\]\s*\{[\s\S]*?display:\s*block;/);
-    assert.match(cardCss, /\[data-game-preview\] > playing-card\s*\{[\s\S]*?position:\s*absolute;/);
+    assert.match(cardCss, /#card-fan\s*\{[\s\S]*?position:\s*relative;/);
+    assert.match(cardCss, /#card-fan\s*\{[\s\S]*?display:\s*block;/);
+    assert.match(cardCss, /#card-fan > playing-card\s*\{[\s\S]*?position:\s*absolute;/);
     assert.match(cardCss, /--card-rotation:\s*-24deg;/);
-    assert.match(homeCss, /data-game-preview/);
+    assert.match(homeCss, /card-fan/);
     assert.match(homeDecoration, /new Card\(VALUE\.TWO\.id, SUIT\.CLUBS, 0\)/);
     assert.match(homeDecoration, /new Card\(VALUE\.EIGHT\.id, SUIT\.DIAMONDS, 0\)/);
     assert.match(homeDecoration, /new Card\(VALUE\.JACK\.id, SUIT\.SPADES, 0\)/);
@@ -433,8 +433,8 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.doesNotMatch(homeMarkup + gameHtml, /<caption\b/);
     assert.match(homeTemplate, /<button id="enter-button">Enter room<\/button>/);
     assert.match(homeTemplate, /<button id="alert-ok-button">OK<\/button>/);
-    assert.match(gameHtml, /<button id="room-play-button" type="button" data-mode="choose">Start<\/button>/);
-    assert.match(gameHtml, /<button id="room-invite-button" type="button" hidden>Invite<\/button>/);
+    assert.match(gameHtml, /<button id="room-play-button" type="button">Start<\/button>/);
+    assert.match(gameHtml, /<button id="room-invite-button" type="button">Invite<\/button>/);
     assert.match(gameHtml, /<button id="countdown-ok-button">OK<\/button>/);
     assert.match(gameHtml, /<button id="suit-selection-timeout-button">timeout<\/button>/);
     assert.match(gameHtml, /<button id="suit-selection-submit-button">Submit<\/button>/);
@@ -511,7 +511,7 @@ test("the shared table stylesheet owns foundational row states", () => {
         assert.doesNotMatch(componentCss, /\b(?:th|td)\s*\{[^}]*\bborder(?:-\w+)?:/);
         assert.doesNotMatch(
             componentCss,
-            /tbody tr(?::is\([^)]*\)|:(?:hover|focus-visible)|\[data-is-selected="true"\])\s*\{/
+            /tbody tr(?::is\([^)]*\)|:(?:hover|focus-visible)|\[aria-selected="true"\])\s*\{/
         );
     }
     assert.match(tableCss, /table:has\(> tbody:empty\)::after\s*\{/);
@@ -524,7 +524,7 @@ test("the shared table stylesheet owns foundational row states", () => {
         /tbody tr:is\(:hover, :focus-visible\)\s*\{[\s\S]*?background:\s*color-mix\(in srgb, var\(--cyan\) 12%, transparent\)/
     );
     assert.match(tableCss, /tbody tr:focus-visible\s*\{[\s\S]*?outline-offset:\s*-3px/);
-    assert.match(tableCss, /tbody tr\[data-is-selected="true"\]\s*\{\s*color:\s*var\(--cyan\);\s*\}/);
+    assert.match(tableCss, /tbody tr\[aria-selected="true"\]\s*\{\s*color:\s*var\(--cyan\);\s*\}/);
     assert.match(
         tableCss,
         /th\s*\{[\s\S]*?color:\s*var\(--gray\);[\s\S]*?letter-spacing:\s*0\.1em;[\s\S]*?text-transform:\s*uppercase;/
@@ -606,13 +606,12 @@ test("the shared game preserves touch-friendly card presentation", () => {
     assert.match(cardCss, /\.playing-card-drag-handle\s*\{[\s\S]*?width:\s*100%/);
     assert.match(gameCss, /@keyframes turn-owner-border-strobe/);
     assert.match(homeCss, /\.toggle-switch > label:has\(input:checked\) > span/);
-    assert.match(controller, /this\.#playRegion\.dataset\.hasLocalPlayer = "true"/);
-    assert.match(controller, /this\.#playRegion\.dataset\.hasLocalPlayer = "false"/);
+    assert.doesNotMatch(html + controller + gameCss, /data-has-local-player|hasLocalPlayer/);
     assert.match(controller, /this\.#playerStatus\.dataset\.playerName = player\.name \?\? ""/);
     assert.match(controller, /this\.#playerStatus\.dataset\.playerName = ""/);
     assert.doesNotMatch(html + controller + gameCss, /data-is-player-view|isPlayerView/);
     assert.match(html, /id="players-list"[\s\S]*?id="table-play-area"[\s\S]*?id="local-player-region"/);
-    assert.match(html, /<ul id="players-list" aria-label="Other players"><\/ul>/);
+    assert.match(html, /<ul id="players-list" aria-label="Other players">[\s\S]*?ui-fixture[\s\S]*?<\/ul>/);
     assert.doesNotMatch(html, /id="players-list"[^>]*role=/);
     assert.match(
         readFileSync(new URL("../ui/templates/player.html", import.meta.url), "utf8"),
@@ -622,13 +621,13 @@ test("the shared game preserves touch-friendly card presentation", () => {
         readFileSync(new URL("../ui/templates/player.html", import.meta.url), "utf8"),
         /role="listitem"/
     );
-    assert.match(gameCss, /\[data-has-local-player="false"\]\s*\{[\s\S]*?--play-area-rows:/);
-    assert.match(gameCss, /\[data-has-local-player="false"\] > #local-player-region,[\s\S]*?\{\s*display:\s*none/);
-    assert.doesNotMatch(gameCss, /\[data-has-local-player="false"\][^{]*#table-play-area[^{]*\{[^}]*--card-height/);
-    assert.match(gameCss, /#game-region\[data-connection-mode="direct"\] > #local-player-region #player-idle-warning/);
+    assert.match(gameCss, /\[data-membership="viewer"\] #game-region\s*\{[\s\S]*?--play-area-rows:/);
+    assert.match(gameCss, /\[data-membership="viewer"\] #game-region > #local-player-region,[\s\S]*?\{\s*display:\s*none/);
+    assert.doesNotMatch(gameCss, /\[data-membership="viewer"\] #game-region[^{]*#table-play-area[^{]*\{[^}]*--card-height/);
+    assert.match(gameCss, /main\[data-connection-mode="direct"\] #game-region > #local-player-region #player-idle-warning/);
     assert.match(
         readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8"),
-        /playRegion\.dataset\.connectionMode = room\.connectionMode/
+        /dataset\.connectionMode = room\.connectionMode/
     );
     assert.doesNotMatch(
         readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8"),

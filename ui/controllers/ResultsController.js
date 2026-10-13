@@ -196,11 +196,9 @@ export class ResultsController extends ViewController {
 
         row.dataset.playerName = player.name;
         row.dataset.playerState = player.state;
-        row.dataset.isSelected = "false";
         row.tabIndex = 0;
         row.setAttribute("aria-label", `View ${player.name}'s cards`);
         row.setAttribute("aria-selected", "false");
-        DomUtils.setBooleanState(row, "isWinner", player.state === Constants.PLAYER_STATE.WON);
 
         row.appendChild(this.#createStatsCell(player.name));
         row.appendChild(this.#createStatsCell(String(player.collection.penalty)));
@@ -276,7 +274,6 @@ export class ResultsController extends ViewController {
             if (row instanceof HTMLTableRowElement) {
                 const isSelected = row.dataset.playerName === playerName;
 
-                DomUtils.setBooleanState(row, "isSelected", isSelected);
                 row.setAttribute("aria-selected", String(isSelected));
             }
         }

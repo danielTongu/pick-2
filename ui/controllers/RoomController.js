@@ -156,8 +156,9 @@ export class RoomController extends ViewController {
      * @param {string} label - Status display label.
      */
     handleConnectionStatus(status, label) {
-        DomUtils.require("body", HTMLElement).dataset.connectionStatus = status;
-        DomUtils.require("#connection-status-label", HTMLElement).textContent = label;
+        DomUtils.require("#app-header > aside", HTMLElement).dataset.connectionStatus = status;
+        DomUtils.require("#site-shell", HTMLElement).dataset.connectionMode = this.view?.mode ?? "direct";
+        DomUtils.require("#app-header > aside", HTMLElement).setAttribute("aria-label", `Connection: ${label}`);
     }
 
     /**
@@ -179,10 +180,7 @@ export class RoomController extends ViewController {
      * @param {string|null} localPlayer - Local player name, if joined.
      */
     renderMatchCommands(localPlayer) {
-        DomUtils.require("#room-leave-button", HTMLButtonElement).hidden = false;
-        DomUtils.require("#room-join-button", HTMLButtonElement).hidden =
-            localPlayer !== null || this.capabilities.join !== true;
-        DomUtils.require("#room-invite-button", HTMLButtonElement).hidden = this.capabilities.invite !== true;
+        this.root.dataset.membership = localPlayer === null ? "viewer" : "player";
     }
 
     /** Reads the join form and submits a join command for the current Room. */
@@ -381,9 +379,9 @@ export class RoomController extends ViewController {
 
         this._renderRoom(room);
 
-        const playRegion = DomUtils.require('[data-has-local-player]', HTMLElement);
-        playRegion.dataset.connectionMode = room.connectionMode;
-        playRegion.dataset.matchState = room.match.state;
+        const playerCommands = DomUtils.require("#player-commands", HTMLElement);
+        DomUtils.require("#site-shell", HTMLElement).dataset.connectionMode = room.connectionMode;
+        playerCommands.dataset.matchState = room.match.state;
 
         this.#renderPlayers(room);
         this.#renderDiscardPile(room);

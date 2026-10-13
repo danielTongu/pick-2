@@ -1,8 +1,13 @@
 /** Canonical immutable vocabulary, limits, card definitions, and timing shared across Pick 2. */
 export class Constants {
 
+    // ---- Server and timing ----
+
     /** @type {string} Hosted server origin; empty selects Direct mode. */
     static GAME_SERVER_ORIGIN = "http://localhost:8080";
+
+    /** @type {number} Hosted connection attempt timeout. */
+    static CONNECTION_PROBE_TIMEOUT_MS = 3 * 1000;
 
     /** @type {number} Room wait for player activity, empty-room closure, and the next Knockout match. */
     static ROOM_WAIT_MS = 30 * 1000;
@@ -10,29 +15,17 @@ export class Constants {
     /** @type {number} Transition countdown length. */
     static COUNTDOWN_SECONDS = 5;
 
-    /** @type {number} Hosted connection attempt timeout. */
-    static CONNECTION_PROBE_TIMEOUT_MS = 3 * 1000;
-
-    /** Connection page data-status values. */
-    static CONNECTION_STATUS = Object.freeze({
-        CONNECTING: "connecting", CONNECTED: "connected", ERROR: "error", UNCONFIGURED: "unconfigured"
-    });
-
-    /** @type {number} Default maximum players per room. */
-    static ROOM_PLAYER_LIMIT = 4;
-
-    /** @type {number} Default number of cards dealt to each player. */
-    static INITIAL_ITEM_COUNT = 7;
-
     /** @type {number} Minimum automated-turn delay. */
     static AUTOMATED_PLAYER_DELAY_MIN_MS = 2000;
 
     /** @type {number} Maximum automated-turn delay.*/
     static AUTOMATED_PLAYER_DELAY_MAX_MS = 4000;
 
+    // ---- Statuses and states ----
+
     /** @type {Readonly<Record<string, string>>} Connection and notification statuses. */
     static STATUS = Object.freeze({
-        CONNECTING: "connecting", CONNECTED: "connected", DISCONNECTED: "disconnected", INFO: "info", WARNING: "warning", ERROR: "error"
+        CONNECTING: "connecting", CONNECTED: "connected", DISCONNECTED: "disconnected", UNCONFIGURED: "unconfigured", INFO: "info", WARNING: "warning", ERROR: "error"
     });
 
     /** @type {Readonly<Record<string, string>>} Room lifecycle states. */
@@ -44,17 +37,89 @@ export class Constants {
     /** Room-table Knockout column values. */
     static KNOCKOUT_VALUE = Object.freeze({ YES: "yes", NO: "no" });
 
-    /** Play button presentation states. */
-    static PLAY_BUTTON_MODE = Object.freeze({ CHOOSE: "choose", NEXT_MATCH: "next-match" });
-
     /** Play choice dialog's data-state values. */
     static PLAY_DIALOG_STATE = Object.freeze({ OPEN: "open", CLOSED: "closed" });
+
+    // ---- Views and commands ----
 
     /** @type {Readonly<Record<string, string>>} Application views.*/
     static VIEWS = Object.freeze({ HOME: "home", ROOM: "room", CONNECTION: "connection" });
 
+    /** @type {Readonly<Record<string,string>>} Canonical request command names accepted by Host. */
+    static COMMANDS = Object.freeze({
+        LIST: "list",
+        CREATE: "create",
+        VIEW: "view",
+        JOIN: "join",
+        LEAVE: "leave",
+        START: "start",
+        DRAW: "draw",
+        PASS: "pass",
+        DISCARD: "discard",
+        DECLARE: "declare"
+    });
+
     /** @type {Readonly<Record<string, string>>} Top-level response fields. */
     static RESPONSE_KEYS = Object.freeze({ VIEW: "view", MESSAGE: "message", DATA: "data" });
+
+    // ---- Card definitions ----
+
+    /** @type {Readonly<Object>} Canonical card ranks, values, suits, deck membership, and sort options. */
+    static CARD = this.#createCardDefinitions({
+        RANK: Object.freeze({ SEVEN_OF_HEARTS: 30, ACE_OF_SPADES: 50 }),
+
+        /** Available card sorting options. */
+        SORT_OPTIONS: Object.freeze(["none", "rank", "suit"]),
+
+        /** Card values and their default Pick 2 rank. */
+        VALUE: Object.freeze({
+            TWO: Object.freeze({ id: "2", rank: 20 }),
+            THREE: Object.freeze({ id: "3", rank: 3 }),
+            FOUR: Object.freeze({ id: "4", rank: 4 }),
+            FIVE: Object.freeze({ id: "5", rank: 5 }),
+            SIX: Object.freeze({ id: "6", rank: 6 }),
+            SEVEN: Object.freeze({ id: "7", rank: 7 }),
+            EIGHT: Object.freeze({ id: "8", rank: 8 }),
+            NINE: Object.freeze({ id: "9", rank: 9 }),
+            TEN: Object.freeze({ id: "10", rank: 10 }),
+            JACK: Object.freeze({ id: "j", rank: 11 }),
+            QUEEN: Object.freeze({ id: "q", rank: 12 }),
+            KING: Object.freeze({ id: "k", rank: 13 }),
+            ACE: Object.freeze({ id: "a", rank: 14 }),
+            JOKER: Object.freeze({ id: "joker", rank: 40 })
+        }),
+
+        /** Card suits. */
+        SUIT: Object.freeze({
+            CLUBS: "clubs",
+            DIAMONDS: "diamonds",
+            HEARTS: "hearts",
+            SPADES: "spades",
+
+            BLACK: "black",
+            RED: "red"
+        })
+    });
+
+    // ---- Room defaults ----
+
+    /** @type {number} Default maximum players per room. */
+    static ROOM_PLAYER_LIMIT = 4;
+
+    /** @type {number} Default number of cards dealt to each player. */
+    static INITIAL_ITEM_COUNT = 7;
+
+    /** Ordered display names for Direct bot opponents.*/
+    static DIRECT_OPPONENT_NAMES = Object.freeze(["CM", "XC", "VI"]);
+
+    /** Default rooms available in Direct and Hosted registries.*/
+    static DEFAULT_ROOMS = Object.freeze([
+        Object.freeze({ roomName: "Default-R0", playerLimit: 4, botCount: 3 }),
+        Object.freeze({ roomName: "Default-R1", playerLimit: 4, botCount: 2 }),
+        Object.freeze({ roomName: "Default-R2", playerLimit: 4, botCount: 1 })
+    ]);
+
+    // ---- Notifications ----
 
     /** Canonical notification headings and messages shown by the game and room interfaces. */
     static NOTIFICATIONS = Object.freeze({
@@ -86,94 +151,33 @@ export class Constants {
         ERROR_TITLE: "Error"
     });
 
-    /** Ordered display names for Direct bot opponents.*/
-    static DIRECT_OPPONENT_NAMES = Object.freeze(["CM", "XC", "VI"]);
-
-    /** Default rooms available in Direct and Hosted registries.*/
-    static DEFAULT_ROOMS = Object.freeze([
-        Object.freeze({ roomName: "Default-R0", playerLimit: 4, botCount: 3 }),
-        Object.freeze({ roomName: "Default-R1", playerLimit: 4, botCount: 2 }),
-        Object.freeze({ roomName: "Default-R2", playerLimit: 4, botCount: 1 })
-    ]);
-
     /** Emoji groups used by room messages. */
     static EMOJIS = Object.freeze({
         silly: this.#createEmojiGroup(["😈", "😂", "😝", "🙃", "🤪"])
     });
 
-    /** @type {Readonly<Record<string,string>>} Canonical request command names accepted by Host. */
-    static COMMANDS = Object.freeze({
-        LIST: "list",
-        CREATE: "create",
-        VIEW: "view",
-        JOIN: "join",
-        LEAVE: "leave",
-        START: "start",
-        DRAW: "draw",
-        PASS: "pass",
-        DISCARD: "discard",
-        DECLARE: "declare"
-    });
-
-    /** @type {Readonly<Object>} Canonical card ranks, values, suits, deck membership, and sort options. */
-    static CARD = Object.freeze({
-        RANK: Object.freeze({ TWO: 20, SEVEN_OF_HEARTS: 30, JOKER: 40, ACE_OF_SPADES: 50 }),
-
-        /** Available card sorting options. */
-        SORT_OPTIONS: Object.freeze(["none", "rank", "suit"]),
-
-        /** Card values and their natural rank. */
-        VALUE: Object.freeze({
-            TWO: Object.freeze({ id: "2", rank: 2 }),
-            THREE: Object.freeze({ id: "3", rank: 3 }),
-            FOUR: Object.freeze({ id: "4", rank: 4 }),
-            FIVE: Object.freeze({ id: "5", rank: 5 }),
-            SIX: Object.freeze({ id: "6", rank: 6 }),
-            SEVEN: Object.freeze({ id: "7", rank: 7 }),
-            EIGHT: Object.freeze({ id: "8", rank: 8 }),
-            NINE: Object.freeze({ id: "9", rank: 9 }),
-            TEN: Object.freeze({ id: "10", rank: 10 }),
-            JACK: Object.freeze({ id: "j", rank: 11 }),
-            QUEEN: Object.freeze({ id: "q", rank: 12 }),
-            KING: Object.freeze({ id: "k", rank: 13 }),
-            ACE: Object.freeze({ id: "a", rank: 14 }),
-            JOKER: Object.freeze({ id: "joker", rank: 15 })
-        }),
-
-        /** Card suits. */
-        SUIT: Object.freeze({
-            CLUBS: "clubs",
-            DIAMONDS: "diamonds",
-            HEARTS: "hearts",
-            SPADES: "spades",
-
-            BLACK: "black",
-            RED: "red"
-        }),
-
-        /** Standard suits used by non-joker cards.*/
-        STANDARD_SUITS: Object.freeze(["clubs", "diamonds", "hearts", "spades"]),
-
-        /** Suits reserved for joker cards. */
-        JOKER_SUITS: Object.freeze(["black", "red"]),
-
-        /** Values used by standard, non-joker cards. */
-        STANDARD_VALUES: Object.freeze(["2", "3", "4", "5", "6", "7", "8", "9", "10", "j", "q", "k", "a"])
-    });
+    // ---- Card helpers ----
 
     /**
-     * Creates an immutable emoji group with random selection.
-     *
-     * @param {string[]} emojis - Emoji values.
-     * @returns {{values:readonly string[], readonly random:string}} Emoji group.
+     * Derives immutable deck lists from the canonical card definitions.
+     * @param {Object} definitions - Card ranks, values, suits, and sort options.
+     * @returns {Readonly<Object>} Card definitions with ordered deck lists.
      */
-    static #createEmojiGroup(emojis) {
-        const values = Object.freeze([...emojis]);
-        return Object.freeze({
-            values,
-            get random() {
-                return values[Math.floor(Math.random() * values.length)];
+    static #createCardDefinitions(definitions) {
+        const suits = definitions.SUIT;
+        const standardValues = [];
+
+        for (const value of Object.values(definitions.VALUE)) {
+            if (value !== definitions.VALUE.JOKER) {
+                standardValues.push(value.id);
             }
+        }
+
+        return Object.freeze({
+            ...definitions,
+            STANDARD_SUITS: Object.freeze([suits.CLUBS, suits.DIAMONDS, suits.HEARTS, suits.SPADES]),
+            JOKER_SUITS: Object.freeze([suits.BLACK, suits.RED]),
+            STANDARD_VALUES: Object.freeze(standardValues)
         });
     }
 
@@ -240,16 +244,30 @@ export class Constants {
     static getCardRank(value, suit) {
         let rank = Constants.getCardValue(value).rank;
 
-        if (value === Constants.CARD.VALUE.JOKER.id) {
-            rank = Constants.CARD.RANK.JOKER;
-        } else if (value === Constants.CARD.VALUE.TWO.id) {
-            rank = Constants.CARD.RANK.TWO;
-        } else if (value === Constants.CARD.VALUE.SEVEN.id && suit === Constants.CARD.SUIT.HEARTS) {
+        if (value === Constants.CARD.VALUE.SEVEN.id && suit === Constants.CARD.SUIT.HEARTS) {
             rank = Constants.CARD.RANK.SEVEN_OF_HEARTS;
         } else if (value === Constants.CARD.VALUE.ACE.id && suit === Constants.CARD.SUIT.SPADES) {
             rank = Constants.CARD.RANK.ACE_OF_SPADES;
         }
 
         return rank;
+    }
+
+    // ---- Emoji helpers ----
+
+    /**
+     * Creates an immutable emoji group with random selection.
+     *
+     * @param {string[]} emojis - Emoji values.
+     * @returns {{values:readonly string[], readonly random:string}} Emoji group.
+     */
+    static #createEmojiGroup(emojis) {
+        const values = Object.freeze([...emojis]);
+        return Object.freeze({
+            values,
+            get random() {
+                return values[Math.floor(Math.random() * values.length)];
+            }
+        });
     }
 }
