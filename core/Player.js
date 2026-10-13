@@ -5,10 +5,10 @@ import { Serializable } from "./Serializable.js";
 import { ValidationUtils } from "./ValidationUtils.js";
 import { CardCollection } from "./CardCollection.js";
 
-/** Owns one seated actor’s identity, hand, match state, and idle timer. */
-export class Actor extends Serializable {
+/** Owns one seated player’s identity, hand, match state, and idle timer. */
+export class Player extends Serializable {
     /**
-     * @type {Function|null} Callback invoked with this actor after its idle window expires.
+     * @type {Function|null} Callback invoked with this player after its idle window expires.
      */
     onIdle = null;
 
@@ -23,21 +23,21 @@ export class Actor extends Serializable {
     #initialState = null;
 
     /**
-     * Creates an actor with private card storage and resettable match state.
+     * Creates a player with private card storage and resettable match state.
      * @param {string} name - Display name.
      * @param {Object|null} initialState - Match-owned reset values.
      */
     constructor(name, initialState = null) {
         super();
 
-        this.name = ValidationUtils.namedString(name, "Actor name", ValidationUtils.actorNameMaxLength);
-        this.key = Actor.normalizeKey(this.name);
-        this.state = Constants.ACTOR_STATE.READY;
+        this.name = ValidationUtils.namedString(name, "Player name", ValidationUtils.playerNameMaxLength);
+        this.key = Player.normalizeKey(this.name);
+        this.state = Constants.PLAYER_STATE.READY;
         this.collection = new CardCollection();
 
         if (initialState !== null) {
             if (typeof initialState !== "object" || Array.isArray(initialState)) {
-                throw new Error("Actor initial state must be an object.");
+                throw new Error("Player initial state must be an object.");
             }
             this.#initialState = { ...initialState };
             Object.assign(this, this.#initialState);
@@ -45,14 +45,14 @@ export class Actor extends Serializable {
     }
 
     /**
-     * Normalizes stable actor key.
+     * Normalizes stable player key.
      *
-     * @param {*} value - Raw actor name or key.
+     * @param {*} value - Raw player name or key.
      * @returns {string} Normalized key.
-     * @throws {Error} When the supplied actor identity cannot be normalized.
+     * @throws {Error} When the supplied player identity cannot be normalized.
      */
     static normalizeKey(value) {
-        return ValidationUtils.requiredString(value, "Actor name")
+        return ValidationUtils.requiredString(value, "Player name")
             .toLowerCase()
             .replace(/\s+/g, "-")
             .replace(/[^\p{L}\p{N}_-]/gu, "");
@@ -80,7 +80,7 @@ export class Actor extends Serializable {
     }
 
     /**
-     * Clears the elapsed timer and reports this actor through the current idle callback.
+     * Clears the elapsed timer and reports this player through the current idle callback.
      */
     #handleIdleTimeout() {
         this.#idleTimeoutId = null;
@@ -106,7 +106,7 @@ export class Actor extends Serializable {
         if (this.#initialState !== null) {
             Object.assign(this, this.#initialState);
         }
-        this.state = Constants.ACTOR_STATE.READY;
+        this.state = Constants.PLAYER_STATE.READY;
         this.recordActivity();
     }
 }

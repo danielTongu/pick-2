@@ -5,26 +5,26 @@ import { Constants } from "../core/Constants.js";
 
 test("room button actions check current membership, turn, pending action, and restart permission", () => {
     const source = readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8");
-    const start = source.indexOf("    #canSubmitActorCommand(command) {");
+    const start = source.indexOf("    #canSubmitPlayerCommand(command) {");
     const end = source.indexOf("    /** Submits the Knockout choice", start);
-    const method = source.slice(start, end).replace("#canSubmitActorCommand", "canSubmitActorCommand");
+    const method = source.slice(start, end).replace("#canSubmitPlayerCommand", "canSubmitPlayerCommand");
     const Controller = new Function("Constants", `return class RoomController {
-        static #getLocalActor(room) { return room?.actor ?? null; }
+        static #getLocalPlayer(room) { return room?.player ?? null; }
         ${method}
     }`)(Constants);
     const controller = new Controller();
     controller.capabilities = { restart: false };
-    const actor = { key: "alice", drawAllowance: 1 };
-    const match = { state: "active", pending: null, turnOrder: { ownerKey: "alice", actorCount: 2 } };
-    controller.room = { actor, match };
-    const allowed = command => controller.canSubmitActorCommand(command);
+    const player = { key: "alice", drawAllowance: 1 };
+    const match = { state: "active", pending: null, turnOrder: { ownerKey: "alice", playerCount: 2 } };
+    controller.room = { player, match };
+    const allowed = command => controller.canSubmitPlayerCommand(command);
     assert.equal(allowed("draw"), true);
     assert.equal(allowed("pass"), true);
     match.turnOrder.ownerKey = "bob";
     assert.equal(allowed("draw"), false);
     assert.equal(allowed("pass"), false);
     match.turnOrder.ownerKey = "alice";
-    actor.drawAllowance = 0;
+    player.drawAllowance = 0;
     assert.equal(allowed("draw"), false);
     match.state = "waiting";
     assert.equal(allowed("draw"), true);
@@ -42,9 +42,9 @@ test("room button actions check current membership, turn, pending action, and re
     assert.equal(allowed("start"), false);
     match.nextMatchAvailable = true;
     assert.equal(allowed("start"), true);
-    match.turnOrder.actorCount = 1;
+    match.turnOrder.playerCount = 1;
     assert.equal(allowed("start"), false);
-    controller.room.actor = null;
+    controller.room.player = null;
     for (const command of ["draw", "pass", "start"]) assert.equal(allowed(command), false);
     controller.room = null;
     assert.equal(allowed("start"), false);

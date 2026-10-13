@@ -42,12 +42,12 @@ export class RoomRowUtils extends TemplateUtils {
         knockoutCell.textContent = data.knockout === Constants.KNOCKOUT_VALUE.YES ? "Yes" : "No";
         RoomRowUtils.#setCell(
             element,
-            "[data-turn-order-actor-count]",
-            "turnOrderActorCount",
-            data.turnOrder.actorCount
+            "[data-turn-order-player-count]",
+            "turnOrderPlayerCount",
+            data.turnOrder.playerCount
         );
         RoomRowUtils.#setCell(element, "[data-viewers]", "viewers", data.viewers);
-        RoomRowUtils.#setCell(element, "[data-actor-limit]", "actorLimit", data.actorLimit);
+        RoomRowUtils.#setCell(element, "[data-player-limit]", "playerLimit", data.playerLimit);
         RoomRowUtils.#setCell(element, "[data-last-active-at]", "lastActiveAt", data.lastActiveAt);
         RoomRowUtils.#setCell(element, "[data-created-at]", "createdAt", data.createdAt);
     }
@@ -76,10 +76,10 @@ export class RoomRowUtils extends TemplateUtils {
             state: RoomRowUtils.#displayText(source.match.state),
             knockout: source.match.isKnockout === true ? Constants.KNOCKOUT_VALUE.YES : Constants.KNOCKOUT_VALUE.NO,
             turnOrder: {
-                actorCount: RoomRowUtils.#displayCount(source.match.turnOrder?.actorCount, "Room.turnOrder.actorCount")
+                playerCount: RoomRowUtils.#displayCount(source.match.turnOrder?.playerCount, "Room.turnOrder.playerCount")
             },
             viewers: RoomRowUtils.#displayCount(source.viewers, "Room.viewers"),
-            actorLimit: RoomRowUtils.#displayCount(source.actorLimit, "Room.actorLimit"),
+            playerLimit: RoomRowUtils.#displayCount(source.playerLimit, "Room.playerLimit"),
             lastActiveAt: RoomRowUtils.#displayText(source.lastActiveAt),
             createdAt: RoomRowUtils.#displayText(source.createdAt)
         };

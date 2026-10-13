@@ -7,9 +7,9 @@ import { CardListUtils } from "../utilities/CardListUtils.js";
 import { ViewController } from "./ViewController.js";
 
 /**
- * Controls the local-actor area within the shared Room play area.
+ * Controls the local-player area within the shared Room play area.
  */
-export class LocalActorController extends ViewController {
+export class LocalPlayerController extends ViewController {
     /**
      * @type {Function|null} Optional application callback registered by the owning page.
      */
@@ -26,14 +26,14 @@ export class LocalActorController extends ViewController {
     #playRegion;
 
     /**
-     * @type {HTMLSpanElement} Required actor identity and status output.
+     * @type {HTMLSpanElement} Required player identity and status output.
      */
-    #actorStatus;
+    #playerStatus;
 
     /**
      * @type {HTMLSpanElement} Required text output synchronized during rendering.
      */
-    #actorCardCount;
+    #playerCardCount;
 
     /**
      * @type {HTMLSpanElement} Card-hand container and drop target.
@@ -71,23 +71,23 @@ export class LocalActorController extends ViewController {
     #passButton;
 
     /**
-     * Creates an actor-area controller.
+     * Creates a player-area controller.
      *
-     * @param {string} selector - Actor-area selector.
+     * @param {string} selector - Player-area selector.
      * @throws {Error} When required markup, callback, or input data violates the controller contract.
      */
     constructor(selector) {
         super(selector);
-        const playRegion = this.root.closest('[data-has-local-actor]');
+        const playRegion = this.root.closest('[data-has-local-player]');
 
         if (!(playRegion instanceof HTMLElement)) {
-            throw new Error("Actor area must belong to the room play area.");
+            throw new Error("Player area must belong to the room play area.");
         }
 
         this.#playRegion = playRegion;
-        this.#actorStatus = DomUtils.requireChild(this.root, "[data-actor-name]", HTMLSpanElement);
-        this.#actorCardCount = DomUtils.requireChild(this.root, "[data-item-count]", HTMLSpanElement);
-        this.#handElement = DomUtils.requireChild(this.root, "#actor-hand > .playing-card-area", HTMLSpanElement);
+        this.#playerStatus = DomUtils.requireChild(this.root, "[data-player-name]", HTMLSpanElement);
+        this.#playerCardCount = DomUtils.requireChild(this.root, "[data-item-count]", HTMLSpanElement);
+        this.#handElement = DomUtils.requireChild(this.root, "#player-hand > .playing-card-area", HTMLSpanElement);
         this.#drawButton = DomUtils.requireChild(this.root, "#draw-button", HTMLButtonElement);
         this.#drawAllowanceOutput = DomUtils.requireChild(this.root, "[data-draw-allowance]", HTMLSpanElement);
         const idleSecondsOutput = this.root.querySelector("[data-idle-seconds]");
@@ -107,14 +107,14 @@ export class LocalActorController extends ViewController {
     }
 
     /**
-     * Sets the callback invoked for local-actor commands.
+     * Sets the callback invoked for local-player commands.
      *
      * @param {Function} handler - Command callback.
      * @throws {Error} When required markup, callback, or input data violates the controller contract.
      */
     setCommandHandler(handler) {
         if (typeof handler !== "function") {
-            throw new Error("Local actor command handler must be a function.");
+            throw new Error("Local player command handler must be a function.");
         }
 
         this.#commandHandler = handler;
@@ -128,14 +128,14 @@ export class LocalActorController extends ViewController {
      */
     setSortHandler(handler) {
         if (typeof handler !== "function") {
-            throw new Error("Local actor sort handler must be a function.");
+            throw new Error("Local player sort handler must be a function.");
         }
 
         this.#sortHandler = handler;
     }
 
     /**
-     * Initializes local-actor event bindings.
+     * Initializes local-player event bindings.
      */
     initialize() {
         this.#bindCommandButton(this.#drawButton, Constants.COMMANDS.DRAW);
@@ -151,42 +151,42 @@ export class LocalActorController extends ViewController {
     }
 
     /**
-     * Shows and updates the actor area.
+     * Shows and updates the player area.
      *
-     * @param {Object} actor - Actor data.
+     * @param {Object} player - Player data.
      * @param {Object} room - Room data.
      * @param {string} sortKey - Selected sort key.
      * @throws {Error} When required markup, callback, or input data violates the controller contract.
      */
-    show(actor, room, sortKey) {
-        this.#playRegion.dataset.hasLocalActor = "true";
-        this.#renderRootState(actor);
-        this.#renderHeader(actor);
-        this.#renderControls(actor, room, sortKey);
-        this.#renderCards(actor, room, sortKey);
+    show(player, room, sortKey) {
+        this.#playRegion.dataset.hasLocalPlayer = "true";
+        this.#renderRootState(player);
+        this.#renderHeader(player);
+        this.#renderControls(player, room, sortKey);
+        this.#renderCards(player, room, sortKey);
     }
 
     /**
-     * Clears and hides the actor area.
+     * Clears and hides the player area.
      */
     hide() {
         this.#clear();
-        this.#playRegion.dataset.hasLocalActor = "false";
+        this.#playRegion.dataset.hasLocalPlayer = "false";
     }
 
     /**
-     * Clears local-actor UI state.
+     * Clears local-player UI state.
      */
     #clear() {
-        this.root.dataset.actorState = Constants.ACTOR_STATE.READY;
-        this.#actorStatus.dataset.actorName = "";
-        this.#actorCardCount.dataset.itemCount = "0";
+        this.root.dataset.playerState = Constants.PLAYER_STATE.READY;
+        this.#playerStatus.dataset.playerName = "";
+        this.#playerCardCount.dataset.itemCount = "0";
         this.#drawAllowanceOutput.dataset.drawAllowance = "0";
         this.#handElement.replaceChildren();
     }
 
     /**
-     * Binds one button to one local-actor command.
+     * Binds one button to one local-player command.
      *
      * @param {HTMLButtonElement} button - Button element.
      * @param {string} command - Room command.
@@ -202,7 +202,7 @@ export class LocalActorController extends ViewController {
     }
 
     /**
-     * Submits a local-actor command.
+     * Submits a local-player command.
      *
      * @param {string} command - Room command.
      */
@@ -222,30 +222,30 @@ export class LocalActorController extends ViewController {
     }
 
     /**
-     * Renders turn ownership and final actor state on the local-area root.
-     * @param {Object} actor - Local actor snapshot.
+     * Renders turn ownership and final player state on the local-area root.
+     * @param {Object} player - Local player snapshot.
      */
-    #renderRootState(actor) {
-        this.root.dataset.actorState = actor.state;
+    #renderRootState(player) {
+        this.root.dataset.playerState = player.state;
     }
 
     /**
-     * Renders the canonical local actor identity and item count.
-     * @param {Object} actor - Local actor snapshot.
+     * Renders the canonical local player identity and item count.
+     * @param {Object} player - Local player snapshot.
      */
-    #renderHeader(actor) {
-        this.#actorStatus.dataset.actorName = actor.name ?? "";
-        this.#actorCardCount.dataset.itemCount = String(actor.collection.items.length);
+    #renderHeader(player) {
+        this.#playerStatus.dataset.playerName = player.name ?? "";
+        this.#playerCardCount.dataset.itemCount = String(player.collection.items.length);
     }
 
     /**
      * Renders draw allowance, sort selection, and the Play action label.
-     * @param {Object} actor - Local actor snapshot.
+     * @param {Object} player - Local player snapshot.
      * @param {Object} room - Authoritative room snapshot.
      * @param {string} sortKey - Selected hand sort order.
      */
-    #renderControls(actor, room, sortKey) {
-        this.#drawAllowanceOutput.dataset.drawAllowance = String(actor.drawAllowance);
+    #renderControls(player, room, sortKey) {
+        this.#drawAllowanceOutput.dataset.drawAllowance = String(player.drawAllowance);
         this.#sortControl.value = sortKey;
         this.#playButton.dataset.mode = room.match.nextMatchAvailable === true
             ? Constants.PLAY_BUTTON_MODE.NEXT_MATCH
@@ -255,17 +255,17 @@ export class LocalActorController extends ViewController {
 
     /**
      * Renders the sorted local collection and enables dragging only when discarding is legal.
-     * @param {Object} actor - Local actor snapshot.
+     * @param {Object} player - Local player snapshot.
      * @param {Object} room - Authoritative room snapshot.
      * @param {string} sortKey - Selected hand sort order.
      */
-    #renderCards(actor, room, sortKey) {
-        const orderedCards = new CardCollection(actor.collection.items).sorted(sortKey);
+    #renderCards(player, room, sortKey) {
+        const orderedCards = new CardCollection(player.collection.items).sorted(sortKey);
         const ownerKey = room.match.turnOrder?.ownerKey ?? null;
         const allowsFreeTransactions = room.match.state === Constants.ROOM_STATE.WAITING
             || (room.match.state === Constants.ROOM_STATE.FINISHED && !room.match.isKnockout);
         const canDiscard = room.match.pending === null && (allowsFreeTransactions
-            || (room.match.state === Constants.ROOM_STATE.ACTIVE && (!ownerKey || ownerKey === actor.key)));
+            || (room.match.state === Constants.ROOM_STATE.ACTIVE && (!ownerKey || ownerKey === player.key)));
         const destination = canDiscard ? DomUtils.require("#table-play-area > [data-is-drag-over]", HTMLElement) : null;
 
         CardListUtils.update(this.#handElement, orderedCards.reverse(), destination);

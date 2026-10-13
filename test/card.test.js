@@ -63,7 +63,7 @@ test("card-domain constants expose immutable canonical collections", () => {
     assert.equal(Object.isFrozen(Constants.CARD.STANDARD_VALUES), true);
 });
 
-test("default game configuration exposes three bot actor-limit levels", () => {
+test("default game configuration exposes three bot player-limit levels", () => {
     assert.deepEqual(
         Constants.DEFAULT_ROOMS.map((room) => room.botCount),
         [3, 2, 1]
@@ -96,7 +96,7 @@ test("the Game API uses one-word commands", () => {
 
 test("direct opponent names are centralized and immutable", () => {
     assert.equal(Object.isFrozen(Constants.DIRECT_OPPONENT_NAMES), true);
-    assert.equal(Constants.DIRECT_OPPONENT_NAMES.length, Constants.ROOM_ACTOR_LIMIT - 1);
+    assert.equal(Constants.DIRECT_OPPONENT_NAMES.length, Constants.ROOM_PLAYER_LIMIT - 1);
     assert.equal(
         Constants.DIRECT_OPPONENT_NAMES.every((name) => typeof name === "string" && name.trim().length > 0),
         true
@@ -159,7 +159,7 @@ test("emoji constants provide a reusable silly group", () => {
     assert.equal(Object.isFrozen(Constants.EMOJIS.silly.values), true);
 });
 
-test("actor inactivity timeout is a positive whole-second duration", () => {
+test("player inactivity timeout is a positive whole-second duration", () => {
     assert.equal(Constants.ROOM_WAIT_MS, 30_000);
     assert.equal(Constants.ROOM_WAIT_MS > 0, true);
     assert.equal(Constants.ROOM_WAIT_MS % 1_000, 0);
@@ -194,7 +194,7 @@ test("draw penalties only accept a sufficient draw card or ace of spades", () =>
     assert.equal(new Card(VALUE.TWO.id, SUIT.CLUBS).isLegalOn(joker, null, 4), false);
 });
 
-test("special card effects vary by actor count", () => {
+test("special card effects vary by player count", () => {
     assert.equal(new Card(VALUE.SEVEN.id, SUIT.HEARTS).isMatchEndingCard(), true);
     assert.equal(new Card(VALUE.EIGHT.id, SUIT.CLUBS).isSkip(4), true);
     assert.equal(new Card(VALUE.JACK.id, SUIT.CLUBS).isSkip(2), true);

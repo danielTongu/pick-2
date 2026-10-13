@@ -36,9 +36,9 @@
                                     <th scope="col">Room</th>
                                     <th scope="col">Status</th>
                                     <th scope="col">Knockout</th>
-                                    <th scope="col">Actors</th>
+                                    <th scope="col">Players</th>
                                     <th scope="col">Viewers</th>
-                                    <th scope="col">Actor limit</th>
+                                    <th scope="col">Player limit</th>
                                     <th scope="col">Last active</th>
                                     <th scope="col">Created</th>
                                 </tr>
@@ -63,24 +63,24 @@
                         <button id="room-invite-button" type="button" hidden>Invite</button>
                     </nav>
                 </header>
-                <article id="game-region" data-has-local-actor="false" aria-label="Room table" data-connection-mode="direct" data-match-state="waiting">
-                    <ul id="actors-list" aria-label="Other actors"></ul>
+                <article id="game-region" data-has-local-player="false" aria-label="Room table" data-connection-mode="direct" data-match-state="waiting">
+                    <ul id="players-list" aria-label="Other players"></ul>
                     <div id="table-play-area">
                         <span class="playing-card-area" data-is-drag-over="false" aria-label="Discard pile"></span>
                     </div>
-                    <div class="actor-region" id="local-actor-region" aria-label="Your play area" data-actor-state="ready">
-                        <header id="actor-summary" aria-live="polite" aria-atomic="true">
-                            <span data-actor-name="" id="actor-status"></span>
+                    <div class="player-region" id="local-player-region" aria-label="Your play area" data-player-state="ready">
+                        <header id="player-summary" aria-live="polite" aria-atomic="true">
+                            <span data-player-name="" id="player-status"></span>
                             <span data-item-count="0"></span>
                         </header>
-                        <section id="actor-hand">
+                        <section id="player-hand">
                             <button id="draw-button" type="button" aria-label="Draw card">
                                 <span data-draw-allowance="0"></span>
                             </button>
                             <span class="playing-card-area"></span>
                         </section>
-                        <aside id="actor-idle-warning">You may be removed after <em data-idle-seconds="30">seconds</em> of inactivity.</aside>
-                        <footer id="actor-commands" role="group">
+                        <aside id="player-idle-warning">You may be removed after <em data-idle-seconds="30">seconds</em> of inactivity.</aside>
+                        <footer id="player-commands" role="group">
                             <label id="sort-control">
                                 <span>Sort</span>
                                 <select id="sort-key-select"></select>
@@ -312,11 +312,11 @@
                     <section id="play-dialog-description">
                         <button id="play-one-button" class="play-choice" type="button">
                             <span class="play-choice-title">One match</span>
-                            <span class="play-choice-description">Play one match. The actor or actors with the lowest penalty win.</span>
+                            <span class="play-choice-description">Play one match. The player or players with the lowest penalty win.</span>
                         </button>
                         <button id="play-knockout-button" class="play-choice" type="button">
                             <span class="play-choice-title">Knockout</span>
-                            <span class="play-choice-description">Play a series of matches. After each match, the actor or actors with the highest penalty are eliminated. The next match starts automatically, or a qualified actor can start it sooner. The final two actors play one match to decide the winner; a tie remains a tie.</span>
+                            <span class="play-choice-description">Play a series of matches. After each match, the player or players with the highest penalty are eliminated. The next match starts automatically, or a qualified player can start it sooner. The final two players play one match to decide the winner; a tie remains a tie.</span>
                         </button>
                     </section>
                     <footer>
@@ -361,19 +361,19 @@
                     <section id="message-output">
                         <p id="results-context">Statistics for this game</p>
                         <div id="stats-panel">
-                            <table id="actor-stats-table">
+                            <table id="player-stats-table">
                                 <thead>
                                     <tr>
-                                        <th scope="col">Actor</th>
+                                        <th scope="col">Player</th>
                                         <th scope="col">Penalty</th>
                                         <th scope="col">Items</th>
                                         <th scope="col">Status</th>
                                     </tr>
                                 </thead>
-                                <tbody id="actor-stats-body"></tbody>
+                                <tbody id="player-stats-body"></tbody>
                             </table>
                         </div>
-                        <div id="selected-actor-items" class="playing-card-area"></div>
+                        <div id="selected-player-items" class="playing-card-area"></div>
                     </section>
                     <button id="results-dismiss-button">dismiss</button>
                 </div>

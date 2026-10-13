@@ -4,14 +4,14 @@ import test from "node:test";
 import { Constants } from "../core/Constants.js";
 import { ValidationUtils } from "../core/ValidationUtils.js";
 
-test("final knockout results open once despite later actor roster updates", () => {
+test("final knockout results open once despite later player roster updates", () => {
     const source = readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8");
     const start = source.indexOf("    render(room) {");
     const end = source.indexOf("    /**", start);
     const method = source.slice(start, end).replaceAll("#", "_");
     const region = { dataset: {} };
     const Controller = new Function("Constants", "ValidationUtils", "DomUtils", "HTMLElement", `return class RoomController {
-        static _getLocalActor(room) { return room.match.turnOrder.actors.find(actor => actor.name === room.localActorName) ?? null; }
+        static _getLocalPlayer(room) { return room.match.turnOrder.players.find(player => player.name === room.localPlayerName) ?? null; }
         ${method}
     }`)(Constants, ValidationUtils, { require() { return region; } }, class {});
     const controller = new Controller();
@@ -22,16 +22,16 @@ test("final knockout results open once despite later actor roster updates", () =
     controller._resultsController = { show(room) { shown.push(room); }, hide() { hidden++; } };
     controller._suitController = { show() {}, hide() {} };
     controller._countdownController = { show() {} };
-    for (const name of ["_renderRoom", "_renderActors", "_renderDiscardPile", "_renderLocalActor"]) controller[name] = () => {};
+    for (const name of ["_renderRoom", "_renderPlayers", "_renderDiscardPile", "_renderLocalPlayer"]) controller[name] = () => {};
     const finalists = {
-        localActorName: "Alice", connectionMode: "direct",
+        localPlayerName: "Alice", connectionMode: "direct",
         match: { state: "finished", pending: null, isKnockout: true, isKnockoutComplete: true,
-            turnOrder: { actors: [{ key: "alice", name: "Alice", state: "won" }, { key: "bob", name: "Bob", state: "lost" }] } }
+            turnOrder: { players: [{ key: "alice", name: "Alice", state: "won" }, { key: "bob", name: "Bob", state: "lost" }] } }
     };
     controller.render(finalists);
     assert.deepEqual(shown, [finalists]);
     const reseated = structuredClone(finalists);
-    reseated.match.turnOrder.actors.push({ key: "bot", name: "Bot", state: "ready" });
+    reseated.match.turnOrder.players.push({ key: "bot", name: "Bot", state: "ready" });
     controller.render(reseated);
     controller.render(reseated);
     assert.equal(shown.length, 1);

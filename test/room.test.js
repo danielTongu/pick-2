@@ -6,43 +6,43 @@ import test from "node:test";
 import { Card } from "../core/Card.js";
 import { Constants } from "../core/Constants.js";
 import { Host } from "../host/Host.js";
-import { Actor } from "../core/Actor.js";
-import { BotActor } from "../core/BotActor.js";
+import { Player } from "../core/Player.js";
+import { BotPlayer } from "../core/BotPlayer.js";
 import { TurnOrder } from "../core/TurnOrder.js";
 import { Room } from "../core/Room.js";
 import { StateMapper } from "../core/StateMapper.js";
 
 function stopIdleMonitoring(room) {
-    for (const actor of room.match.turnOrder.actors.values()) {
-        actor.stopIdleMonitoring();
+    for (const player of room.match.turnOrder.players.values()) {
+        player.stopIdleMonitoring();
     }
 }
 
 test("room perform dispatches card commands through the serialized actions", async (t) => {
     const room = new Room("Command Gateway", 2);
     t.after(() => stopIdleMonitoring(room));
-    await room.joinActor("Alice");
-    await room.joinActor("Bob");
+    await room.joinPlayer("Alice");
+    await room.joinPlayer("Bob");
     const drawn = await room.perform(Constants.COMMANDS.DRAW, "Alice");
     assert.equal(drawn.length, 1);
     await assert.rejects(room.perform("unknown", "Alice"), /Unknown match command/);
 });
 
-async function createPlayingSession(t, actorNames = ["Alice", "Bob", "Casey"]) {
-    const room = new Room(`Rules ${Math.floor(Math.random() * 1000000)}`, actorNames.length);
+async function createPlayingSession(t, playerNames = ["Alice", "Bob", "Casey"]) {
+    const room = new Room(`Rules ${Math.floor(Math.random() * 1000000)}`, playerNames.length);
     t.after(() => stopIdleMonitoring(room));
 
-    for (const name of actorNames) {
-        await room.joinActor(name);
+    for (const name of playerNames) {
+        await room.joinPlayer(name);
     }
 
     room.match.state = Constants.ROOM_STATE.ACTIVE;
-    room.match.turnOrder.setOwner(actorNames[0]);
+    room.match.turnOrder.setOwner(playerNames[0]);
     room.match.collections.play.items = [new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS)];
 
-    for (const actor of room.match.turnOrder.actors.values()) {
-        actor.collection.clear();
-        actor.drawAllowance = 1;
+    for (const player of room.match.turnOrder.players.values()) {
+        player.collection.clear();
+        player.drawAllowance = 1;
     }
 
     return room;
@@ -66,60 +66,60 @@ test("a completed match resumes waiting without resetting its cards", async (t) 
     const room = new Room("Completed Game", 2);
 
     t.after(() => stopIdleMonitoring(room));
-    await room.joinActor("Alice");
-    await room.joinActor("Bob");
+    await room.joinPlayer("Alice");
+    await room.joinPlayer("Bob");
     await room.startMatch();
     const collections = JSON.stringify(room.match.collections);
-    const hands = JSON.stringify(Array.from(room.match.turnOrder.actors.values(), function mapHand(actor) {
-        return actor.collection;
+    const hands = JSON.stringify(Array.from(room.match.turnOrder.players.values(), function mapHand(player) {
+        return player.collection;
     }));
     room.match.state = Constants.ROOM_STATE.FINISHED;
 
     assert.equal(await room.resumeWaiting(), undefined);
     assert.equal(room.match.state, Constants.ROOM_STATE.WAITING);
     assert.equal(room.match.turnOrder.ownerKey, null);
-    assert.equal(room.match.turnOrder.actors.size, 2);
+    assert.equal(room.match.turnOrder.players.size, 2);
     assert.equal(JSON.stringify(room.match.collections), collections);
     assert.equal(
-        JSON.stringify(Array.from(room.match.turnOrder.actors.values(), function mapHand(actor) {
-            return actor.collection;
+        JSON.stringify(Array.from(room.match.turnOrder.players.values(), function mapHand(player) {
+            return player.collection;
         })),
         hands
     );
 });
 
-test("game membership enforces uniqueness and actor limit", async (t) => {
+test("game membership enforces uniqueness and player limit", async (t) => {
     const room = new Room("Test Game", 2);
     t.after(() => stopIdleMonitoring(room));
 
-    await room.joinActor("Alice");
-    await room.joinActor("Bob");
+    await room.joinPlayer("Alice");
+    await room.joinPlayer("Bob");
 
     assert.equal(room.isFull(), true);
-    assert.equal(room.hasActor("alice"), true);
-    await assert.rejects(room.joinActor("Casey"), /Room is full/);
+    assert.equal(room.hasPlayer("alice"), true);
+    await assert.rejects(room.joinPlayer("Casey"), /Room is full/);
 });
 
-test("a viewer can join the room as an actor", async (t) => {
+test("a viewer can join the room as a player", async (t) => {
     const room = new Room("Viewed Game", 2);
     t.after(() => stopIdleMonitoring(room));
 
     room.view("tab-1");
     assert.equal(room.viewers.has("tab-1"), true);
-    const actor = await room.joinActor("Alice", false, "tab-1");
+    const player = await room.joinPlayer("Alice", false, "tab-1");
 
-    assert.equal(actor.name, "Alice");
+    assert.equal(player.name, "Alice");
     assert.equal(room.viewers.has("tab-1"), false);
-    assert.equal(room.hasActor("Alice"), true);
-    await assert.rejects(room.joinActor("Bob", false, "missing"), /Viewer not found/);
+    assert.equal(room.hasPlayer("Alice"), true);
+    await assert.rejects(room.joinPlayer("Bob", false, "missing"), /Viewer not found/);
 });
 
-test("actor activity belongs to the actor and room, not the turnOrder", async (t) => {
+test("player activity belongs to the player and room, not the turnOrder", async (t) => {
     const room = new Room("Activity Game", 2);
     t.after(() => stopIdleMonitoring(room));
 
-    const alice = await room.joinActor("Alice");
-    await room.joinActor("Bob");
+    const alice = await room.joinPlayer("Alice");
+    await room.joinPlayer("Bob");
     room.match.state = Constants.ROOM_STATE.ACTIVE;
     room.match.turnOrder.setOwner(alice.key);
     alice.collection.add(new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS));
@@ -133,7 +133,7 @@ test("actor activity belongs to the actor and room, not the turnOrder", async (t
     assert.equal(Object.hasOwn(room.match.turnOrder.toJSON(), "createdAt"), false);
 });
 
-test("rooms support viewing, idle-actor removal, and leaving", async (t) => {
+test("rooms support viewing, idle-player removal, and leaving", async (t) => {
     const room = new Room("Transitions", 3);
     t.after(() => stopIdleMonitoring(room));
 
@@ -146,64 +146,64 @@ test("rooms support viewing, idle-actor removal, and leaving", async (t) => {
     room.leaveViewer("viewer-1");
     assert.equal(room.viewers.size, 0);
 
-    const alice = await room.joinActor("Alice");
+    const alice = await room.joinPlayer("Alice");
     alice.collection.add(new Card(Constants.CARD.VALUE.THREE.id, Constants.CARD.SUIT.CLUBS));
-    assert.equal((await room.moveActorToView("Alice", "alice-tab")).name, "Alice");
+    assert.equal((await room.movePlayerToView("Alice", "alice-tab")).name, "Alice");
     assert.equal(room.viewers.has("alice-tab"), true);
-    assert.equal(room.hasActor("Alice"), false);
-    await assert.rejects(room.moveActorToView("missing", "tab"), /Actor does not exist/);
+    assert.equal(room.hasPlayer("Alice"), false);
+    await assert.rejects(room.movePlayerToView("missing", "tab"), /Player does not exist/);
 
-    await room.joinActor("Bob");
-    assert.equal((await room.removeActor("Bob")).name, "Bob");
-    await assert.rejects(room.removeActor("Bob"), /Actor does not exist/);
+    await room.joinPlayer("Bob");
+    assert.equal((await room.removePlayer("Bob")).name, "Bob");
+    await assert.rejects(room.removePlayer("Bob"), /Player does not exist/);
     assert.equal(room.isEmpty(), true);
 });
 
-test("actors and viewers can leave while a room is active", async (t) => {
+test("players and viewers can leave while a room is active", async (t) => {
     const room = await createPlayingSession(t);
 
     room.view("active-viewer");
     assert.equal(room.viewers.has("active-viewer"), true);
-    assert.equal((await room.removeActor("Alice")).name, "Alice");
+    assert.equal((await room.removePlayer("Alice")).name, "Alice");
     room.leaveViewer("active-viewer");
     assert.equal(room.viewers.has("active-viewer"), false);
     assert.equal(room.match.state, Constants.ROOM_STATE.ACTIVE);
-    assert.equal(room.hasActor("Alice"), false);
+    assert.equal(room.hasPlayer("Alice"), false);
     assert.equal(room.viewers.has("active-viewer"), false);
 });
 
-test("room data uses one actor shape and localActorName identifies the local actor", async (t) => {
+test("room data uses one player shape and localPlayerName identifies the local player", async (t) => {
     const room = new Room("Data Game", 2);
     t.after(() => stopIdleMonitoring(room));
 
-    await room.joinActor("Alice");
-    await room.joinActor("Bob");
+    await room.joinPlayer("Alice");
+    await room.joinPlayer("Bob");
 
     const localPayload = StateMapper.toRoomData(room, "Alice");
     const viewerPayload = StateMapper.toRoomData(room, null);
     const expectedKeys = ["collection", "drawAllowance", "key", "name", "state"];
 
-    assert.equal(localPayload.localActorName, "Alice");
-    assert.equal(viewerPayload.localActorName, null);
+    assert.equal(localPayload.localPlayerName, "Alice");
+    assert.equal(viewerPayload.localPlayerName, null);
     assert.equal(localPayload.match.turnOrder.ownerKey, null);
-    assert.deepEqual(Object.keys(localPayload.match.turnOrder.actors[0]).sort(), expectedKeys);
-    assert.deepEqual(Object.keys(localPayload.match.turnOrder.actors[1]).sort(), expectedKeys);
+    assert.deepEqual(Object.keys(localPayload.match.turnOrder.players[0]).sort(), expectedKeys);
+    assert.deepEqual(Object.keys(localPayload.match.turnOrder.players[1]).sort(), expectedKeys);
 });
 
-test("a room requires two actors", async (t) => {
+test("a room requires two players", async (t) => {
     const room = new Room("Small Game", 2);
     t.after(() => stopIdleMonitoring(room));
 
-    await room.joinActor("Alice");
-    await assert.rejects(room.startMatch(), /Need at least two actors/);
+    await room.joinPlayer("Alice");
+    await assert.rejects(room.startMatch(), /Need at least two players/);
 });
 
-test("waiting rooms have no turn owner and allow every actor to draw or discard", async (t) => {
+test("waiting rooms have no turn owner and allow every player to draw or discard", async (t) => {
     const room = new Room("Waiting Game", 2);
     t.after(() => stopIdleMonitoring(room));
 
-    const alice = await room.joinActor("Alice");
-    const bob = await room.joinActor("Bob");
+    const alice = await room.joinPlayer("Alice");
+    const bob = await room.joinPlayer("Bob");
     alice.collection.add({ value: "5", suit: "clubs" });
     bob.collection.add({ value: "k", suit: "hearts" });
 
@@ -220,8 +220,8 @@ test("waiting rooms have no turn owner and allow every actor to draw or discard"
     assert.equal(alice.drawAllowance, 1);
     assert.equal(bob.drawAllowance, 1);
     assert.equal(room.match.declaredSuit, null);
-    assert.equal([...room.match.turnOrder.actors.values()].some(function won(actor) {
-        return actor.state === Constants.ACTOR_STATE.WON;
+    assert.equal([...room.match.turnOrder.players.values()].some(function won(player) {
+        return player.state === Constants.PLAYER_STATE.WON;
     }), false);
     assert.equal(room.match.getTopItem().id, "k-hearts");
 
@@ -256,8 +256,8 @@ test("starting a match deals seven cards and selects an ordinary discard", async
     const room = new Room("Started Game", 2);
     t.after(() => stopIdleMonitoring(room));
 
-    await room.joinActor("Alice");
-    await room.joinActor("Bob");
+    await room.joinPlayer("Alice");
+    await room.joinPlayer("Bob");
     assert.deepEqual(await room.startMatch(), []);
 
     assert.equal(room.match.state, Constants.ROOM_STATE.ACTIVE);
@@ -266,14 +266,14 @@ test("starting a match deals seven cards and selects an ordinary discard", async
     assert.equal(room.match.turnOrder.owner === null, false);
     assert.equal(room.match.turnOrder.ownerKey, room.match.turnOrder.requireOwner().key);
 
-    for (const actor of room.match.turnOrder.actors.values()) {
-        assert.equal(actor.collection.items.length, Constants.INITIAL_ITEM_COUNT);
+    for (const player of room.match.turnOrder.players.values()) {
+        assert.equal(player.collection.items.length, Constants.INITIAL_ITEM_COUNT);
     }
 
     assert.equal(room.match.collections.draw.items.length, 39);
 });
 
-test("the next actor command resumes a finished room before its waiting transaction", async (t) => {
+test("the next player command resumes a finished room before its waiting transaction", async (t) => {
     const room = await createPlayingSession(t, ["Alice", "Bob"]);
     const host = new Host("direct", 0, false);
     t.after(() => host.shutdown());
@@ -284,7 +284,7 @@ test("the next actor command resumes a finished room before its waiting transact
     bob.collection.addMany([new Card("4", "diamonds", 0), new Card("6", "hearts", 0)]);
     room.match.state = Constants.ROOM_STATE.FINISHED;
 
-    const finishedHands = [alice, bob].map((actor) => actor.collection.items.map((card) => card.id));
+    const finishedHands = [alice, bob].map((player) => player.collection.items.map((card) => card.id));
 
     await host.executeMatchCommand(room, "Alice", Constants.COMMANDS.DRAW, { sortKey: "none" });
 
@@ -307,12 +307,12 @@ test("only the turn owner can act and passing advances the turn", async (t) => {
     const room = new Room("Turn Game", 2);
     t.after(() => stopIdleMonitoring(room));
 
-    await room.joinActor("Alice");
-    await room.joinActor("Bob");
+    await room.joinPlayer("Alice");
+    await room.joinPlayer("Bob");
     await room.startMatch();
 
     const current = room.match.turnOrder.owner;
-    const other = [...room.match.turnOrder.actors.values()].find((actor) => actor.key !== current.key);
+    const other = [...room.match.turnOrder.players.values()].find((player) => player.key !== current.key);
     const initialCount = current.collection.items.length;
 
     await assert.rejects(room.passTurn(other.name), /Not your turn/);
@@ -336,7 +336,7 @@ test("drawing consumes allowances and rejects additional draws", async (t) => {
 
     room.match.turnOrder.setOwner("Alice");
     await assert.rejects(room.drawItems("Alice"), /No draw allowance remaining/);
-    await assert.rejects(room.drawItems("Missing"), /Actor does not exist/);
+    await assert.rejects(room.drawItems("Missing"), /Player does not exist/);
 });
 
 test("drawing recycles every discard except the top card exactly once", async (t) => {
@@ -361,9 +361,9 @@ test("drawing recycles every discard except the top card exactly once", async (t
 
 test("special discards apply skip, reverse, draw, suit, and room-ending effects", async (t) => {
     const scenarios = [
-        { value: Constants.CARD.VALUE.EIGHT.id, expectedActor: "Casey", expectedAllowance: 1 },
-        { value: Constants.CARD.VALUE.JACK.id, expectedActor: "Casey", expectedAllowance: 1 },
-        { value: Constants.CARD.VALUE.TWO.id, expectedActor: "Bob", expectedAllowance: 2 }
+        { value: Constants.CARD.VALUE.EIGHT.id, expectedPlayer: "Casey", expectedAllowance: 1 },
+        { value: Constants.CARD.VALUE.JACK.id, expectedPlayer: "Casey", expectedAllowance: 1 },
+        { value: Constants.CARD.VALUE.TWO.id, expectedPlayer: "Bob", expectedAllowance: 2 }
     ];
 
     for (const scenario of scenarios) {
@@ -376,7 +376,7 @@ test("special discards apply skip, reverse, draw, suit, and room-ending effects"
 
         await room.playItem("Alice", scenario.value, Constants.CARD.SUIT.HEARTS);
 
-        assert.equal(room.match.turnOrder.owner.name, scenario.expectedActor);
+        assert.equal(room.match.turnOrder.owner.name, scenario.expectedPlayer);
         assert.equal(room.match.turnOrder.owner.drawAllowance, scenario.expectedAllowance);
     }
 
@@ -391,7 +391,7 @@ test("special discards apply skip, reverse, draw, suit, and room-ending effects"
     assert.equal(suitSession.match.state, Constants.ROOM_STATE.ACTIVE);
     assert.deepEqual(suitSession.match.pending, {
         command: Constants.COMMANDS.DECLARE,
-        actorKey: "alice"
+        playerKey: "alice"
     });
     assert.equal(await suitSession.declareSuit(Constants.CARD.SUIT.CLUBS), undefined);
     assert.equal(suitSession.match.declaredSuit, Constants.CARD.SUIT.CLUBS);
@@ -406,11 +406,11 @@ test("special discards apply skip, reverse, draw, suit, and room-ending effects"
         .collection.add(new Card(Constants.CARD.VALUE.KING.id, Constants.CARD.SUIT.CLUBS));
     await finishSession.playItem("Alice", Constants.CARD.VALUE.SEVEN.id, Constants.CARD.SUIT.HEARTS);
     assert.equal(finishSession.match.state, Constants.ROOM_STATE.FINISHED);
-    assert.equal(finishSession.match.turnOrder.get("Alice").state, Constants.ACTOR_STATE.WON);
+    assert.equal(finishSession.match.turnOrder.get("Alice").state, Constants.PLAYER_STATE.WON);
     assert.equal(finishSession.match.turnOrder.get("Bob").collection.penalty, 13);
 });
 
-test("game input validation rejects invalid actor limit and suit", async (t) => {
+test("game input validation rejects invalid player limit and suit", async (t) => {
     assert.throws(() => new Room("Invalid", 1), /Limit must be between/);
     assert.throws(() => Room.normalizeSuit("purple"), /Invalid suit/);
 
@@ -419,12 +419,12 @@ test("game input validation rejects invalid actor limit and suit", async (t) => 
     await assert.rejects(room.declareSuit("hearts"), /No suit pending declaration/);
 });
 
-test("a room commits the selected card order when the actor moves", async (t) => {
+test("a room commits the selected card order when the player moves", async (t) => {
     const room = new Room("Sort Game", 2);
     t.after(() => stopIdleMonitoring(room));
 
-    const actor = await room.joinActor("Alice");
-    actor.collection.addMany([
+    const player = await room.joinPlayer("Alice");
+    player.collection.addMany([
         { value: "k", suit: "clubs" },
         { value: "3", suit: "hearts" },
         { value: "8", suit: "spades" }
@@ -432,11 +432,11 @@ test("a room commits the selected card order when the actor moves", async (t) =>
 
     await room.passTurn("Alice", "rank");
 
-    assert.deepEqual(actor.collection.items.map(String), ["3-hearts", "8-spades", "k-clubs"]);
+    assert.deepEqual(player.collection.items.map(String), ["3-hearts", "8-spades", "k-clubs"]);
 });
 
 test("AI preserves the ace of spades when no draw attack is active", async (t) => {
-    const ai = new BotActor("Bot");
+    const ai = new BotPlayer("Bot");
     const originalSetTimeout = globalThis.setTimeout;
     let isCardDrawn = false;
     let isCardDiscarded = false;
@@ -477,8 +477,8 @@ test("AI preserves the ace of spades when no draw attack is active", async (t) =
 });
 
 test("AI preserves an ace when another legal card is available", async (t) => {
-    const ai = new BotActor("Bot");
-    const opponent = new Actor("Alice", { drawAllowance: 1 });
+    const ai = new BotPlayer("Bot");
+    const opponent = new Player("Alice", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     const discardedCardIds = [];
@@ -504,7 +504,7 @@ test("AI preserves an ace when another legal card is available", async (t) => {
         declaredSuit: null,
         getTopItem: () => new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS),
         drawItems: async () => {},
-        playItem: async (actorName, value, suit) => {
+        playItem: async (playerName, value, suit) => {
             discardedCardIds.push(new Card(value, suit).id);
         }
     };
@@ -521,8 +521,8 @@ test("AI preserves an ace when another legal card is available", async (t) => {
 });
 
 test("hard-mode AI uses its ace of spades against draw two", async (t) => {
-    const ai = new BotActor("Bot");
-    const nextActor = new Actor("Alice", { drawAllowance: 1 });
+    const ai = new BotPlayer("Bot");
+    const nextPlayer = new Player("Alice", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     let isCardDrawn = false;
@@ -538,9 +538,9 @@ test("hard-mode AI uses its ace of spades against draw two", async (t) => {
 
     ai.collection.add(new Card(Constants.CARD.VALUE.ACE.id, Constants.CARD.SUIT.SPADES));
     ai.drawAllowance = 2;
-    nextActor.collection.add(new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.CLUBS));
+    nextPlayer.collection.add(new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.CLUBS));
     turnOrder.add(ai);
-    turnOrder.add(nextActor);
+    turnOrder.add(nextPlayer);
     turnOrder.setOwner(ai.name);
 
     const room = {
@@ -562,9 +562,9 @@ test("hard-mode AI uses its ace of spades against draw two", async (t) => {
     assert.equal(isCardDiscarded, true);
 });
 
-test("hard-mode AI avoids matching the next actor's final card", async (t) => {
-    const ai = new BotActor("Bot");
-    const nextActor = new Actor("Alice", { drawAllowance: 1 });
+test("hard-mode AI avoids matching the next player's final card", async (t) => {
+    const ai = new BotPlayer("Bot");
+    const nextPlayer = new Player("Alice", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     let discardedCard = null;
@@ -581,15 +581,15 @@ test("hard-mode AI avoids matching the next actor's final card", async (t) => {
         new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.CLUBS),
         new Card(Constants.CARD.VALUE.THREE.id, Constants.CARD.SUIT.HEARTS)
     ]);
-    nextActor.collection.add(new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.DIAMONDS));
-    Object.defineProperty(nextActor.collection, "penalty", {
+    nextPlayer.collection.add(new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.DIAMONDS));
+    Object.defineProperty(nextPlayer.collection, "penalty", {
         configurable: true,
         get() {
             throw new Error("AI inspected a hidden opponent penalty.");
         }
     });
     turnOrder.add(ai);
-    turnOrder.add(nextActor);
+    turnOrder.add(nextPlayer);
     turnOrder.setOwner(ai.name);
 
     const room = {
@@ -597,7 +597,7 @@ test("hard-mode AI avoids matching the next actor's final card", async (t) => {
         declaredSuit: null,
         getTopItem: () => new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS),
         drawItems: async () => {},
-        playItem: async (actorName, value, suit) => {
+        playItem: async (playerName, value, suit) => {
             discardedCard = new Card(value, suit);
         }
     };
@@ -609,8 +609,8 @@ test("hard-mode AI avoids matching the next actor's final card", async (t) => {
 });
 
 test("hard-mode AI sheds more penalty when neither choice matches the final opponent card", async (t) => {
-    const ai = new BotActor("Bot");
-    const nextActor = new Actor("Alice", { drawAllowance: 1 });
+    const ai = new BotPlayer("Bot");
+    const nextPlayer = new Player("Alice", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     let discardedCard = null;
@@ -627,9 +627,9 @@ test("hard-mode AI sheds more penalty when neither choice matches the final oppo
         new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.CLUBS),
         new Card(Constants.CARD.VALUE.THREE.id, Constants.CARD.SUIT.HEARTS)
     ]);
-    nextActor.collection.add(new Card(Constants.CARD.VALUE.KING.id, Constants.CARD.SUIT.DIAMONDS));
+    nextPlayer.collection.add(new Card(Constants.CARD.VALUE.KING.id, Constants.CARD.SUIT.DIAMONDS));
     turnOrder.add(ai);
-    turnOrder.add(nextActor);
+    turnOrder.add(nextPlayer);
     turnOrder.setOwner(ai.name);
 
     const discardedHearts = [
@@ -661,7 +661,7 @@ test("hard-mode AI sheds more penalty when neither choice matches the final oppo
         },
         getTopItem: () => new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS),
         drawItems: async () => {},
-        playItem: async (actorName, value, suit) => {
+        playItem: async (playerName, value, suit) => {
             discardedCard = new Card(value, suit);
         }
     };
@@ -672,7 +672,7 @@ test("hard-mode AI sheds more penalty when neither choice matches the final oppo
     assert.equal(discardedCard.id, "5-clubs");
 });
 
-test("room remembers which actor made the latest gameplay discard", async (t) => {
+test("room remembers which player made the latest gameplay discard", async (t) => {
     const room = await createPlayingSession(t, ["Alice", "Bob"]);
     const alice = room.match.turnOrder.get("Alice");
 
@@ -682,16 +682,16 @@ test("room remembers which actor made the latest gameplay discard", async (t) =>
         new Card(Constants.CARD.VALUE.KING.id, Constants.CARD.SUIT.CLUBS)
     ]);
 
-    assert.equal(room.match.getLastDiscardActor(), null);
+    assert.equal(room.match.getLastDiscardPlayer(), null);
 
     await room.playItem(alice.name, Constants.CARD.VALUE.THREE.id, Constants.CARD.SUIT.DIAMONDS);
 
-    assert.equal(room.match.getLastDiscardActor(), alice);
+    assert.equal(room.match.getLastDiscardPlayer(), alice);
 });
 
 test("AI presses the suit after an opponent discards its lowest ordinary card", async (t) => {
-    const ai = new BotActor("Bot");
-    const previousActor = new Actor("Alice", { drawAllowance: 1 });
+    const ai = new BotPlayer("Bot");
+    const previousPlayer = new Player("Alice", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     let discardedCard = null;
@@ -708,21 +708,21 @@ test("AI presses the suit after an opponent discards its lowest ordinary card", 
         new Card(Constants.CARD.VALUE.TWO.id, Constants.CARD.SUIT.DIAMONDS),
         new Card(Constants.CARD.VALUE.THREE.id, Constants.CARD.SUIT.HEARTS)
     ]);
-    previousActor.collection.addMany([
+    previousPlayer.collection.addMany([
         new Card(Constants.CARD.VALUE.FOUR.id, Constants.CARD.SUIT.CLUBS),
         new Card(Constants.CARD.VALUE.SIX.id, Constants.CARD.SUIT.SPADES)
     ]);
     turnOrder.add(ai);
-    turnOrder.add(previousActor);
+    turnOrder.add(previousPlayer);
     turnOrder.setOwner(ai.name);
 
     const room = {
         turnOrder,
         declaredSuit: null,
-        getLastDiscardActor: () => previousActor,
+        getLastDiscardPlayer: () => previousPlayer,
         getTopItem: () => new Card(Constants.CARD.VALUE.THREE.id, Constants.CARD.SUIT.DIAMONDS),
         drawItems: async () => {},
-        playItem: async (actorName, value, suit) => {
+        playItem: async (playerName, value, suit) => {
             discardedCard = new Card(value, suit);
         }
     };
@@ -734,9 +734,9 @@ test("AI presses the suit after an opponent discards its lowest ordinary card", 
 });
 
 test("AI ignores a low-discard suit inference when that opponent will not act next", async (t) => {
-    const ai = new BotActor("Bot");
-    const projectedActor = new Actor("Alice", { drawAllowance: 1 });
-    const previousActor = new Actor("Casey", { drawAllowance: 1 });
+    const ai = new BotPlayer("Bot");
+    const projectedPlayer = new Player("Alice", { drawAllowance: 1 });
+    const previousPlayer = new Player("Casey", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     let discardedCard = null;
@@ -753,24 +753,24 @@ test("AI ignores a low-discard suit inference when that opponent will not act ne
         new Card(Constants.CARD.VALUE.TWO.id, Constants.CARD.SUIT.DIAMONDS),
         new Card(Constants.CARD.VALUE.THREE.id, Constants.CARD.SUIT.HEARTS)
     ]);
-    projectedActor.collection.addMany([
+    projectedPlayer.collection.addMany([
         new Card(Constants.CARD.VALUE.TWO.id, Constants.CARD.SUIT.CLUBS),
         new Card(Constants.CARD.VALUE.SIX.id, Constants.CARD.SUIT.SPADES),
         new Card(Constants.CARD.VALUE.NINE.id, Constants.CARD.SUIT.CLUBS),
         new Card(Constants.CARD.VALUE.QUEEN.id, Constants.CARD.SUIT.SPADES)
     ]);
     turnOrder.add(ai);
-    turnOrder.add(projectedActor);
-    turnOrder.add(previousActor);
+    turnOrder.add(projectedPlayer);
+    turnOrder.add(previousPlayer);
     turnOrder.setOwner(ai.name);
 
     const room = {
         turnOrder,
         declaredSuit: null,
-        getLastDiscardActor: () => previousActor,
+        getLastDiscardPlayer: () => previousPlayer,
         getTopItem: () => new Card(Constants.CARD.VALUE.THREE.id, Constants.CARD.SUIT.DIAMONDS),
         drawItems: async () => {},
-        playItem: async (actorName, value, suit) => {
+        playItem: async (playerName, value, suit) => {
             discardedCard = new Card(value, suit);
         }
     };
@@ -782,9 +782,9 @@ test("AI ignores a low-discard suit inference when that opponent will not act ne
 });
 
 test("AI uses a skip to bypass an immediate one-card opponent", async (t) => {
-    const ai = new BotActor("Bot");
-    const nextActor = new Actor("Alice", { drawAllowance: 1 });
-    const followingActor = new Actor("Casey", { drawAllowance: 1 });
+    const ai = new BotPlayer("Bot");
+    const nextPlayer = new Player("Alice", { drawAllowance: 1 });
+    const followingPlayer = new Player("Casey", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     let discardedCard = null;
@@ -801,14 +801,14 @@ test("AI uses a skip to bypass an immediate one-card opponent", async (t) => {
         new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.CLUBS),
         new Card(Constants.CARD.VALUE.EIGHT.id, Constants.CARD.SUIT.HEARTS)
     ]);
-    nextActor.collection.add(new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.DIAMONDS));
-    followingActor.collection.addMany([
+    nextPlayer.collection.add(new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.DIAMONDS));
+    followingPlayer.collection.addMany([
         new Card(Constants.CARD.VALUE.FOUR.id, Constants.CARD.SUIT.CLUBS),
         new Card(Constants.CARD.VALUE.SIX.id, Constants.CARD.SUIT.SPADES)
     ]);
     turnOrder.add(ai);
-    turnOrder.add(nextActor);
-    turnOrder.add(followingActor);
+    turnOrder.add(nextPlayer);
+    turnOrder.add(followingPlayer);
     turnOrder.setOwner(ai.name);
 
     const room = {
@@ -816,7 +816,7 @@ test("AI uses a skip to bypass an immediate one-card opponent", async (t) => {
         declaredSuit: null,
         getTopItem: () => new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS),
         drawItems: async () => {},
-        playItem: async (actorName, value, suit) => {
+        playItem: async (playerName, value, suit) => {
             discardedCard = new Card(value, suit);
         }
     };
@@ -827,9 +827,9 @@ test("AI uses a skip to bypass an immediate one-card opponent", async (t) => {
     assert.equal(discardedCard.id, "8-hearts");
 });
 
-test("AI uses a two-actor skip to prepare an immediate final discard", async (t) => {
-    const ai = new BotActor("Bot");
-    const opponent = new Actor("Alice", { drawAllowance: 1 });
+test("AI uses a two-player skip to prepare an immediate final discard", async (t) => {
+    const ai = new BotPlayer("Bot");
+    const opponent = new Player("Alice", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     let discardedCard = null;
@@ -860,7 +860,7 @@ test("AI uses a two-actor skip to prepare an immediate final discard", async (t)
         declaredSuit: null,
         getTopItem: () => new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.CLUBS),
         drawItems: async () => {},
-        playItem: async (actorName, value, suit) => {
+        playItem: async (playerName, value, suit) => {
             discardedCard = new Card(value, suit);
         }
     };
@@ -871,10 +871,10 @@ test("AI uses a two-actor skip to prepare an immediate final discard", async (t)
     assert.equal(discardedCard.id, "8-clubs");
 });
 
-test("AI uses the visible card count of the actor reached by a skip", async (t) => {
-    const ai = new BotActor("Bot");
-    const skippedActor = new Actor("Alice", { drawAllowance: 1 });
-    const projectedActor = new Actor("Casey", { drawAllowance: 1 });
+test("AI uses the visible card count of the player reached by a skip", async (t) => {
+    const ai = new BotPlayer("Bot");
+    const skippedPlayer = new Player("Alice", { drawAllowance: 1 });
+    const projectedPlayer = new Player("Casey", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     let discardedCard = null;
@@ -891,14 +891,14 @@ test("AI uses the visible card count of the actor reached by a skip", async (t) 
         new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.CLUBS),
         new Card(Constants.CARD.VALUE.EIGHT.id, Constants.CARD.SUIT.HEARTS)
     ]);
-    skippedActor.collection.addMany([
+    skippedPlayer.collection.addMany([
         new Card(Constants.CARD.VALUE.FOUR.id, Constants.CARD.SUIT.CLUBS),
         new Card(Constants.CARD.VALUE.SIX.id, Constants.CARD.SUIT.SPADES)
     ]);
-    projectedActor.collection.add(new Card(Constants.CARD.VALUE.EIGHT.id, Constants.CARD.SUIT.DIAMONDS));
+    projectedPlayer.collection.add(new Card(Constants.CARD.VALUE.EIGHT.id, Constants.CARD.SUIT.DIAMONDS));
     turnOrder.add(ai);
-    turnOrder.add(skippedActor);
-    turnOrder.add(projectedActor);
+    turnOrder.add(skippedPlayer);
+    turnOrder.add(projectedPlayer);
     turnOrder.setOwner(ai.name);
 
     const room = {
@@ -906,7 +906,7 @@ test("AI uses the visible card count of the actor reached by a skip", async (t) 
         declaredSuit: null,
         getTopItem: () => new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS),
         drawItems: async () => {},
-        playItem: async (actorName, value, suit) => {
+        playItem: async (playerName, value, suit) => {
             discardedCard = new Card(value, suit);
         }
     };
@@ -917,10 +917,10 @@ test("AI uses the visible card count of the actor reached by a skip", async (t) 
     assert.equal(discardedCard.id, "5-clubs");
 });
 
-test("AI uses the visible card count of the actor reached by a reverse", async (t) => {
-    const ai = new BotActor("Bot");
-    const nextActor = new Actor("Alice", { drawAllowance: 1 });
-    const reversedNextActor = new Actor("Casey", { drawAllowance: 1 });
+test("AI uses the visible card count of the player reached by a reverse", async (t) => {
+    const ai = new BotPlayer("Bot");
+    const nextPlayer = new Player("Alice", { drawAllowance: 1 });
+    const reversedNextPlayer = new Player("Casey", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     let discardedCard = null;
@@ -937,14 +937,14 @@ test("AI uses the visible card count of the actor reached by a reverse", async (
         new Card(Constants.CARD.VALUE.THREE.id, Constants.CARD.SUIT.HEARTS),
         new Card(Constants.CARD.VALUE.JACK.id, Constants.CARD.SUIT.HEARTS)
     ]);
-    nextActor.collection.addMany([
+    nextPlayer.collection.addMany([
         new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.DIAMONDS),
         new Card(Constants.CARD.VALUE.SIX.id, Constants.CARD.SUIT.CLUBS)
     ]);
-    reversedNextActor.collection.add(new Card(Constants.CARD.VALUE.JACK.id, Constants.CARD.SUIT.CLUBS));
+    reversedNextPlayer.collection.add(new Card(Constants.CARD.VALUE.JACK.id, Constants.CARD.SUIT.CLUBS));
     turnOrder.add(ai);
-    turnOrder.add(nextActor);
-    turnOrder.add(reversedNextActor);
+    turnOrder.add(nextPlayer);
+    turnOrder.add(reversedNextPlayer);
     turnOrder.setOwner(ai.name);
 
     const room = {
@@ -952,7 +952,7 @@ test("AI uses the visible card count of the actor reached by a reverse", async (
         declaredSuit: null,
         getTopItem: () => new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS),
         drawItems: async () => {},
-        playItem: async (actorName, value, suit) => {
+        playItem: async (playerName, value, suit) => {
             discardedCard = new Card(value, suit);
         }
     };
@@ -964,8 +964,8 @@ test("AI uses the visible card count of the actor reached by a reverse", async (
 });
 
 test("AI uses a suit-changing ace to take control against a visible one-card threat", async (t) => {
-    const ai = new BotActor("Bot");
-    const nextActor = new Actor("Alice", { drawAllowance: 1 });
+    const ai = new BotPlayer("Bot");
+    const nextPlayer = new Player("Alice", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     let discardedCard = null;
@@ -982,9 +982,9 @@ test("AI uses a suit-changing ace to take control against a visible one-card thr
         new Card(Constants.CARD.VALUE.ACE.id, Constants.CARD.SUIT.HEARTS),
         new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.CLUBS)
     ]);
-    nextActor.collection.add(new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.DIAMONDS));
+    nextPlayer.collection.add(new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.DIAMONDS));
     turnOrder.add(ai);
-    turnOrder.add(nextActor);
+    turnOrder.add(nextPlayer);
     turnOrder.setOwner(ai.name);
 
     const room = {
@@ -992,7 +992,7 @@ test("AI uses a suit-changing ace to take control against a visible one-card thr
         declaredSuit: null,
         getTopItem: () => new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS),
         drawItems: async () => {},
-        playItem: async (actorName, value, suit) => {
+        playItem: async (playerName, value, suit) => {
             discardedCard = new Card(value, suit);
         }
     };
@@ -1004,8 +1004,8 @@ test("AI uses a suit-changing ace to take control against a visible one-card thr
 });
 
 test("AI breaks equal suit strength toward the scarcest publicly unseen suit", async (t) => {
-    const ai = new BotActor("Bot");
-    const opponent = new Actor("Alice", { drawAllowance: 1 });
+    const ai = new BotPlayer("Bot");
+    const opponent = new Player("Alice", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     let declaredSuit = null;
@@ -1060,8 +1060,8 @@ test("AI breaks equal suit strength toward the scarcest publicly unseen suit", a
 });
 
 test("AI forces a visible one-card opponent to draw when legally possible", async (t) => {
-    const ai = new BotActor("Bot");
-    const nextActor = new Actor("Alice", { drawAllowance: 1 });
+    const ai = new BotPlayer("Bot");
+    const nextPlayer = new Player("Alice", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     let discardedCard = null;
@@ -1078,9 +1078,9 @@ test("AI forces a visible one-card opponent to draw when legally possible", asyn
         new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.CLUBS),
         new Card(Constants.CARD.VALUE.TWO.id, Constants.CARD.SUIT.HEARTS)
     ]);
-    nextActor.collection.add(new Card(Constants.CARD.VALUE.KING.id, Constants.CARD.SUIT.DIAMONDS));
+    nextPlayer.collection.add(new Card(Constants.CARD.VALUE.KING.id, Constants.CARD.SUIT.DIAMONDS));
     turnOrder.add(ai);
-    turnOrder.add(nextActor);
+    turnOrder.add(nextPlayer);
     turnOrder.setOwner(ai.name);
 
     const room = {
@@ -1088,7 +1088,7 @@ test("AI forces a visible one-card opponent to draw when legally possible", asyn
         declaredSuit: null,
         getTopItem: () => new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS),
         drawItems: async () => {},
-        playItem: async (actorName, value, suit) => {
+        playItem: async (playerName, value, suit) => {
             discardedCard = new Card(value, suit);
         }
     };
@@ -1100,8 +1100,8 @@ test("AI forces a visible one-card opponent to draw when legally possible", asyn
 });
 
 test("AI starts pressuring an opponent before they reach one card", async (t) => {
-    const ai = new BotActor("Bot");
-    const nextActor = new Actor("Alice", { drawAllowance: 1 });
+    const ai = new BotPlayer("Bot");
+    const nextPlayer = new Player("Alice", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     let discardedCard = null;
@@ -1118,12 +1118,12 @@ test("AI starts pressuring an opponent before they reach one card", async (t) =>
         new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.CLUBS),
         new Card(Constants.CARD.VALUE.TWO.id, Constants.CARD.SUIT.HEARTS)
     ]);
-    nextActor.collection.addMany([
+    nextPlayer.collection.addMany([
         new Card(Constants.CARD.VALUE.KING.id, Constants.CARD.SUIT.DIAMONDS),
         new Card(Constants.CARD.VALUE.QUEEN.id, Constants.CARD.SUIT.SPADES)
     ]);
     turnOrder.add(ai);
-    turnOrder.add(nextActor);
+    turnOrder.add(nextPlayer);
     turnOrder.setOwner(ai.name);
 
     const room = {
@@ -1144,7 +1144,7 @@ test("AI starts pressuring an opponent before they reach one card", async (t) =>
         },
         getTopItem: () => new Card(Constants.CARD.VALUE.FIVE.id, Constants.CARD.SUIT.HEARTS),
         drawItems: async () => {},
-        playItem: async (actorName, value, suit) => {
+        playItem: async (playerName, value, suit) => {
             discardedCard = new Card(value, suit);
         }
     };
@@ -1156,9 +1156,9 @@ test("AI starts pressuring an opponent before they reach one card", async (t) =>
 });
 
 test("hard-mode AI releases seven of hearts only when remaining penalties are favorable", async (t) => {
-    const ai = new BotActor("Bot");
-    const opponent = new Actor("Alice", { drawAllowance: 1 });
-    const otherOpponent = new Actor("Casey", { drawAllowance: 1 });
+    const ai = new BotPlayer("Bot");
+    const opponent = new Player("Alice", { drawAllowance: 1 });
+    const otherOpponent = new Player("Casey", { drawAllowance: 1 });
     const turnOrder = new TurnOrder();
     const originalSetTimeout = globalThis.setTimeout;
     const discardedCardIds = [];
@@ -1206,7 +1206,7 @@ test("hard-mode AI releases seven of hearts only when remaining penalties are fa
         drawItems: async () => {
             drawCount += 1;
         },
-        playItem: async (actorName, value, suit) => {
+        playItem: async (playerName, value, suit) => {
             discardedCardIds.push(new Card(value, suit).id);
         }
     };

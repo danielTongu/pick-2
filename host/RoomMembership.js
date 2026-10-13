@@ -6,25 +6,25 @@ export class RoomMembership {
      * @param {string} tabId - Browser-tab identity.
      * @param {import("./HostConnection.js").HostConnection} connection - Connected Host connection.
      * @param {string} roomKey - Normalized room key.
-     * @param {string|null} actorName - Seated actor or null.
+     * @param {string|null} playerName - Seated player or null.
      * @returns {RoomMembership}
      */
-    constructor(tabId, connection, roomKey, actorName) {
+    constructor(tabId, connection, roomKey, playerName) {
         this.tabId = tabId;
         this.connection = connection;
         this.roomKey = roomKey;
-        this.actorName = actorName;
+        this.playerName = playerName;
     }
 
     /**
-     * @param {string} actorName - Seated actor name.
+     * @param {string} playerName - Seated player name.
      */
-    join(actorName) {
-        this.actorName = actorName;
+    join(playerName) {
+        this.playerName = playerName;
     }
 
-    /** Demotes a seated actor to a viewer. */
+    /** Demotes a seated player to a viewer. */
     view() {
-        this.actorName = null;
+        this.playerName = null;
     }
 }

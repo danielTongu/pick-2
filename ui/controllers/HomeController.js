@@ -2,7 +2,7 @@
 
 import { Constants } from "../../core/Constants.js";
 import { ValidationUtils } from "../../core/ValidationUtils.js";
-import { Actor } from "../../core/Actor.js";
+import { Player } from "../../core/Player.js";
 import { AlertController } from "./AlertController.js";
 import { DomUtils } from "../utilities/DomUtils.js";
 import { NotificationUtils } from "../utilities/NotificationUtils.js";
@@ -86,7 +86,7 @@ export class HomeController extends ViewController {
     /**
      * @type {HTMLInputElement} Required user-input control owned by this controller.
      */
-    #actorNameInput;
+    #playerNameInput;
 
     /**
      * @type {HTMLInputElement} Required user-input control owned by this controller.
@@ -96,7 +96,7 @@ export class HomeController extends ViewController {
     /**
      * @type {HTMLInputElement} Required user-input control owned by this controller.
      */
-    #actorLimitInput;
+    #playerLimitInput;
 
     /**
      * @type {HTMLElement} Required UI element owned by this controller.
@@ -117,9 +117,9 @@ export class HomeController extends ViewController {
     constructor() {
         super("#home-view");
         this.#roomTableBody = DomUtils.require("#list-table-body", HTMLTableSectionElement);
-        this.#actorNameInput = DomUtils.require("#actor-name-input", HTMLInputElement);
+        this.#playerNameInput = DomUtils.require("#player-name-input", HTMLInputElement);
         this.#roomNameInput = DomUtils.require("#room-name-input", HTMLInputElement);
-        this.#actorLimitInput = DomUtils.require("#actor-limit-input", HTMLInputElement);
+        this.#playerLimitInput = DomUtils.require("#player-limit-input", HTMLInputElement);
         this.#connectionStatus = DomUtils.require("#app-header > aside[data-status]", HTMLElement);
         this.#directModeInput = DomUtils.require("#direct-mode-input", HTMLInputElement);
         this.#hostedModeInput = DomUtils.require("#hosted-mode-input", HTMLInputElement);
@@ -298,14 +298,14 @@ export class HomeController extends ViewController {
 
     /** Submits create or join room intent. */
     #submitRegistration() {
-        let actorName;
+        let playerName;
         let roomName;
 
         try {
-            actorName = ValidationUtils.namedString(
-                this.#actorNameInput.value,
-                "Actor name",
-                ValidationUtils.actorNameMaxLength
+            playerName = ValidationUtils.namedString(
+                this.#playerNameInput.value,
+                "Player name",
+                ValidationUtils.playerNameMaxLength
             );
             roomName = ValidationUtils.namedString(
                 this.#roomNameInput.value,
@@ -346,8 +346,8 @@ export class HomeController extends ViewController {
 
         const data = {
             roomName,
-            actorName,
-            actorLimit: Number(this.#actorLimitInput.value || Constants.ROOM_ACTOR_LIMIT)
+            playerName,
+            playerLimit: Number(this.#playerLimitInput.value || Constants.ROOM_PLAYER_LIMIT)
         };
 
         this.#roomHandler?.(command, data);
@@ -358,11 +358,11 @@ export class HomeController extends ViewController {
      * @returns {boolean} Whether the latest directory contains the room name.
      */
     #isRoomListed(roomName) {
-        const roomKey = Actor.normalizeKey(roomName);
+        const roomKey = Player.normalizeKey(roomName);
         const rooms = Array.isArray(this.#home?.rooms) ? this.#home.rooms : [];
 
         for (const room of rooms) {
-            if (typeof room?.name === "string" && Actor.normalizeKey(room.name) === roomKey) {
+            if (typeof room?.name === "string" && Player.normalizeKey(room.name) === roomKey) {
                 return true;
             }
         }

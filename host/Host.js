@@ -6,8 +6,8 @@ import {UserNotification} from "../core/UserNotification.js";
 
 import {Constants} from "../core/Constants.js";
 import {ValidationUtils} from "../core/ValidationUtils.js";
-import {Actor} from "../core/Actor.js";
-import {BotActor} from "../core/BotActor.js";
+import {Player} from "../core/Player.js";
+import {BotPlayer} from "../core/BotPlayer.js";
 import {Knockout} from "../core/Room.js";
 import {Room} from "../core/Room.js";
 import {StateMapper} from "../core/StateMapper.js";
@@ -38,14 +38,14 @@ export class RequestThrottle {
     }
 
     /**
-     * Enforces throttle for an actor.
+     * Enforces throttle for a player.
      *
      * @param {string} tabId - Browser tab id.
      * @param {string} eventType - Event type.
      * @param {number} windowMs - Minimum interval.
      */
-    enforceActorThrottle(tabId, eventType, windowMs) {
-        this.#enforce(`actor:${ValidationUtils.requiredString(tabId, "tabId")}:${eventType}`, windowMs);
+    enforcePlayerThrottle(tabId, eventType, windowMs) {
+        this.#enforce(`player:${ValidationUtils.requiredString(tabId, "tabId")}:${eventType}`, windowMs);
     }
 
     /**
@@ -125,15 +125,15 @@ export class RequestThrottle {
  * Transport-neutral host for Pick 2 rooms.
  *
  * Host owns room registration, connections, viewers, notifications, and lifecycle
- * orchestration; each Room owns actors and match rules.
+ * orchestration; each Room owns players and match rules.
  */
 export class Host {
-    /** Per-command actor and room throttles for card actions. */
+    /** Per-command player and room throttles for card actions. */
     static COMMAND_LIMITS = Object.freeze({
-        draw: Object.freeze({actor: 400, room: 100}),
-        discard: Object.freeze({actor: 250, room: 100}),
-        pass: Object.freeze({actor: 250, room: 100}),
-        declare: Object.freeze({actor: 250, room: 100})
+        draw: Object.freeze({player: 400, room: 100}),
+        discard: Object.freeze({player: 250, room: 100}),
+        pass: Object.freeze({player: 250, room: 100}),
+        declare: Object.freeze({player: 250, room: 100})
     });
     // -------------------------------------------------------------------------
     // State
@@ -155,7 +155,7 @@ export class Host {
     /** @type {RoomLifecycle} Pending sidelined-bot returns. */
     #botReturns = new RoomLifecycle();
 
-    /** @type {Set<string>} Rooms currently converting eliminated actors. */
+    /** @type {Set<string>} Rooms currently converting eliminated players. */
     #settlingKnockout = new Set();
 
     /**
@@ -174,7 +174,7 @@ export class Host {
     #profile;
 
     /**
-     * @type {Promise<void>} Initialization barrier for default rooms and bot actors.
+     * @type {Promise<void>} Initialization barrier for default rooms and bot players.
      */
     #ready;
 
@@ -183,7 +183,7 @@ export class Host {
      *
      * @param {string} mode - Runtime mode.
      * @param {string|number} customBots - Custom-Room bot policy.
-     * @param {boolean} trackIdle - Whether to monitor idle Actors.
+     * @param {boolean} trackIdle - Whether to monitor idle Players.
      */
     constructor(mode, customBots, trackIdle) {
         this.#profile = Host.#normalizeProfile(mode, customBots, trackIdle);
@@ -215,11 +215,11 @@ export class Host {
     }
 
     /**
-     * @param {Room} room - Room whose Actors should no longer be monitored.
+     * @param {Room} room - Room whose Players should no longer be monitored.
      */
     static #stopIdleMonitoring(room) {
-        for (const actor of room.match.turnOrder.actors.values()) {
-            actor.stopIdleMonitoring();
+        for (const player of room.match.turnOrder.players.values()) {
+            player.stopIdleMonitoring();
         }
     }
 
@@ -255,32 +255,32 @@ export class Host {
         this.#requestThrottle.prune(5 * 60 * 1000);
     }
 
-    /** Creates configured Rooms and their initial bot actors. */
+    /** Creates configured Rooms and their initial bot players. */
     async #initializeRooms() {
         for (const roomConfig of Constants.DEFAULT_ROOMS) {
-            const roomKey = Actor.normalizeKey(roomConfig.roomName);
-            const room = this.#registerRoom(roomConfig.roomName, roomConfig.actorLimit, roomKey);
+            const roomKey = Player.normalizeKey(roomConfig.roomName);
+            const room = this.#registerRoom(roomConfig.roomName, roomConfig.playerLimit, roomKey);
 
-            await this.#addBotActors(room, roomConfig.botCount, null);
+            await this.#addBotPlayers(room, roomConfig.botCount, null);
         }
     }
 
     /**
-     * Adds a fixed number of bot actors through the shared Room admission API.
+     * Adds a fixed number of bot players through the shared Room admission API.
      *
      * @param {Room} room - Room receiving the Bots.
      * @param {number} count - Maximum number of Bots to add.
      * @param {string|null} humanName - Human name that Bot names must not duplicate.
      */
-    async #addBotActors(room, count, humanName) {
+    async #addBotPlayers(room, count, humanName) {
         let index = 0;
 
         while (index < count && !room.isFull()) {
             const baseName = Constants.DIRECT_OPPONENT_NAMES[index] ?? `Bot ${index + 1}`;
-            const botName = humanName !== null && Actor.normalizeKey(baseName) === Actor.normalizeKey(humanName)
+            const botName = humanName !== null && Player.normalizeKey(baseName) === Player.normalizeKey(humanName)
                 ? `${baseName} Bot` : baseName;
-            if (!room.hasActor(botName)) {
-                await room.joinActor(botName, true);
+            if (!room.hasPlayer(botName)) {
+                await room.joinPlayer(botName, true);
             }
 
             index += 1;
@@ -291,23 +291,23 @@ export class Host {
      * Creates and registers a room.
      *
      * @param {string} roomName - Room name.
-     * @param {number} actorLimit - Maximum seated actor count.
+     * @param {number} playerLimit - Maximum seated player count.
      * @param {string} roomKey - Normalized room lookup key.
      * @returns {Room} Registered room.
      */
-    #registerRoom(roomName, actorLimit, roomKey) {
-        const room = this.createRoom(roomName, actorLimit);
+    #registerRoom(roomName, playerLimit, roomKey) {
+        const room = this.createRoom(roomName, playerLimit);
 
         room.onAnyChange = this.#handleRoomChange.bind(this, roomKey, room);
-        room.onActorIdle = this.#profile.trackIdle ? this.#moveIdleActorToView.bind(this, roomKey) : null;
+        room.onPlayerIdle = this.#profile.trackIdle ? this.#moveIdlePlayerToView.bind(this, roomKey) : null;
 
         this.#roomsByKey.set(roomKey, room);
         return room;
     }
 
     /** Constructs the Room used by this Host. */
-    createRoom(name, actorLimit) {
-        return new Room(name, actorLimit);
+    createRoom(name, playerLimit) {
+        return new Room(name, playerLimit);
     }
 
     /**
@@ -331,7 +331,7 @@ export class Host {
      */
     #clearRoomCallbacks(room) {
         room.onAnyChange = null;
-        room.onActorIdle = null;
+        room.onPlayerIdle = null;
     }
 
     /**
@@ -362,7 +362,7 @@ export class Host {
         if (room !== null) {
             for (const membership of this.#connections.inRoom(roomKey)) {
                 if (membership.connection.isOpen) {
-                    this.#publishRoomState(membership.connection, room, this.#resolveMembershipActorName(room, membership));
+                    this.#publishRoomState(membership.connection, room, this.#resolveMembershipPlayerName(room, membership));
                 }
             }
 
@@ -370,20 +370,20 @@ export class Host {
     }
 
     /**
-     * Resolves a membership's actor name against current room membership.
+     * Resolves a membership's player name against current room membership.
      *
      * @param {Room} room - Room instance.
      * @param {import("./RoomMembership.js").RoomMembership} membership - Room membership.
-     * @returns {string|null} Valid actor name or null.
+     * @returns {string|null} Valid player name or null.
      */
-    #resolveMembershipActorName(room, membership) {
-        let actorName = null;
+    #resolveMembershipPlayerName(room, membership) {
+        let playerName = null;
 
-        if (membership.actorName !== null && room.hasActor(membership.actorName)) {
-            actorName = membership.actorName;
+        if (membership.playerName !== null && room.hasPlayer(membership.playerName)) {
+            playerName = membership.playerName;
         }
 
-        return actorName;
+        return playerName;
     }
 
     /**
@@ -391,17 +391,17 @@ export class Host {
      *
      * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
      * @param {Room} room - Room instance.
-     * @param {string|null} actorName - Room actor name.
+     * @param {string|null} playerName - Room player name.
      * @param {Object|null} message - Optional notification sent with the state.
      */
-    #publishRoomState(connection, room, actorName, message = null) {
+    #publishRoomState(connection, room, playerName, message = null) {
         this.#publish(
             connection,
             StateMapper.toResponse(
                 Constants.VIEWS.ROOM,
                 message,
                 Object.freeze({
-                    ...StateMapper.toRoomData(room, actorName),
+                    ...StateMapper.toRoomData(room, playerName),
                     ...this.#getConnectionData(),
                     isBusy: false
                 })
@@ -468,9 +468,9 @@ export class Host {
      * @param {string} tabId - Tab ID.
      * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
      * @param {string} roomKey - Normalized room lookup key.
-     * @param {string|null} actorName - Actor name.
+     * @param {string|null} playerName - Player name.
      */
-    #registerMembership(tabId, connection, roomKey, actorName) {
+    #registerMembership(tabId, connection, roomKey, playerName) {
         const existingMembership = this.#connections.get(tabId);
 
         if (existingMembership !== null && existingMembership.connection !== connection) {
@@ -478,7 +478,7 @@ export class Host {
             void this.#disconnect(existingMembership.connection);
         }
 
-        this.#connections.register(tabId, connection, roomKey, actorName);
+        this.#connections.register(tabId, connection, roomKey, playerName);
     }
 
     /**
@@ -492,26 +492,26 @@ export class Host {
     #unregisterMembership(tabId, connection) {
         this.#connections.unregister(tabId, connection);
 
-        this.#requestThrottle.reset(`actor:${tabId}`);
+        this.#requestThrottle.reset(`player:${tabId}`);
         this.#requestThrottle.reset(`connection:${tabId}`);
 
     }
 
     /**
-     * Moves an idle actor back to viewing state.
+     * Moves an idle player back to viewing state.
      *
      * @param {string} roomKey - Normalized room lookup key.
-     * @param {string} actorName - Idle actor name.
+     * @param {string} playerName - Idle player name.
      * @returns {Promise<void>}
      */
-    async #moveIdleActorToView(roomKey, actorName) {
+    async #moveIdlePlayerToView(roomKey, playerName) {
         const room = this.#roomsByKey.get(roomKey) ?? null;
-        const membership = this.#connections.findActor(roomKey, actorName);
+        const membership = this.#connections.findPlayer(roomKey, playerName);
 
         if (room !== null && membership !== null) {
-            const removedActor = await room.moveActorToView(actorName, membership.tabId);
+            const removedPlayer = await room.movePlayerToView(playerName, membership.tabId);
 
-            if (removedActor !== null) {
+            if (removedPlayer !== null) {
                 if (this.#connections.isCurrent(membership)) {
                     membership.view();
 
@@ -548,12 +548,12 @@ export class Host {
      * @returns {Promise<void>}
      */
     async #removeMembership(membership, room) {
-        const actorName = membership.actorName;
+        const playerName = membership.playerName;
 
         this.#unregisterMembership(membership.tabId, membership.connection);
 
-        if (actorName !== null) {
-            await room.removeActor(actorName);
+        if (playerName !== null) {
+            await room.removePlayer(playerName);
         } else {
             room.leaveViewer(membership.tabId);
         }
@@ -561,46 +561,46 @@ export class Host {
     }
 
     /**
-     * Continues the room or closes the room if no actors remain.
+     * Continues the room or closes the room if no players remain.
      *
      * @param {string} roomKey - Normalized room lookup key.
      * @returns {Promise<void>}
      */
     async #continueOrCloseRoom(roomKey) {
         await this.#afterRoomAction(roomKey);
-        this.#closeRoomIfNoActorsRemain(roomKey);
+        this.#closeRoomIfNoPlayersRemain(roomKey);
         if (!this.#roomsByKey.has(roomKey)) return;
         await this.#advanceRoom(roomKey);
     }
 
     /**
-     * Closes a room when no actors remain.
+     * Closes a room when no players remain.
      *
      * @param {string} roomKey - Normalized room lookup key.
      */
-    #closeRoomIfNoActorsRemain(roomKey) {
+    #closeRoomIfNoPlayersRemain(roomKey) {
         if (this.#isRoomEmpty(roomKey) && !this.#roomLifecycle.hasPending(roomKey)) {
             this.#closeRoom(roomKey);
         }
     }
 
     /**
-     * Schedules a second empty-room check after the idle-actor notification
+     * Schedules a second empty-room check after the idle-player notification
      * grace period when the room is currently empty.
      *
      * @param {string} roomKey - Normalized room lookup key.
      */
     #scheduleRoomClosureIfEmpty(roomKey) {
         if (this.#isRoomEmpty(roomKey)) {
-            this.#roomLifecycle.schedule(roomKey, Constants.ROOM_WAIT_MS, this.#closeRoomIfNoActorsRemain.bind(this));
+            this.#roomLifecycle.schedule(roomKey, Constants.ROOM_WAIT_MS, this.#closeRoomIfNoPlayersRemain.bind(this));
         }
     }
 
     /**
-     * Checks whether a registered room currently has no actors.
+     * Checks whether a registered room currently has no players.
      *
      * @param {string} roomKey - Normalized room lookup key.
-     * @returns {boolean} True when the room exists and has no actors.
+     * @returns {boolean} True when the room exists and has no players.
      */
     #isRoomEmpty(roomKey) {
         const room = this.#roomsByKey.get(roomKey) ?? null;
@@ -786,11 +786,11 @@ export class Host {
         const {connection, tabId} = context;
         const {data} = context.request;
         const roomName = ValidationUtils.requiredString(data.roomName, "Room name");
-        const actorName = ValidationUtils.requiredString(data.actorName, "Actor name");
-        const roomKey = Actor.normalizeKey(roomName);
-        const actorLimit = this.#normalizeActorLimit(data.actorLimit);
+        const playerName = ValidationUtils.requiredString(data.playerName, "Player name");
+        const roomKey = Player.normalizeKey(roomName);
+        const playerLimit = this.#normalizePlayerLimit(data.playerLimit);
 
-        this.#requestThrottle.enforceActorThrottle(tabId, Constants.COMMANDS.CREATE, 500);
+        this.#requestThrottle.enforcePlayerThrottle(tabId, Constants.COMMANDS.CREATE, 500);
 
         if (this.#connections.has(tabId)) {
             throw new UserNotification("Leave the current room before creating another room.");
@@ -800,17 +800,17 @@ export class Host {
             throw new UserNotification(`Room already exists: ${roomName}`);
         }
 
-        const room = this.#registerRoom(roomName, actorLimit, roomKey);
+        const room = this.#registerRoom(roomName, playerLimit, roomKey);
         try {
-            const actor = await room.joinActor(actorName, false);
-            const botCount = this.#profile.customBots === "fill" ? actorLimit - 1 : 0;
+            const player = await room.joinPlayer(playerName, false);
+            const botCount = this.#profile.customBots === "fill" ? playerLimit - 1 : 0;
 
-            await this.#addBotActors(room, botCount, actor.name);
-            this.#registerMembership(tabId, connection, roomKey, actor.name);
-            this.#publishRoomState(connection, room, actor.name);
+            await this.#addBotPlayers(room, botCount, player.name);
+            this.#registerMembership(tabId, connection, roomKey, player.name);
+            this.#publishRoomState(connection, room, player.name);
             this.#publishNotification(connection, Constants.STATUS.INFO,
-                `${Constants.NOTIFICATIONS.ACTOR_WELCOME.title}, ${actor.name}!`,
-                Constants.NOTIFICATIONS.ACTOR_WELCOME.message);
+                `${Constants.NOTIFICATIONS.PLAYER_WELCOME.title}, ${player.name}!`,
+                Constants.NOTIFICATIONS.PLAYER_WELCOME.message);
             this.#broadcastHomeState(this.#createHomeState());
         } catch (error) {
             this.#clearRoomCallbacks(room);
@@ -820,15 +820,15 @@ export class Host {
     }
 
     /**
-     * Normalizes a requested actor limit, falling back to the configured maximum.
+     * Normalizes a requested player limit, falling back to the configured maximum.
      *
-     * @param {*} value - Untrusted actor-limit value from a command payload.
-     * @returns {number} Requested integer actor limit or the configured default.
+     * @param {*} value - Untrusted player-limit value from a command payload.
+     * @returns {number} Requested integer player limit or the configured default.
      */
-    #normalizeActorLimit(value) {
-        const parsedActorLimit = Number(value || Constants.ROOM_ACTOR_LIMIT);
+    #normalizePlayerLimit(value) {
+        const parsedPlayerLimit = Number(value || Constants.ROOM_PLAYER_LIMIT);
 
-        return Number.isInteger(parsedActorLimit) ? parsedActorLimit : Constants.ROOM_ACTOR_LIMIT;
+        return Number.isInteger(parsedPlayerLimit) ? parsedPlayerLimit : Constants.ROOM_PLAYER_LIMIT;
     }
 
     /**
@@ -852,7 +852,7 @@ export class Host {
             const welcome = Constants.NOTIFICATIONS.VIEWER_WELCOME;
             this.#publishNotification(connection, Constants.STATUS.INFO, welcome.title, welcome.message);
         } else {
-            this.#publishRoomState(connection, room, this.#resolveMembershipActorName(room, context.membership));
+            this.#publishRoomState(connection, room, this.#resolveMembershipPlayerName(room, context.membership));
         }
     }
 
@@ -864,32 +864,32 @@ export class Host {
         this.#requireRoomContext(context, 500);
         const {connection, tabId, roomKey, room} = context;
         const {data} = context.request;
-        const actorName = ValidationUtils.requiredString(data.actorName, "Actor name");
+        const playerName = ValidationUtils.requiredString(data.playerName, "Player name");
 
-        this.#assertActorNameAvailable(room, actorName);
+        this.#assertPlayerNameAvailable(room, playerName);
 
         if (context.membership !== null && context.membership.roomKey !== roomKey) {
             throw new UserNotification("Leave the current room before joining another room.");
         }
 
-        if (context.membership !== null && context.membership.actorName !== null) {
+        if (context.membership !== null && context.membership.playerName !== null) {
             throw new UserNotification("You already joined this room.");
         }
 
-        const actor = await room.joinActor(actorName, false, context.membership === null ? null : tabId);
+        const player = await room.joinPlayer(playerName, false, context.membership === null ? null : tabId);
 
         if (context.membership === null) {
-            this.#registerMembership(tabId, connection, roomKey, actor.name);
+            this.#registerMembership(tabId, connection, roomKey, player.name);
         }
 
         const currentMembership = this.#connections.get(tabId);
 
         if (currentMembership !== null && currentMembership.connection === connection && currentMembership.roomKey === roomKey) {
-            currentMembership.join(actor.name);
-            this.#publishRoomState(connection, room, actor.name);
+            currentMembership.join(player.name);
+            this.#publishRoomState(connection, room, player.name);
             this.#publishNotification(connection, Constants.STATUS.INFO,
-                `${Constants.NOTIFICATIONS.ACTOR_WELCOME.title}, ${actor.name}!`,
-                Constants.NOTIFICATIONS.ACTOR_WELCOME.message);
+                `${Constants.NOTIFICATIONS.PLAYER_WELCOME.title}, ${player.name}!`,
+                Constants.NOTIFICATIONS.PLAYER_WELCOME.message);
         }
     }
 
@@ -897,14 +897,14 @@ export class Host {
      * Resolves the shared context for viewing or joining a room.
      *
      * @param {HostRequestContext} context - Command being resolved.
-     * @param {number} throttleMs - Actor throttle window.
+     * @param {number} throttleMs - Player throttle window.
      */
     #requireRoomContext(context, throttleMs) {
         context.identifyTab();
         this.#requireDataRoom(context);
         context.attachMembership(this.#connections.get(context.tabId));
 
-        this.#requestThrottle.enforceActorThrottle(context.tabId, context.request.command, throttleMs);
+        this.#requestThrottle.enforcePlayerThrottle(context.tabId, context.request.command, throttleMs);
 
         if (context.membership !== null && context.membership.connection !== context.connection) {
             throw new UserNotification("Your connection expired. Rejoin the room.");
@@ -918,20 +918,20 @@ export class Host {
      */
     #requireDataRoom(context) {
         const roomName = ValidationUtils.requiredString(context.request.data.roomName, "Room name");
-        const roomKey = Actor.normalizeKey(roomName);
+        const roomKey = Player.normalizeKey(roomName);
 
         context.attachRoom(roomKey, this.#requireRoomByKey(roomKey));
     }
 
     /**
-     * Rejects an actor display name already seated in the target room.
+     * Rejects a player display name already seated in the target room.
      *
      * @param {Room} room - Target room.
-     * @param {string} actorName - Requested actor display name.
+     * @param {string} playerName - Requested player display name.
      */
-    #assertActorNameAvailable(room, actorName) {
-        if (room.hasActor(actorName)) {
-            throw new UserNotification(`Actor already exists: ${actorName}`);
+    #assertPlayerNameAvailable(room, playerName) {
+        if (room.hasPlayer(playerName)) {
+            throw new UserNotification(`Player already exists: ${playerName}`);
         }
     }
 
@@ -971,45 +971,45 @@ export class Host {
      * Authenticates a room membership and applies its tab-scoped command throttle.
      *
      * @param {HostRequestContext} context - Command being authenticated.
-     * @param {number} throttleMs - Actor throttle window.
+     * @param {number} throttleMs - Player throttle window.
      */
     #requireThrottledClient(context, throttleMs) {
         this.#requireClient(context);
-        this.#requestThrottle.enforceActorThrottle(context.tabId, context.request.command, throttleMs);
+        this.#requestThrottle.enforcePlayerThrottle(context.tabId, context.request.command, throttleMs);
     }
 
     /**
-     * Resolves an authenticated seated actor and its current room.
+     * Resolves an authenticated seated player and its current room.
      *
      * @param {HostRequestContext} context - Command being authenticated.
      * @throws {UserNotification} When the requested room or authenticated membership context is unavailable.
      */
-    #requireActorRoom(context) {
+    #requirePlayerRoom(context) {
         this.#requireClient(context);
-        if (context.membership.actorName === null) {
+        if (context.membership.playerName === null) {
             throw new UserNotification("Join the room before making a move.");
         }
 
         const room = this.#requireRoomByKey(context.membership.roomKey);
 
-        if (!room.hasActor(context.membership.actorName)) {
-            throw new UserNotification("Your actor connection expired. Rejoin the room.");
+        if (!room.hasPlayer(context.membership.playerName)) {
+            throw new UserNotification("Your player connection expired. Rejoin the room.");
         }
 
         context.attachRoom(context.membership.roomKey, room);
     }
 
     /**
-     * Resolves an authenticated actor context and applies actor- and room-scoped throttles.
+     * Resolves an authenticated player context and applies player- and room-scoped throttles.
      *
      * @param {HostRequestContext} context - Command being authenticated.
-     * @param {number} actorThrottleMs - Actor throttle window.
+     * @param {number} playerThrottleMs - Player throttle window.
      * @param {number|null} [roomThrottleMs=null] - Optional room throttle window.
      */
-    #requireThrottledActorRoom(context, actorThrottleMs, roomThrottleMs) {
-        this.#requireActorRoom(context);
+    #requireThrottledPlayerRoom(context, playerThrottleMs, roomThrottleMs) {
+        this.#requirePlayerRoom(context);
 
-        this.#requestThrottle.enforceActorThrottle(context.tabId, context.request.command, actorThrottleMs);
+        this.#requestThrottle.enforcePlayerThrottle(context.tabId, context.request.command, playerThrottleMs);
 
         if (roomThrottleMs !== null) {
             this.#requestThrottle.enforceRoomThrottle(context.roomKey, context.request.command, roomThrottleMs);
@@ -1018,16 +1018,16 @@ export class Host {
     }
 
     /**
-     * Starts a match for an authenticated actor and advances any opening bot turns.
+     * Starts a match for an authenticated player and advances any opening bot turns.
      *
      * @param {HostRequestContext} context - Validated start command.
      * @returns {Promise<void>}
      */
     async #start(context) {
-        this.#requireActorRoom(context);
+        this.#requirePlayerRoom(context);
         const knockout = context.request.data.knockout ?? null;
         const isNextKnockoutMatch = context.room.match.nextMatchAvailable;
-        this.#requestThrottle.enforceActorThrottle(context.tabId, context.request.command, isNextKnockoutMatch ? 0 : 1000);
+        this.#requestThrottle.enforcePlayerThrottle(context.tabId, context.request.command, isNextKnockoutMatch ? 0 : 1000);
         this.#requestThrottle.enforceRoomThrottle(context.roomKey, context.request.command, isNextKnockoutMatch ? 0 : 500);
         if (context.room.match instanceof Knockout && context.room.match.isKnockoutComplete) {
             await this.#returnSidelinedBots(context.roomKey);
@@ -1044,10 +1044,10 @@ export class Host {
         if (limits === undefined) {
             throw new UserNotification(`Unknown command: ${context.request.command}`);
         }
-        this.#requireThrottledActorRoom(context, limits.actor, limits.room);
+        this.#requireThrottledPlayerRoom(context, limits.player, limits.room);
         const notification = await this.executeMatchCommand(
             context.room,
-            context.membership?.actorName ?? null,
+            context.membership?.playerName ?? null,
             context.request.command,
             context.request.data
         );
@@ -1057,8 +1057,8 @@ export class Host {
         await this.#advanceRoom(context.roomKey);
     }
 
-    /** Executes a seated actor's card command and creates any draw notice. */
-    async executeMatchCommand(room, actorName, command, data) {
+    /** Executes a seated player's card command and creates any draw notice. */
+    async executeMatchCommand(room, playerName, command, data) {
         let drawn = [];
         let mocked = true;
 
@@ -1073,7 +1073,7 @@ export class Host {
         const payload = command === Constants.COMMANDS.DECLARE
             ? {...data, suit: Constants.normalizeStandardSuit(ValidationUtils.requiredString(data.suit, "Suit"))}
             : data;
-        const result = await room.perform(command, actorName, payload);
+        const result = await room.perform(command, playerName, payload);
         if (command === Constants.COMMANDS.DRAW || command === Constants.COMMANDS.PASS || command === Constants.COMMANDS.DISCARD) {
             drawn = result;
         }
@@ -1093,7 +1093,7 @@ export class Host {
     /** Runs the current automated owner, if one can act. */
     async runAutomatedTurn(room) {
         const turnOwner = room.match.turnOrder.owner;
-        if (!(turnOwner instanceof BotActor) || room.match.state !== Constants.ROOM_STATE.ACTIVE) return;
+        if (!(turnOwner instanceof BotPlayer) || room.match.state !== Constants.ROOM_STATE.ACTIVE) return;
         if (room.match.pending?.command === Constants.COMMANDS.DECLARE) {
             await turnOwner.chooseSuit(room);
             return;
@@ -1109,14 +1109,14 @@ export class Host {
         const room = this.#roomsByKey.get(roomKey) ?? null;
         if (room === null) return;
         while (room.match.state === Constants.ROOM_STATE.ACTIVE) {
-            const actor = room.match.turnOrder.owner;
-            if (!(actor instanceof BotActor)) break;
-            const before = [room.match.turnOrder.ownerKey, room.match.pending, actor.collection.size,
-                actor.drawAllowance, room.match.collections.draw.size, room.match.collections.play.size,
+            const player = room.match.turnOrder.owner;
+            if (!(player instanceof BotPlayer)) break;
+            const before = [room.match.turnOrder.ownerKey, room.match.pending, player.collection.size,
+                player.drawAllowance, room.match.collections.draw.size, room.match.collections.play.size,
                 room.match.declaredSuit];
             await this.runAutomatedTurn(room);
-            const after = [room.match.turnOrder.ownerKey, room.match.pending, actor.collection.size,
-                actor.drawAllowance, room.match.collections.draw.size, room.match.collections.play.size,
+            const after = [room.match.turnOrder.ownerKey, room.match.pending, player.collection.size,
+                player.drawAllowance, room.match.collections.draw.size, room.match.collections.play.size,
                 room.match.declaredSuit];
             if (before.every(function unchanged(value, index) {
                 return value === after[index];
@@ -1148,12 +1148,12 @@ export class Host {
     }
 
     /** Demotes eliminated humans after the current order is pruned. */
-    async #settleEliminatedActors(roomKey, actors) {
+    async #settleEliminatedPlayers(roomKey, players) {
         const room = this.#roomsByKey.get(roomKey) ?? null;
         if (room === null) return;
-        for (const actor of actors) {
-            if (actor instanceof BotActor) continue;
-            const membership = this.#connections.findActor(roomKey, actor.name);
+        for (const player of players) {
+            if (player instanceof BotPlayer) continue;
+            const membership = this.#connections.findPlayer(roomKey, player.name);
             if (membership !== null && this.#connections.isCurrent(membership)) {
                 membership.view();
                 room.view(membership.tabId);
@@ -1167,7 +1167,7 @@ export class Host {
     async #startMatchAndContinue(roomKey, room, knockout = null) {
         const eliminated = await room.startMatch(knockout);
         this.#knockoutStarts.cancel(roomKey);
-        await this.#settleEliminatedActors(roomKey, eliminated);
+        await this.#settleEliminatedPlayers(roomKey, eliminated);
         await this.#advanceRoom(roomKey);
     }
 

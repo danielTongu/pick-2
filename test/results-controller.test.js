@@ -33,8 +33,8 @@ test("results dialog reads normalized knockout status without a nested match", a
     const context = new FakeElement();
     root.elements.set("#results-message", message);
     root.elements.set("#results-context", context);
-    root.elements.set("#actor-stats-body", new FakeTableBody());
-    root.elements.set("#selected-actor-items", new FakeElement());
+    root.elements.set("#player-stats-body", new FakeTableBody());
+    root.elements.set("#selected-player-items", new FakeElement());
     root.elements.set("#results-dismiss-button", new FakeButton());
 
     globalThis.HTMLElement = FakeElement;
@@ -49,14 +49,14 @@ test("results dialog reads normalized knockout status without a nested match", a
     try {
         const { ResultsController } = await import("../ui/controllers/ResultsController.js");
         const controller = new ResultsController("#results-dialog");
-        const actor = {
-            name: "Alice", state: Constants.ACTOR_STATE.QUALIFIED,
+        const player = {
+            name: "Alice", state: Constants.PLAYER_STATE.QUALIFIED,
             collection: { penalty: 0, itemCount: 0, items: [] }
         };
         const room = {
-            localActorName: "Alice",
+            localPlayerName: "Alice",
             match: {
-                turnOrder: { actors: [actor] },
+                turnOrder: { players: [player] },
                 isKnockout: true,
                 isKnockoutComplete: false
             }
@@ -67,7 +67,7 @@ test("results dialog reads normalized knockout status without a nested match", a
         assert.equal(context.textContent, "Knockout match results");
 
         room.match.isKnockout = false;
-        actor.state = Constants.ACTOR_STATE.WON;
+        player.state = Constants.PLAYER_STATE.WON;
         controller.show(room);
         assert.equal(message.textContent, "You won 🎉");
         assert.equal(context.textContent, "Statistics for this game");

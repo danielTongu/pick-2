@@ -11,9 +11,9 @@ import { ViewController } from "./ViewController.js";
  */
 export class ResultsController extends ViewController {
     /**
-     * @type {Object[]} Actor or item snapshots currently rendered by the controller.
+     * @type {Object[]} Player or item snapshots currently rendered by the controller.
      */
-    #actors = [];
+    #players = [];
 
     /**
      * @type {HTMLElement} Required UI element owned by this controller.
@@ -28,7 +28,7 @@ export class ResultsController extends ViewController {
     /**
      * @type {HTMLElement} Required UI element owned by this controller.
      */
-    #selectedActorItems;
+    #selectedPlayerItems;
 
     /** @type {HTMLElement} Configurable match context. */
     #context;
@@ -42,60 +42,60 @@ export class ResultsController extends ViewController {
     constructor(selector) {
         super(selector);
         this.#message = DomUtils.requireChild(this.root, "#results-message", HTMLElement);
-        this.#statsBody = DomUtils.requireChild(this.root, "#actor-stats-body", HTMLTableSectionElement);
-        this.#selectedActorItems = DomUtils.requireChild(this.root, "#selected-actor-items", HTMLElement);
+        this.#statsBody = DomUtils.requireChild(this.root, "#player-stats-body", HTMLTableSectionElement);
+        this.#selectedPlayerItems = DomUtils.requireChild(this.root, "#selected-player-items", HTMLElement);
         this.#context = DomUtils.requireChild(this.root, "#results-context", HTMLElement);
         this.bindDismissButton("#results-dismiss-button");
     }
 
     /**
-     * Rotates actor snapshots to begin with the local actor without mutating turn order.
+     * Rotates player snapshots to begin with the local player without mutating turn order.
      *
-     * @param {Object[]|null} actors - Actors in authoritative turn order.
-     * @param {string|null} localActorName - Local actor name, when present.
-     * @returns {Object[]} Actors in local-first display order.
+     * @param {Object[]|null} players - Players in authoritative turn order.
+     * @param {string|null} localPlayerName - Local player name, when present.
+     * @returns {Object[]} Players in local-first display order.
      */
-    static localFirst(actors, localActorName) {
-        if (!Array.isArray(actors)) return [];
+    static localFirst(players, localPlayerName) {
+        if (!Array.isArray(players)) return [];
 
-        const localIndex = actors.findIndex(function findLocal(actor) {
-            return actor?.name === localActorName;
+        const localIndex = players.findIndex(function findLocal(player) {
+            return player?.name === localPlayerName;
         });
-        if (localIndex <= 0) return actors;
+        if (localIndex <= 0) return players;
 
-        return actors.slice(localIndex).concat(actors.slice(0, localIndex));
+        return players.slice(localIndex).concat(players.slice(0, localIndex));
     }
 
     /**
      * Normalizes completed-Room data.
      *
      * @param {*} room - Room data.
-     * @returns {{actors:Object[],actorName:string,isKnockout:boolean,isKnockoutComplete:boolean}} Normalized Room data.
+     * @returns {{players:Object[],playerName:string,isKnockout:boolean,isKnockoutComplete:boolean}} Normalized Room data.
      */
     static #normalizeRoom(room) {
         const source = ValidationUtils.object(room, "Room");
-        const actorName = ValidationUtils.optionalString(source.localActorName, "");
+        const playerName = ValidationUtils.optionalString(source.localPlayerName, "");
 
         return {
-            actors: ResultsController.localFirst(source.match.turnOrder?.actors, actorName),
-            actorName,
+            players: ResultsController.localFirst(source.match.turnOrder?.players, playerName),
+            playerName,
             isKnockout: source.match.isKnockout === true,
             isKnockoutComplete: source.match.isKnockoutComplete === true
         };
     }
 
     /**
-     * Returns display names for every actor whose final state is won.
+     * Returns display names for every player whose final state is won.
      *
-     * @param {Object[]} actors - Actor data objects.
+     * @param {Object[]} players - Player data objects.
      * @returns {string[]} Winner names.
      */
-    static #getWinnerNames(actors) {
+    static #getWinnerNames(players) {
         const names = [];
 
-        for (const actor of actors) {
-            if (actor.state === Constants.ACTOR_STATE.WON) {
-                names.push(actor.name);
+        for (const player of players) {
+            if (player.state === Constants.PLAYER_STATE.WON) {
+                names.push(player.name);
             }
         }
 
@@ -105,17 +105,17 @@ export class ResultsController extends ViewController {
     /**
      * Builds the results message.
      *
-     * @param {string} actorName - Local actor.
+     * @param {string} playerName - Local player.
      * @param {string[]} winners - Winner names.
      * @param {Object} room - Normalized Room data.
      * @returns {string} Room-end message.
      */
-    static #buildResultMessage(actorName, winners, room) {
+    static #buildResultMessage(playerName, winners, room) {
         let message = "Room finished.";
 
         if (room.isKnockout && !room.isKnockoutComplete) {
-            const actor = room.actors.find(function matchesLocal(candidate) { return candidate.name === actorName; });
-            return actor?.state === Constants.ACTOR_STATE.QUALIFIED
+            const player = room.players.find(function matchesLocal(candidate) { return candidate.name === playerName; });
+            return player?.state === Constants.PLAYER_STATE.QUALIFIED
                 ? "You qualified for the next match."
                 : "You were eliminated.";
         }
@@ -126,8 +126,8 @@ export class ResultsController extends ViewController {
         if (winners.length > 1) {
             message = "It is a tie.";
         } else if (winners.length === 1) {
-            const isLocalActorWinner = winners[0] === actorName;
-            message = isLocalActorWinner ? "You won 🎉" : "You lost 😂";
+            const isLocalPlayerWinner = winners[0] === playerName;
+            message = isLocalPlayerWinner ? "You won 🎉" : "You lost 😂";
         }
 
         return message;
@@ -142,7 +142,7 @@ export class ResultsController extends ViewController {
     show(room) {
         const data = ResultsController.#normalizeRoom(room);
 
-        this.#actors = data.actors;
+        this.#players = data.players;
         this.#render(data);
 
         super.show();
@@ -150,11 +150,11 @@ export class ResultsController extends ViewController {
 
     /** Clears stale results whenever the overlay is closed. */
     hide() {
-        this.#actors = [];
+        this.#players = [];
         this.#message.textContent = "";
         this.#context.textContent = "";
         this.#statsBody.replaceChildren();
-        this.#selectedActorItems.replaceChildren();
+        this.#selectedPlayerItems.replaceChildren();
         super.hide();
     }
 
@@ -164,99 +164,99 @@ export class ResultsController extends ViewController {
      * @param {Object} room - Normalized Room data.
      */
     #render(room) {
-        const winners = ResultsController.#getWinnerNames(room.actors);
+        const winners = ResultsController.#getWinnerNames(room.players);
 
-        this.#message.textContent = ResultsController.#buildResultMessage(room.actorName, winners, room);
+        this.#message.textContent = ResultsController.#buildResultMessage(room.playerName, winners, room);
         this.#context.textContent = room.isKnockout ? "Knockout match results" : "Statistics for this game";
-        this.#renderStats(room.actors);
-        this.#selectedActorItems.replaceChildren();
+        this.#renderStats(room.players);
+        this.#selectedPlayerItems.replaceChildren();
     }
 
     /**
-     * Renders the actor statistics table.
+     * Renders the player statistics table.
      *
-     * @param {Object[]} actors - Actor data objects.
+     * @param {Object[]} players - Player data objects.
      */
-    #renderStats(actors) {
+    #renderStats(players) {
         this.#statsBody.replaceChildren();
 
-        for (const actor of actors) {
-            this.#statsBody.appendChild(this.#createStatsRow(actor));
+        for (const player of players) {
+            this.#statsBody.appendChild(this.#createStatsRow(player));
         }
     }
 
     /**
      * Creates one statistics row.
      *
-     * @param {Object} actor - Actor data object.
+     * @param {Object} player - Player data object.
      * @returns {HTMLTableRowElement} Statistics row.
      */
-    #createStatsRow(actor) {
+    #createStatsRow(player) {
         const row = document.createElement("tr");
 
-        row.dataset.actorName = actor.name;
-        row.dataset.actorState = actor.state;
+        row.dataset.playerName = player.name;
+        row.dataset.playerState = player.state;
         row.dataset.isSelected = "false";
         row.tabIndex = 0;
-        row.setAttribute("aria-label", `View ${actor.name}'s cards`);
+        row.setAttribute("aria-label", `View ${player.name}'s cards`);
         row.setAttribute("aria-selected", "false");
-        DomUtils.setBooleanState(row, "isWinner", actor.state === Constants.ACTOR_STATE.WON);
+        DomUtils.setBooleanState(row, "isWinner", player.state === Constants.PLAYER_STATE.WON);
 
-        row.appendChild(this.#createStatsCell(actor.name));
-        row.appendChild(this.#createStatsCell(String(actor.collection.penalty)));
-        row.appendChild(this.#createStatsCell(String(actor.collection.itemCount ?? actor.collection.items.length)));
+        row.appendChild(this.#createStatsCell(player.name));
+        row.appendChild(this.#createStatsCell(String(player.collection.penalty)));
+        row.appendChild(this.#createStatsCell(String(player.collection.itemCount ?? player.collection.items.length)));
         const labels = {
-            [Constants.ACTOR_STATE.WON]: "Winner",
-            [Constants.ACTOR_STATE.LOST]: "Lost",
-            [Constants.ACTOR_STATE.QUALIFIED]: "Qualified",
-            [Constants.ACTOR_STATE.ELIMINATED]: "Eliminated"
+            [Constants.PLAYER_STATE.WON]: "Winner",
+            [Constants.PLAYER_STATE.LOST]: "Lost",
+            [Constants.PLAYER_STATE.QUALIFIED]: "Qualified",
+            [Constants.PLAYER_STATE.ELIMINATED]: "Eliminated"
         };
-        row.appendChild(this.#createStatsCell(labels[actor.state] ?? actor.state));
+        row.appendChild(this.#createStatsCell(labels[player.state] ?? player.state));
 
-        row.addEventListener("click", this.#selectActor.bind(this, actor.name));
-        row.addEventListener("keydown", this.#handleStatsKeyDown.bind(this, actor.name));
+        row.addEventListener("click", this.#selectPlayer.bind(this, player.name));
+        row.addEventListener("keydown", this.#handleStatsKeyDown.bind(this, player.name));
 
         return row;
     }
 
     /**
      * Selects a statistics row through its keyboard interaction.
-     * @param {string} actorName - Row actor name.
+     * @param {string} playerName - Row player name.
      * @param {KeyboardEvent} event - Row key event.
      */
-    #handleStatsKeyDown(actorName, event) {
+    #handleStatsKeyDown(playerName, event) {
         if (event.key === "Enter" || event.key === " ") {
             event.preventDefault();
-            this.#selectActor(actorName);
+            this.#selectPlayer(playerName);
         }
     }
 
     /**
-     * Selects one actor.
+     * Selects one player.
      *
-     * @param {string} actorName - Actor name.
+     * @param {string} playerName - Player name.
      */
-    #selectActor(actorName) {
-        const actor = this.#findActor(actorName);
+    #selectPlayer(playerName) {
+        const player = this.#findPlayer(playerName);
 
-        if (actor !== null) {
-            this.#selectStatsRow(actorName);
-            this.#renderActorItems(actor.collection.items);
+        if (player !== null) {
+            this.#selectStatsRow(playerName);
+            this.#renderPlayerItems(player.collection.items);
         }
     }
 
     /**
-     * Finds one actor.
+     * Finds one player.
      *
-     * @param {string} actorName - Actor name.
-     * @returns {Object|null} Matching actor.
+     * @param {string} playerName - Player name.
+     * @returns {Object|null} Matching player.
      */
-    #findActor(actorName) {
+    #findPlayer(playerName) {
         let found = null;
 
-        for (const actor of this.#actors) {
-            if (actor.name === actorName) {
-                found = actor;
+        for (const player of this.#players) {
+            if (player.name === playerName) {
+                found = player;
                 break;
             }
         }
@@ -267,14 +267,14 @@ export class ResultsController extends ViewController {
     /**
      * Selects one statistics row.
      *
-     * @param {string} actorName - Selected actor.
+     * @param {string} playerName - Selected player.
      */
-    #selectStatsRow(actorName) {
+    #selectStatsRow(playerName) {
         const rows = this.#statsBody.querySelectorAll("tr");
 
         for (const row of rows) {
             if (row instanceof HTMLTableRowElement) {
-                const isSelected = row.dataset.actorName === actorName;
+                const isSelected = row.dataset.playerName === playerName;
 
                 DomUtils.setBooleanState(row, "isSelected", isSelected);
                 row.setAttribute("aria-selected", String(isSelected));
@@ -283,15 +283,15 @@ export class ResultsController extends ViewController {
     }
 
     /**
-     * Renders one actor's items.
+     * Renders one player's items.
      *
      * @param {Object[]} items - Item data objects.
      */
-    #renderActorItems(items) {
-        this.#selectedActorItems.replaceChildren();
+    #renderPlayerItems(items) {
+        this.#selectedPlayerItems.replaceChildren();
 
         for (const item of items) {
-            this.#selectedActorItems.appendChild(PlayingCard.create(item));
+            this.#selectedPlayerItems.appendChild(PlayingCard.create(item));
         }
     }
 

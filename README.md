@@ -23,8 +23,8 @@ Open [http://localhost:8080](http://localhost:8080). Use `npm run dev` for watch
 For static hosting, serve the repository root. `index.html` is Pick 2 Home and `room.html` is the active Room. Direct
 play is always available; Home enables Hosted mode when its configured WebSocket host is reachable.
 
-In a Room with at least two Actors, Start asks whether to start a **Knockout**. No plays one match; Yes starts successive matches. A Knockout match with at least three Actors qualifies everyone except those tied
-for the highest hand penalty for the next match. The finished order remains visible until that next match starts after a short delay, or a qualified human Actor presses Start sooner. Eliminated Actors leave the order at that start.
+In a Room with at least two Players, Start asks whether to start a **Knockout**. No plays one match; Yes starts successive matches. A Knockout match with at least three Players qualifies everyone except those tied
+for the highest hand penalty for the next match. The finished order remains visible until that next match starts after a short delay, or a qualified human Player presses Start sooner. Eliminated Players leave the order at that start.
 The final two play a regular match. Qualified humans remain subject to the idle timeout while waiting, and eliminated
 Bots return after the Knockout ends.
 
@@ -47,7 +47,7 @@ pick-2/
 ├── ui/Session.js           Home, Connection, and Room sessions
 ├── main.js                 Browser startup and dependency wiring
 ├── server.js              Hosted Node entry point
-├── core/                   Cards, collections, actors, turns, rules, hosting, bots, and mapping
+├── core/                   Cards, collections, players, turns, rules, hosting, bots, and mapping
 ├── host/                   Host coordination, connection state, and request handling
 ├── ui/                     Pages, cards, controllers, styles, templates, and artwork
 ├── test/                   Pick 2, infrastructure, and navigation tests
@@ -60,7 +60,7 @@ WebSocket and the Node server. Both return the same
 `{ view, message, data }` envelope. See the [runtime architecture](docs/pick-2.md#31-runtime-architecture) for the
 request flow and file map.
 
-`CardCollection` supplies every card-storage role. Pick 2 owns its card, Room, actor, turn-order, runtime, and UI
+`CardCollection` supplies every card-storage role. Pick 2 owns its card, Room, player, turn-order, runtime, and UI
 foundations directly, without single-use base layers.
 
 See the [Pick 2 software design and maintenance reference](docs/pick-2.md) for architecture, runtime flows, domain

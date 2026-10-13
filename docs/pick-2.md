@@ -17,12 +17,12 @@ envelope, client data shape, and in-memory storage model. Their transport and co
 - **Home** is the room directory and room-creation experience.
 - **Room** is the active play/viewing context and owns the current `Match`.
 - **Card** is the Pick2 game piece and owns its identity, rank, and rules.
-- **Collection** is item storage. Its role comes from its owner and name: an actor hand, draw deck, or discard pile.
-- **Actor** is a seated game entity whose collection and turn state are private where appropriate.
-- **Viewer** is connected to a Room without occupying an actor seat.
-- **Bot** is an automated Actor controlled by the host.
-- **TurnOrder** is the Room's turn-order structure. It owns circular actor order, direction, and the nullable
-  turn-owner cursor. It MUST NOT own room or actor activity timestamps.
+- **Collection** is item storage. Its role comes from its owner and name: a player hand, draw deck, or discard pile.
+- **Player** is a seated game entity whose collection and turn state are private where appropriate.
+- **Viewer** is connected to a Room without occupying a player seat.
+- **Bot** is an automated Player controlled by the host.
+- **TurnOrder** is the Room's turn-order structure. It owns circular player order, direction, and the nullable
+  turn-owner cursor. It MUST NOT own room or player activity timestamps.
 - **Host** is the authoritative coordinator for rooms, connections, commands, notifications, automated turns, and cleanup.
 
 ## 3. System boundaries
@@ -36,14 +36,14 @@ room.html           Active Pick 2 Room page
 ui/Session.js          Shared browser client session, Home, Connection, and Room sessions
 ui/controllers/ConnectionController.js Hosted connection page controller
 main.js             Browser startup and dependency wiring
-core/               Pick2 items, actors, turns, cards, rules, bots, and DTO mapping
+core/               Pick2 items, players, turns, cards, rules, bots, and DTO mapping
 host/               Host coordination, connections, and request handling
 ui/                 Pick2 pages, cards, controllers, state, styles, and utilities
 server.js           Node HTTP/WebSocket server and process lifecycle
 ```
 
 The UI translates user interaction into named commands and renders authoritative snapshots. It MUST NOT implement a
-second copy of room rules or normalize competing actor DTO shapes.
+second copy of room rules or normalize competing player DTO shapes.
 
 The Host owns orchestration and authority. Core owns identity, collections, turn order, lifecycle, transfers, rules, and
 match state. `StateMapper` defines the boundary between domain state and browser-safe data. Direct and Hosted hosts MUST
@@ -76,7 +76,7 @@ Responses return through the same path and always use the canonical `{ view, mes
 | File | Responsibility |
 | --- | --- |
 | `host/HostConnection.js` | Owns Host-side connection state and transport send/disconnect callbacks. |
-| `host/RoomMembership.js` | Tracks one tab's actor or viewer membership in a room. |
+| `host/RoomMembership.js` | Tracks one tab's player or viewer membership in a room. |
 | `ui/Session.js` | Owns client requests, responses, local delivery, and WebSocket reconnects. |
 | `ui/controllers/ConnectionController.js` | Owns the Hosted connection form and probe diagnostics. |
 | `server.js` | Owns Node HTTP/WebSocket infrastructure, process lifecycle, and socket adaptation. |
@@ -94,14 +94,14 @@ other layers request an operation or consume a snapshot rather than maintaining 
 | Owner | Structures and lifetime |
 | --- | --- |
 | `Card` / `CardCollection` | Card identity and collection items. Counts and penalties are derived. |
-| `Actor` / `BotActor` | Identity, hand, draw allowance, actor state, and idle monitoring. BotActor executes delayed commands through Room. |
+| `Player` / `BotPlayer` | Identity, hand, draw allowance, player state, and idle monitoring. BotPlayer executes delayed commands through Room. |
 | `BotStrategy` / `CardOdds` | One-decision snapshots of the bot hand, reachable opponent hands, and public match information; pure probability calculations. The draw collection and distant hands remain unknown. |
-| `TurnOrder` | Actor map, ordered actor keys, turn owner, and direction. Its map and key list are maintained together. |
-| `Match` | Draw/play collections, pending declaration, declared suit, match state, and last discarding actor. |
+| `TurnOrder` | Player map, ordered player keys, turn owner, and direction. Its map and key list are maintained together. |
+| `Match` | Draw/play collections, pending declaration, declared suit, match state, and last discarding player. |
 | `Knockout` | Continuation state and lost bot names. Names accumulate while nonqualifiers are pruned and are consumed on bot restoration. Ordinary matches retain no names (`null`). |
-| `Room` | Room identity, actor capacity, viewer identities, activity, serialized mutation queue, and state-change callbacks. Room operations coordinate its match and membership changes. |
+| `Room` | Room identity, player capacity, viewer identities, activity, serialized mutation queue, and state-change callbacks. Room operations coordinate its match and membership changes. |
 | `Host` | Registered rooms, runtime capabilities/policy, lifecycle scheduling, automation, and orchestration guards. It retains no duplicate bot roster. |
-| `ConnectionRegistry` / `RoomMembership` | Transport memberships, Home subscriptions, and room indexes. Membership maps a tab to its current connection and optional actor name. |
+| `ConnectionRegistry` / `RoomMembership` | Transport memberships, Home subscriptions, and room indexes. Membership maps a tab to its current connection and optional player name. |
 | `HostConnection` / `RequestThrottle` | Connection resources/authentication and request-rate history, respectively. Neither stores match outcomes. |
 | `HostRequest` / `HostRequestContext` | Validated command data and resolved references for one request only. |
 | `Session` / `SessionState` | Client transport, reconnect resources, tab identity, sort preference, and persisted navigation state. `RoomSession` owns admission intent and reconnect admission history. |
@@ -131,9 +131,9 @@ The complete request, publication, reconnect, and teardown sequences are traced 
 
 ## 4. Names and identity
 
-Actor and room names are user-facing identifiers, not arbitrary strings. A valid name MUST:
+Player and room names are user-facing identifiers, not arbitrary strings. A valid name MUST:
 
-- contain between 2 and 24 characters for an Actor, or between 2 and 48 characters for a Room;
+- contain between 2 and 24 characters for a Player, or between 2 and 48 characters for a Room;
 - contain Unicode letters or numbers, with words separated only by spaces, apostrophes, curly apostrophes, or hyphens;
 - have no leading or trailing whitespace;
 - contain no symbols, control characters, repeated separator patterns, or separator-only content.
@@ -144,11 +144,11 @@ The accepted form is equivalent to:
 ^[\p{L}\p{N}]+(?:[ '\u2019-][\p{L}\p{N}]+)*$
 ```
 
-Validation MUST occur at the user-facing boundary and again in the domain model. Normalized actor keys are lookup
+Validation MUST occur at the user-facing boundary and again in the domain model. Normalized player keys are lookup
 identifiers and may be more tolerant than creation validation; a key MUST NOT be treated as proof that the original
 display name was valid.
 
-Actor names MUST be unique within a Room. Room capacity applies only to Actors, not Viewers.
+Player names MUST be unique within a Room. Room capacity applies only to Players, not Viewers.
 
 ## 5. Room lifecycle and membership
 
@@ -161,20 +161,20 @@ The public command set is defined by `Constants`:
 | Directory and membership | `list`, `create`, `view`, `join`, `leave`               |
 | Play                     | `start`, `draw`, `discard`, `pass`, `declare` |
 
-The Host MUST validate the Room and Actor context for every command. A client-provided name, tab identifier, or room key
-MUST NOT grant authority over another actor or Room.
+The Host MUST validate the Room and Player context for every command. A client-provided name, tab identifier, or room key
+MUST NOT grant authority over another player or Room.
 
 ### 5.2 Membership rules
 
 - `list` returns the Home directory.
-- `create` creates a Room and joins its first Actor.
+- `create` creates a Room and joins its first Player.
 - `view` opens an existing Room without taking a seat. A successful new viewer updates `Room.lastActiveAt`.
-- `join` adds an Actor and removes that tab from the viewer set when applicable. Joining is allowed only while the Room
+- `join` adds a Player and removes that tab from the viewer set when applicable. Joining is allowed only while the Room
   is waiting or finished, according to the host profile and current lifecycle rules. Joining updates both the new
-  Actor's activity and the Room's activity.
-- `leave` removes the current actor and returns the client to Home.
-- A Actor may move to viewing state. This updates Room activity and refreshes idle monitoring for the remaining
-  eligible Actors.
+  Player's activity and the Room's activity.
+- `leave` removes the current player and returns the client to Home.
+- A Player may move to viewing state. This updates Room activity and refreshes idle monitoring for the remaining
+  eligible Players.
 - A Viewer may leave at any time. Removing a viewer updates Room activity only when a viewer was actually removed.
 
 ### 5.3 End-to-end flows
@@ -215,27 +215,27 @@ unaccompanied initial Home snapshot is ignored on the Room page. On open, `RoomC
   success, `RoomSession` persists `join` instead of `create` so reconnect cannot recreate the Room.
 - `view`: `Room.view()` adds the tab as a Viewer and updates Room activity only for a new viewer. `ConnectionRegistry` then
   records viewer membership and the Host sends viewer-specific state.
-- `join`: `Host` checks lifecycle, capacity, name uniqueness, and membership eligibility. `Room.joinActor()` creates the
-  Actor, removes the tab from the viewer set, and updates activity. `ConnectionRegistry` upgrades the membership before the
-  Host sends Actor-specific state and the welcome notification.
+- `join`: `Host` checks lifecycle, capacity, name uniqueness, and membership eligibility. `Room.joinPlayer()` creates the
+  Player, removes the tab from the viewer set, and updates activity. `ConnectionRegistry` upgrades the membership before the
+  Host sends Player-specific state and the welcome notification.
 
 Room publications do not implicitly refresh Home subscribers. Room creation and closure explicitly broadcast the Home
 directory.
 
 #### Match and command lifecycle
 
-For `start`, `Host` verifies seated membership and calls `Room.startMatch()`. The Room checks its state and minimum actor
+For `start`, `Host` verifies seated membership and calls `Room.startMatch()`. The Room checks its state and minimum player
 count, resets match data, deals, selects the opening play and turn owner, changes to `active`, and publishes. A local
-Actor's `waiting`-to-`active` render triggers the countdown described in [Dialog transitions](#dialog-transitions).
+Player's `waiting`-to-`active` render triggers the countdown described in [Dialog transitions](#dialog-transitions).
 
 For `draw`, `pass`, `discard`, or `declare`, `Host.executeMatchCommand()` selects the corresponding Room operation. The
 Room validates lifecycle, turn and pending-decision ownership, card ownership, and game rules before mutating. If the
 next owner is a Bot, `Host` continues `Host.runAutomatedTurn()` through the same operations and publication pipeline
 until human input or a pending decision is required.
 
-When a match ends, the Room marks actors `WON` or `LOST`, changes to `finished`, stops turn monitoring, and publishes. It
+When a match ends, the Room marks players `WON` or `LOST`, changes to `finished`, stops turn monitoring, and publishes. It
 remains finished until the next authenticated match command. `Host.executeMatchCommand()` then calls `Room.resumeWaiting()`, which
-clears completed-match control metadata while preserving actors and collections, publishes the waiting state, and
+clears completed-match control metadata while preserving players and collections, publishes the waiting state, and
 applies the requested free transaction. With no later command, the final state remains observable.
 
 #### Dialog transitions
@@ -245,14 +245,14 @@ All dialogs inherit display and dismissal behavior from `ViewController`; their 
 | Dialog | Opens when | Closes or updates when |
 | --- | --- | --- |
 | Alert | A controller receives a normalized server or client notification. | Its dismiss button hides it. Admission failures and Room-closure notices are saved in `SessionState`, carried Home, and displayed there. |
-| Countdown | A local Actor renders a `waiting`-to-`active` transition. | Its timer reaches zero or the Actor dismisses it. Viewers and other transitions do not open it. |
-| Suit selection | The local Actor owns a pending `declare` decision. | Submission sends `declare`; any snapshot without that local pending decision hides it. Temporary dismissal schedules redisplay while it remains pending. |
-| Results | A local Actor first renders a transition into `finished`. | Dismissal clears its rendered details. Later finished snapshots do not reopen it; a non-finished snapshot keeps it hidden. |
+| Countdown | A local Player renders a `waiting`-to-`active` transition. | Its timer reaches zero or the Player dismisses it. Viewers and other transitions do not open it. |
+| Suit selection | The local Player owns a pending `declare` decision. | Submission sends `declare`; any snapshot without that local pending decision hides it. Temporary dismissal schedules redisplay while it remains pending. |
+| Results | A local Player first renders a transition into `finished`. | Dismissal clears its rendered details. Later finished snapshots do not reopen it; a non-finished snapshot keeps it hidden. |
 
-#### Idle Actor and empty-Room cleanup
+#### Idle Player and empty-Room cleanup
 
-The monitored human Actors are defined in [Who is monitored](#63-who-is-monitored). When an idle timer expires, `Host`
-moves that Actor to viewing state, publishes the Room, and sends the affected client a warning. If no Actors remain,
+The monitored human Players are defined in [Who is monitored](#63-who-is-monitored). When an idle timer expires, `Host`
+moves that Player to viewing state, publishes the Room, and sends the affected client a warning. If no Players remain,
 `RoomLifecycle` schedules an empty-Room check for the grace interval; a later join cancels it.
 
 When the check expires, `Host` verifies that the Room is still empty, detaches its callbacks, unregisters it, refreshes
@@ -263,7 +263,7 @@ notification. `RoomSession` saves the warning, disconnects, and returns Home, wh
 
 On `leave`, `RoomController` submits the command and asks `RoomSession` to clear the admission intent, disconnect,
 and navigate Home while the canonical pipeline
-removes the Viewer or Actor. `Room` recycles a departing Actor's hand when applicable and refreshes activity and idle
+removes the Viewer or Player. `Room` recycles a departing Player's hand when applicable and refreshes activity and idle
 monitoring; `ConnectionRegistry` removes membership; `Host` applies Bot continuation or empty-Room cleanup and publishes to
 remaining memberships. A transport closure performs the same server-side membership cleanup.
 
@@ -274,12 +274,12 @@ and publish a fresh authoritative snapshot, which the controller renders complet
 
 ### 5.4 Room states
 
-- **waiting**: no active turn is required; `turnOwnerKey` is null. Seated Actors may perform the waiting-state commands
+- **waiting**: no active turn is required; `turnOwnerKey` is null. Seated Players may perform the waiting-state commands
   allowed by the core rules.
 - **active**: ordinary turn order and game legality apply. `pending` may describe a required game-specific decision
   without creating another lifecycle level.
-- **finished**: the match has ended and actor collections provide final penalties. It remains observable until the next
-  authenticated actor command resumes waiting or a new match starts.
+- **finished**: the match has ended and player collections provide final penalties. It remains observable until the next
+  authenticated player command resumes waiting or a new match starts.
 
 State transitions MUST clear or establish the turn-owner cursor consistently. Starting a match establishes a valid
 owner; resuming waiting after finished clears it.
@@ -288,7 +288,7 @@ owner; resuming waiting after finished clears it.
 
 ### 6.1 Ownership of activity
 
-`Actor` owns its idle timer. `recordActivity()` restarts that timer when monitoring is enabled; no unused actor
+`Player` owns its idle timer. `recordActivity()` restarts that timer when monitoring is enabled; no unused player
 activity timestamp is retained.
 `Room.lastActiveAt` measures activity for the Room and is used for room-level recency and empty-room cleanup.
 
@@ -297,15 +297,15 @@ ownership and create inconsistent state.
 
 ### 6.2 What updates activity
 
-A successful Actor command MUST update both the acting Actor and the Room. This includes drawing, discarding,
+A successful Player command MUST update both the acting Player and the Room. This includes drawing, discarding,
 passing, and declaring a suit. Starting a match or resuming waiting after finished also establishes fresh
 activity for the relevant lifecycle.
 
-Viewer activity MUST update only `Room.lastActiveAt`. A viewer becoming an Actor MUST update the new
-Actor idle monitoring and `Room.lastActiveAt`. Joining, leaving a viewer, and moving an Actor to viewing state update
+Viewer activity MUST update only `Room.lastActiveAt`. A viewer becoming a Player MUST update the new
+Player idle monitoring and `Room.lastActiveAt`. Joining, leaving a viewer, and moving a Player to viewing state update
 Room activity when the membership change actually occurs.
 
-Failed commands MUST NOT be treated as successful Actor activity. Internal lifecycle transitions may refresh room activity and actor idle timers
+Failed commands MUST NOT be treated as successful Player activity. Internal lifecycle transitions may refresh room activity and player idle timers
 when they establish a new monitoring window; they MUST NOT introduce a separate circle timestamp.
 
 ### 6.3 Who is monitored
@@ -314,13 +314,13 @@ Hosted idle monitoring uses `Constants.ROOM_WAIT_MS` (currently 30 seconds). Bot
 advances automated turns promptly.
 
 - While the Room is **active** and has a turn owner, only the current human turn owner is monitored.
-- While the Room is **waiting**, every human Actor is monitored.
-- Actors who are not eligible under the current state MUST have idle monitoring stopped.
-- When the monitored set changes, each newly monitored Actor begins a fresh idle window. Advancing a turn therefore
+- While the Room is **waiting**, every human Player is monitored.
+- Players who are not eligible under the current state MUST have idle monitoring stopped.
+- When the monitored set changes, each newly monitored Player begins a fresh idle window. Advancing a turn therefore
   transfers the monitoring window to the new human owner.
 
-An idle human Actor is demoted to viewing state, not silently deleted from the Room interaction. The affected client
-MUST receive a warning notification. If the demotion leaves the Room with no Actors, the Host starts a grace-period
+An idle human Player is demoted to viewing state, not silently deleted from the Room interaction. The affected client
+MUST receive a warning notification. If the demotion leaves the Room with no Players, the Host starts a grace-period
 empty-room check for another `ROOM_WAIT_MS`.
 
 When the empty-room check expires and the Room is still empty, the Host MUST close and unregister the Room. Direct mode
@@ -328,7 +328,7 @@ disables automatic idle monitoring; its lifecycle is owned by the browser page.
 
 ## 7. Game rules and match behavior
 
-Starting requires at least two Actors. It creates and shuffles a deck, deals seven cards to each Actor, chooses a valid
+Starting requires at least two Players. It creates and shuffles a deck, deals seven cards to each Player, chooses a valid
 initial discard, and selects the first turn owner. The turn owner may draw, discard, or pass only when the command is
 legal for the current state.
 
@@ -341,37 +341,37 @@ the winner or tied winners.
 
 `Room.js` defines `Room`, `Match`, and `Knockout` together. A Room retains membership, viewers, serialized card commands, activity, and publication; its current Match owns the turn order, collections, card transfers, pending decision, and ordinary result rules. `Knockout extends Match` and overrides elimination and next-match preparation. Room and UI access match state through `room.match`; transport snapshots nest those fields under `match`.
 
-Start offers One match or Knockout once at least two Actors are seated. One match retains the existing single-match result. Knockout starts a series where a match that began with
-three or more Actors marks every Actor tied for the highest remaining hand penalty as eliminated and the others as
+Start offers One match or Knockout once at least two Players are seated. One match retains the existing single-match result. Knockout starts a series where a match that began with
+three or more Players marks every Player tied for the highest remaining hand penalty as eliminated and the others as
 qualified. The Host converts eliminated humans to Viewers and sidelines eliminated Bots until the Knockout ends. The Room
-marks Actors `QUALIFIED` or `ELIMINATED`, retaining the finished `turnOrder` and its result metrics until the next match begins. At that start, the Room removes eliminated Actors from the order, and the Host demotes eliminated humans and sidelines eliminated Bots. A finished Knockout has no next match when fewer than two Actors qualified. The next match starts after `ROOM_WAIT_MS` (30 seconds), or any seated human can start it sooner
+marks Players `QUALIFIED` or `ELIMINATED`, retaining the finished `turnOrder` and its result metrics until the next match begins. At that start, the Room removes eliminated Players from the order, and the Host demotes eliminated humans and sidelines eliminated Bots. A finished Knockout has no next match when fewer than two Players qualified. The next match starts after `ROOM_WAIT_MS` (30 seconds), or any seated human can start it sooner
 with Start. Idle monitoring continues while they wait. One survivor wins immediately, and no survivors means a tie. A match played one-on-one uses the ordinary
-lowest-penalty winner or tie result, with no penalty elimination. If one Actor leaves an active Knockout one-on-one, the
-other wins by forfeit. The results dialog reads the finished `turnOrder` directly; a departed Actor's metrics are no
-longer available after that Actor leaves.
+lowest-penalty winner or tie result, with no penalty elimination. If one Player leaves an active Knockout one-on-one, the
+other wins by forfeit. The results dialog reads the finished `turnOrder` directly; a departed Player's metrics are no
+longer available after that Player leaves.
 
-While waiting, an Actor may draw cards or discard cards from their hand. A card on the discard pile cannot be taken
+While waiting, a Player may draw cards or discard cards from their hand. A card on the discard pile cannot be taken
 directly back into a hand. Finished One Rooms expose the same controls; the first authenticated match command changes
 the Room to waiting before applying the requested action. Waiting-state discards preserve card rotation and update
 penalty and activity without applying playing-card effects. Active-match rules govern draws and discards while playing.
 
 Hand sorting is committed with the next draw, discard, or pass. Temporary browser sorting is not a server-side
 command for every selection. Drawing resets the temporary client sort to `none` so newly drawn cards are visibly distinct
-until the Actor sorts again.
+until the Player sorts again.
 
 All ranks MUST use the shared card-rank policy in `Constants`; no UI or bot may calculate a competing rank.
 
-## 8. Automated Actors
+## 8. Automated Players
 
-Bots use hard mode by default and follow the same legal command and card rules as human Actors.
-Targeting is dynamic: legal cards and pending declarations determine which actors can receive the
-next two turns under the current direction and actor count. The bot inspects those reachable hands,
-represents other actors by identity and card count, and never inspects the draw collection.
+Bots use hard mode by default and follow the same legal command and card rules as human Players.
+Targeting is dynamic: legal cards and pending declarations determine which players can receive the
+next two turns under the current direction and player count. The bot inspects those reachable hands,
+represents other players by identity and card count, and never inspects the draw collection.
 A projected turn returning to the bot has no opponent target; it is scored as hand continuation.
 With one opponent, both jack and eight return the turn to the bot, so no separate reverse or
 skip opponent position is queried.
 
-BotActor handles turn timing and submits commands. BotStrategy copies its decision information and
+BotPlayer handles turn timing and submits commands. BotStrategy copies its decision information and
 separates penalty shedding, opponent pressure, remaining-hand setup, and special-card conservation.
 It checks actual projected opponents' cards for legal responses, attack defenses, and suit declarations, and
 computes their remaining penalties when considering seven of hearts. For distant opponents it uses
@@ -379,14 +379,14 @@ CardOdds and an unknown-card pool reconstructed from the canonical deck minus it
 reachable opponent hands, and the live public play collection. No difficulty toggle is required.
 
 CardCollection owns `getLegalCards`, `getSuitCounts`, and `getDominantSuit` as read-only queries.
-BotStrategy calls these directly on copied collections; Actor provides no forwarding wrappers.
+BotStrategy calls these directly on copied collections; Player provides no forwarding wrappers.
 The dominant suit describes frequency, not a strategic decision; predicted declarations check its
 safety before considering other suits.
 
 The decision pipeline collects all rule-legal cards, maps each discard to its first and following
-actors and draw allowance, then applies conservation and strategy scoring. Suit-changing candidates
+players and draw allowance, then applies conservation and strategy scoring. Suit-changing candidates
 carry their selected declaration through scoring; pending declarations use the same evaluation.
-Suit choice prioritizes avoiding a next-actor or following-actor finish, then the most common held
+Suit choice prioritizes avoiding a next-player or following-player finish, then the most common held
 suit. Equal counts favor held penalty and then unknown-card scarcity.
 
 Finishing-risk checks include seven of hearts in a multi-card opponent hand. The bot compares
@@ -394,16 +394,16 @@ its penalty after the candidate discard with that opponent's penalty after seven
 match-ending response has no projected following turn. Hand setup rewards the share of remaining
 penalty kept playable, rather than only the number of connected cards.
 
-Card selection first avoids giving the projected actor a playable final card. When every viable
+Card selection first avoids giving the projected player a playable final card. When every viable
 choice allows an immediate opponent finish, it sheds the highest card penalty to improve its
-remaining result and knockout qualification chances. Jack and eight targets follow actor-count
+remaining result and knockout qualification chances. Jack and eight targets follow player-count
 rules and the current turn direction.
 
 Selection separates penalty shedding, draw defense, and opponent pressure scoring, with distinct
-offensive and defensive priorities. Attack projects the first responding actor's
-legal replies and the next actor's finishing opportunity. A forced penalty draw clears the allowance
-but leaves the top discard in place, so an unprovoked joker can expose a following one-card actor.
-If a safer play lets the intermediate actor block that finish, the bot keeps its attack card. If the
+offensive and defensive priorities. Attack projects the first responding player's
+legal replies and the next player's finishing opportunity. A forced penalty draw clears the allowance
+but leaves the top discard in place, so an unprovoked joker can expose a following one-card player.
+If a safer play lets the intermediate player block that finish, the bot keeps its attack card. If the
 finish cannot be prevented by any available response, it prioritizes shedding penalty. Defense during
 an active draw attack prioritizes legal counterattacks and shields without vetoing them for a later
 finishing threat. Unknown newly drawn cards remain uncertain; the bot never inspects the draw pile.
@@ -444,19 +444,19 @@ notification. A response MAY contain both `data` and `message`; clients MUST pro
 notification together rather than dropping the notice.
 
 Room closure MUST use one response containing Home data and the `Room closed` warning, allowing the client to navigate
-and preserve the notice as the single transition traced in [Idle Actor and empty-Room
-cleanup](#idle-actor-and-empty-room-cleanup).
+and preserve the notice as the single transition traced in [Idle Player and empty-Room
+cleanup](#idle-player-and-empty-room-cleanup).
 
-Home room summaries include `name`, `state`, `actorLimit`, `viewers`, `lastActiveAt`, and `createdAt`. Room data adds
-`localActorName` and `match` with its turn order, public collections, and pending decision state. Winner status comes from each Actor's state. `match.turnOrder.actorCount` is the
+Home room summaries include `name`, `state`, `playerLimit`, `viewers`, `lastActiveAt`, and `createdAt`. Room data adds
+`localPlayerName` and `match` with its turn order, public collections, and pending decision state. Winner status comes from each Player's state. `match.turnOrder.playerCount` is the
 canonical occupied-seat count. `collections.play.items` contains public discards; `collections.draw.itemCount` exposes
 only the draw count.
 
-The browser-safe turn order contains `actors`, `actorCount`, `turnOwnerKey`, and `direction`. It MUST NOT contain
-`createdAt` or `lastActiveAt`. Each actor DTO has one stable foundation with `key`, `name`, `state`, and `collection`;
+The browser-safe turn order contains `players`, `playerCount`, `turnOwnerKey`, and `direction`. It MUST NOT contain
+`createdAt` or `lastActiveAt`. Each player DTO has one stable foundation with `key`, `name`, `state`, and `collection`;
 Pick 2 adds only required fields such as `drawAllowance`.
 
-`Actor`, `TurnOrder`, and `Collection` retain the responsibilities defined in [Product vocabulary](#2-product-vocabulary);
+`Player`, `TurnOrder`, and `Collection` retain the responsibilities defined in [Product vocabulary](#2-product-vocabulary);
 their browser-safe forms MUST preserve those boundaries rather than introducing a second DTO model.
 
 ## 10. Notifications and failures
@@ -483,8 +483,8 @@ preventing duplicated opening text.
 - Mutable UI state uses existing `data-*` hooks and `DomUtils.setBooleanState`.
 - A `PlayingCard` is interactive only when its controller supplies a drop destination. The complete state matrix,
   property behavior, event contract, and static-card rules are defined in section 12.
-- Viewers do not receive Actor-only start or result overlays.
-- When a local Actor exists, displayed Actor sequences begin with that Actor while preserving circle order.
+- Viewers do not receive Player-only start or result overlays.
+- When a local Player exists, displayed Player sequences begin with that Player while preserving circle order.
 - Templates resolve relative to their owning component module and live under `ui/templates/`.
 
 ## 12. Card data and interaction
@@ -493,7 +493,7 @@ preventing duplicated opening text.
 collection used by hands and decks, including the canonical deck factory and instance sorting. Card presentation and
 artwork live in `ui/`.
 
-Each card has a `rank`; a collection's `penalty` is the sum of its card ranks. The actor with the lowest remaining
+Each card has a `rank`; a collection's `penalty` is the sum of its card ranks. The player with the lowest remaining
 penalty wins.
 
 `Card` is immutable initial game data. Its `value`, `suit`, and `rotation` fields are validated during construction;
@@ -567,7 +567,7 @@ belong at the lowest stable layer:
 - `local-game.test.js` and `connection.test.js`: page structure, routing, transport, and deployment-facing
   contracts.
 
-Any change to activity policy MUST test Actor and Room timestamps, monitored human selection by lifecycle state, bot
+Any change to activity policy MUST test Player and Room timestamps, monitored human selection by lifecycle state, bot
 exclusion, demotion notification, and empty-room closure. Any change to common markup or CSS MUST be checked against the
 root `index.html` Home and `room.html`, including the mobile and 721px presentations.
 
@@ -581,7 +581,7 @@ ordinary local variables are not APIs and do not require JSDoc. The architecture
 1. Keep timing, protocol, item identities, rules, and scoring in the appropriate core modules.
 2. Use `CardCollection` for every card-storage role and add specialized behavior only when Pick 2 needs it.
 3. Map match state in `StateMapper`; `Host` constructs rooms and coordinates commands and automated turns directly.
-4. Validate Room, Actor, Viewer, and ownership context in the Host before dispatching a command.
+4. Validate Room, Player, Viewer, and ownership context in the Host before dispatching a command.
 5. Reuse existing controller, template, validation, notification, sorting, and DOM-state patterns.
 6. Preserve semantic markup, `data-*` state hooks, accessibility relationships, and the repository's CSS cascade
    standards.

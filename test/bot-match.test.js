@@ -2,16 +2,16 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Actor } from "../core/Actor.js";
+import { Player } from "../core/Player.js";
 import { BotStrategy } from "../core/BotStrategy.js";
-import { BotActor } from "../core/BotActor.js";
+import { BotPlayer } from "../core/BotPlayer.js";
 import { Card } from "../core/Card.js";
 import { CardCollection } from "../core/CardCollection.js";
 import { Constants } from "../core/Constants.js";
 import { Room } from "../core/Room.js";
 
 /** Runs the production bot decision without its presentation delay. */
-class ImmediateBot extends BotActor {
+class ImmediateBot extends BotPlayer {
     async _waitForTurnDelay() {}
 }
 
@@ -24,12 +24,12 @@ function scenario(t, { hand, play = ["5-hearts"], previous = ["3-clubs", "4-club
     };
     const room = new Room("Bot Scenario", 3);
     const bot = new ImmediateBot("Bot");
-    const before = new Actor("Previous", { drawAllowance: 1 });
-    const after = new Actor("Next", { drawAllowance: 1 });
+    const before = new Player("Previous", { drawAllowance: 1 });
+    const after = new Player("Next", { drawAllowance: 1 });
     before.collection.addMany(previous.map(card));
     bot.collection.addMany(hand.map(card));
     after.collection.addMany(next.map(card));
-    for (const actor of [before, bot, after]) room.match.turnOrder.add(actor);
+    for (const player of [before, bot, after]) room.match.turnOrder.add(player);
     room.match.turnOrder.direction = direction;
     room.match.turnOrder.setOwner(bot.key);
     room.match.state = Constants.ROOM_STATE.ACTIVE;
@@ -38,7 +38,7 @@ function scenario(t, { hand, play = ["5-hearts"], previous = ["3-clubs", "4-club
     room.match.collections.draw = new CardCollection(draw.map(card));
     bot.drawAllowance = allowance;
     t.after(() => {
-        for (const actor of room.match.turnOrder) actor.stopIdleMonitoring();
+        for (const player of room.match.turnOrder) player.stopIdleMonitoring();
     });
     return { room, bot, before, after };
 }
@@ -113,9 +113,9 @@ test("bot's final legal card finishes the match and records the opponents' resul
     assert.equal(room.match.getTopItem().id, "9-hearts");
     assert.equal(bot.collection.items.length, 0);
     assert.equal(room.match.state, Constants.ROOM_STATE.FINISHED);
-    assert.equal(bot.state, Constants.ACTOR_STATE.WON);
-    assert.equal(before.state, Constants.ACTOR_STATE.LOST);
-    assert.equal(after.state, Constants.ACTOR_STATE.LOST);
+    assert.equal(bot.state, Constants.PLAYER_STATE.WON);
+    assert.equal(before.state, Constants.PLAYER_STATE.LOST);
+    assert.equal(after.state, Constants.PLAYER_STATE.LOST);
 });
 
 test("bot leaves its hand and play collection untouched after losing turn ownership", async t => {
@@ -168,13 +168,13 @@ test("shield release after drawing checks the next opponent in reversed turn ord
 
 test("hard-mode strategy inspects reachable opponent hands and never the draw collection", t => {
     const { room, bot } = scenario(t, { hand: ["j-hearts", "q-hearts", "6-spades"] });
-    const distant = new Actor("Distant", { drawAllowance: 1 });
+    const distant = new Player("Distant", { drawAllowance: 1 });
     distant.collection.addMany([new Card("9", "clubs", 0)]);
-    const skipped = new Actor("Skipped", { drawAllowance: 1 });
+    const skipped = new Player("Skipped", { drawAllowance: 1 });
     skipped.collection.add(new Card("6", "diamonds", 0));
     room.match.turnOrder.add(skipped);
     room.match.turnOrder.add(distant);
-    const reverseFollowing = new Actor("Reverse Following", { drawAllowance: 1 });
+    const reverseFollowing = new Player("Reverse Following", { drawAllowance: 1 });
     reverseFollowing.collection.add(new Card("6", "diamonds", 0));
     room.match.turnOrder.add(reverseFollowing);
     distant.collection.items = new Proxy(distant.collection.items, {
@@ -263,8 +263,8 @@ test("hard-mode decision copies neighboring hands rather than retaining mutable 
 });
 
 for (const example of [
-    { name: "rejects an eight that gives its skipped-to actor the finish", previous: "3-clubs", skipped: "8-clubs", selected: "j-hearts" },
-    { name: "rejects a jack that gives the reversed-to actor the finish", previous: "j-clubs", skipped: "3-clubs", selected: "8-hearts" },
+    { name: "rejects an eight that gives its skipped-to player the finish", previous: "3-clubs", skipped: "8-clubs", selected: "j-hearts" },
+    { name: "rejects a jack that gives the reversed-to player the finish", previous: "j-clubs", skipped: "3-clubs", selected: "8-hearts" },
     { name: "sheds the most penalty when every projected opponent can finish", previous: "j-clubs", skipped: "8-clubs", selected: "q-hearts" }
 ]) {
     test(`hard-mode projected finish: ${example.name}`, async t => {
@@ -272,7 +272,7 @@ for (const example of [
             hand: ["8-hearts", "j-hearts", "q-hearts", "6-spades"],
             previous: [example.previous], next: ["5-hearts"]
         });
-        const skipped = new Actor("Skipped", { drawAllowance: 1 });
+        const skipped = new Player("Skipped", { drawAllowance: 1 });
         const [value, suit] = example.skipped.split("-");
         skipped.collection.add(new Card(value, suit, 0));
         room.match.turnOrder.add(skipped);
@@ -291,12 +291,12 @@ test("unavoidable opponent finishes override attack conservation to shed penalty
     assert.equal(new BotStrategy(bot, room.match).selectCard().id, "2-hearts");
 });
 
-test("projected finish avoidance follows an already reversed four-actor order", async t => {
+test("projected finish avoidance follows an already reversed four-player order", async t => {
     const { room, bot, after } = scenario(t, {
         hand: ["8-hearts", "j-hearts", "q-hearts", "6-spades"],
         previous: ["5-hearts"], next: ["3-clubs"], direction: -1
     });
-    const skipped = new Actor("Skipped", { drawAllowance: 1 });
+    const skipped = new Player("Skipped", { drawAllowance: 1 });
     skipped.collection.add(new Card("8", "clubs", 0));
     room.match.turnOrder.add(skipped);
     await bot.takeTurn(room);
@@ -306,15 +306,15 @@ test("projected finish avoidance follows an already reversed four-actor order", 
 });
 
 for (const example of [
-    { name: "keeps a joker when attacking removes the next actor's blocking play", hand: ["joker-red", "5-clubs", "6-spades"],
+    { name: "keeps a joker when attacking removes the next player's blocking play", hand: ["joker-red", "5-clubs", "6-spades"],
         next: ["5-diamonds", "9-clubs"], following: "3-hearts", selected: "5-clubs", allowance: 1 },
-    { name: "sheds the joker when the next actor cannot prevent the following finish", hand: ["joker-red", "5-hearts", "6-spades"],
+    { name: "sheds the joker when the next player cannot prevent the following finish", hand: ["joker-red", "5-hearts", "6-spades"],
         next: ["9-hearts", "10-hearts"], following: "3-hearts", selected: "joker-red", allowance: 1 },
     { name: "counterattacks despite the following finish when defending a draw penalty", hand: ["joker-red", "6-spades"],
         next: ["5-diamonds", "9-clubs"], following: "3-hearts", selected: "joker-red", allowance: 2 },
-    { name: "attacks when the next actor can pass the penalty onward", hand: ["2-hearts", "5-hearts", "6-spades"],
+    { name: "attacks when the next player can pass the penalty onward", hand: ["2-hearts", "5-hearts", "6-spades"],
         next: ["2-clubs", "9-hearts"], following: "3-hearts", selected: "2-hearts", allowance: 1 },
-    { name: "avoids an attack when the next actor's shield lets the following actor finish", hand: ["2-hearts", "5-clubs", "6-spades"],
+    { name: "avoids an attack when the next player's shield lets the following player finish", hand: ["2-hearts", "5-clubs", "6-spades"],
         next: ["a-spades", "9-clubs"], following: "3-hearts", selected: "5-clubs", allowance: 1 }
 ]) {
     test(`bot attack and defense strategy: ${example.name}`, async t => {
@@ -327,7 +327,7 @@ for (const example of [
     });
 }
 
-test("two-actor attack collection returns to the bot instead of inventing another opponent", t => {
+test("two-player attack collection returns to the bot instead of inventing another opponent", t => {
     const { room, bot, before } = scenario(t, {
         hand: ["joker-red", "q-hearts", "6-spades"], next: ["3-clubs", "4-clubs"]
     });
@@ -346,11 +346,11 @@ test("two-turn attack analysis follows reversed order", t => {
 for (const example of [
     { name: "prefers the most common safe suit even when another suit holds more penalty",
         next: ["9-clubs", "10-clubs"], following: "5-spades", selected: "hearts" },
-    { name: "avoids its most common suit when the next actor can finish",
+    { name: "avoids its most common suit when the next player can finish",
         next: ["5-hearts"], following: "5-spades", selected: "clubs" },
     { name: "avoids its most common suit when a forced draw exposes the following finish",
         next: ["9-clubs", "10-clubs"], following: "5-hearts", selected: "clubs" },
-    { name: "keeps its most common suit when the intermediate actor can block the following finish",
+    { name: "keeps its most common suit when the intermediate player can block the following finish",
         next: ["9-hearts", "10-hearts"], following: "5-clubs", selected: "hearts" }
 ]) {
     test(`bot mapped declaration: ${example.name}`, async t => {
@@ -396,11 +396,11 @@ for (const value of ["8", "j"]) {
         assert.equal(room.match.turnOrder.ownerKey, bot.key);
         await bot.takeTurn(room);
         assert.equal(room.match.state, Constants.ROOM_STATE.FINISHED);
-        assert.equal(bot.state, Constants.ACTOR_STATE.WON);
+        assert.equal(bot.state, Constants.PLAYER_STATE.WON);
     });
 }
 
-test("single-actor prediction never treats the bot as an opponent", t => {
+test("single-player prediction never treats the bot as an opponent", t => {
     const { room, bot, before, after } = scenario(t, { hand: ["9-hearts", "6-clubs"] });
     room.match.turnOrder.remove(before.key);
     room.match.turnOrder.remove(after.key);
@@ -413,9 +413,9 @@ test("single-actor prediction never treats the bot as an opponent", t => {
 });
 
 for (const example of [
-    { name: "blocks a next actor's seven-of-hearts finish with multiple cards", next: ["7-hearts", "3-diamonds"],
+    { name: "blocks a next player's seven-of-hearts finish with multiple cards", next: ["7-hearts", "3-diamonds"],
         previous: ["3-clubs", "4-clubs", "9-clubs"], hand: ["q-hearts", "5-clubs", "6-spades"], selected: "5-clubs" },
-    { name: "blocks a following actor's seven-of-hearts finish after a forced draw", next: ["9-clubs", "10-clubs"],
+    { name: "blocks a following player's seven-of-hearts finish after a forced draw", next: ["9-clubs", "10-clubs"],
         previous: ["7-hearts", "3-diamonds"], hand: ["q-hearts", "5-clubs", "6-spades"], selected: "5-clubs" },
     { name: "allows a seven-of-hearts response when the bot retains lower penalty", next: ["7-hearts", "9-diamonds"],
         previous: ["3-clubs", "4-clubs", "9-clubs"], hand: ["q-hearts", "3-clubs"], selected: "q-hearts" }

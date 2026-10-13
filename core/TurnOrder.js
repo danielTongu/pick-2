@@ -2,7 +2,7 @@
 
 import { Serializable } from "./Serializable.js";
 import { UserNotification } from "./UserNotification.js";
-import { Actor } from "./Actor.js";
+import { Player } from "./Player.js";
 import { ValidationUtils } from "./ValidationUtils.js";
 import { Constants } from "./Constants.js";
 
@@ -11,88 +11,88 @@ export class TurnOrder extends Serializable {
     /** Creates an empty, forward-moving turn order with no owner. */
     constructor() {
         super();
-        this.actors = new Map();
+        this.players = new Map();
         this.order = [];
         this.ownerKey = null;
         this.direction = 1;
     }
 
     /**
-     * @returns {Actor|null} Current turn owner.
+     * @returns {Player|null} Current turn owner.
      */
     get owner() {
-        return this.ownerKey === null ? null : (this.actors.get(this.ownerKey) ?? null);
+        return this.ownerKey === null ? null : (this.players.get(this.ownerKey) ?? null);
     }
 
     /**
 
-     * Returns whether an actor identity belongs to the order.
-     * @param {string} nameOrKey - Actor name or normalized key.
-     * @returns {boolean} Whether the Actor is seated.
+     * Returns whether a player identity belongs to the order.
+     * @param {string} nameOrKey - Player name or normalized key.
+     * @returns {boolean} Whether the Player is seated.
      */
     has(nameOrKey) {
-        return this.actors.has(Actor.normalizeKey(nameOrKey));
+        return this.players.has(Player.normalizeKey(nameOrKey));
     }
 
     /**
 
-     * Resolves an actor identity or raises a user-facing absence error.
-     * @param {string} nameOrKey - Actor name or normalized key.
-     * @returns {Actor} Matching Actor.
-     * @throws {UserNotification} When the Actor is absent.
+     * Resolves a player identity or raises a user-facing absence error.
+     * @param {string} nameOrKey - Player name or normalized key.
+     * @returns {Player} Matching Player.
+     * @throws {UserNotification} When the Player is absent.
      */
     get(nameOrKey) {
-        const actor = this.actors.get(Actor.normalizeKey(nameOrKey)) ?? null;
-        if (actor === null) {
-            throw new UserNotification(`Actor does not exist: ${nameOrKey}`);
+        const player = this.players.get(Player.normalizeKey(nameOrKey)) ?? null;
+        if (player === null) {
+            throw new UserNotification(`Player does not exist: ${nameOrKey}`);
         }
-        return actor;
+        return player;
     }
 
     /**
 
-     * Appends a unique actor to the circle.
-     * @param {Actor} actor - Actor to seat.
-     * @returns {Actor} Added Actor.
+     * Appends a unique player to the circle.
+     * @param {Player} player - Player to seat.
+     * @returns {Player} Added Player.
      */
-    add(actor) {
-        ValidationUtils.instanceOf(actor, Actor, "Actor");
-        if (this.actors.has(actor.key)) {
-            throw new UserNotification(`Actor already exists: ${actor.name}`);
+    add(player) {
+        ValidationUtils.instanceOf(player, Player, "Player");
+        if (this.players.has(player.key)) {
+            throw new UserNotification(`Player already exists: ${player.name}`);
         }
-        this.actors.set(actor.key, actor);
-        this.order.push(actor.key);
-        return actor;
+        this.players.set(player.key, player);
+        this.order.push(player.key);
+        return player;
     }
 
     /**
 
-     * Removes an actor while preserving a valid owner cursor.
-     * @param {string} nameOrKey - Actor name or normalized key.
-     * @returns {Actor} Removed Actor.
+     * Removes a player while preserving a valid owner cursor.
+     * @param {string} nameOrKey - Player name or normalized key.
+     * @returns {Player} Removed Player.
      */
     remove(nameOrKey) {
-        const actor = this.get(nameOrKey);
-        const index = this.order.indexOf(actor.key);
+        const player = this.get(nameOrKey);
+        const index = this.order.indexOf(player.key);
         this.order.splice(index, 1);
-        this.actors.delete(actor.key);
+        this.players.delete(player.key);
 
         if (this.order.length === 0) {
             this.ownerKey = null;
-        } else if (this.ownerKey === actor.key) {
+        } else if (this.ownerKey === player.key) {
             const nextIndex =
                 this.direction > 0 ? index % this.order.length : (index - 1 + this.order.length) % this.order.length;
             this.ownerKey = this.order[nextIndex];
         }
-        this.#synchronizeActorStates();
-        return actor;
+        this.#synchronizePlayerStates();
+        return player;
     }
 
     /**
 
-     * Assigns or clears the turn owner and synchronizes actor states.
-     * @param {string|null} nameOrKey - Actor identity, or null to clear ownership.
-     * @returns {Actor|null} Current owner.
+     * Assigns or clears the turn owner and synchronizes player states.
+     * @param {string|null} nameOrKey - Player identity, or null to clear ownership.
+     * @returns {Player|null} Current owner.
      */
     setOwner(nameOrKey) {
         if (nameOrKey === null) {
@@ -100,7 +100,7 @@ export class TurnOrder extends Serializable {
         } else {
             this.ownerKey = this.get(nameOrKey).key;
         }
-        this.#synchronizeActorStates();
+        this.#synchronizePlayerStates();
         return this.owner;
     }
 
@@ -116,21 +116,21 @@ export class TurnOrder extends Serializable {
 
      * Moves the owner cursor by signed logical steps.
      * @param {number} [steps] - Signed logical positions to advance.
-     * @returns {Actor|null} New owner.
+     * @returns {Player|null} New owner.
      */
     move(steps = 1) {
-        const actor = this.relative(steps);
-        if (actor !== null) {
-            this.setOwner(actor.key);
+        const player = this.relative(steps);
+        if (player !== null) {
+            this.setOwner(player.key);
         }
-        return actor;
+        return player;
     }
 
     /**
 
-     * Reads an actor relative to the owner without moving the cursor.
+     * Reads a player relative to the owner without moving the cursor.
      * @param {number} [steps] - Signed logical offset.
-     * @returns {Actor|null} Relative Actor.
+     * @returns {Player|null} Relative Player.
      */
     relative(steps = 1) {
         ValidationUtils.integer(steps, "Steps");
@@ -140,7 +140,7 @@ export class TurnOrder extends Serializable {
         const index = this.order.indexOf(this.ownerKey);
         const offset = steps * this.direction;
         const target = (((index + offset) % this.order.length) + this.order.length) % this.order.length;
-        return this.actors.get(this.order[target]) ?? null;
+        return this.players.get(this.order[target]) ?? null;
     }
 
     /** Reverses traversal direction. */
@@ -149,36 +149,36 @@ export class TurnOrder extends Serializable {
         return this.direction;
     }
 
-    /** Clears match ownership, restores direction, and resets every actor. */
+    /** Clears match ownership, restores direction, and resets every player. */
     reset() {
         this.ownerKey = null;
         this.direction = 1;
-        for (const actor of this.actors.values()) {
-            actor.reset();
+        for (const player of this.players.values()) {
+            player.reset();
         }
     }
 
-    /** Aligns non-final actor states with current turn ownership. */
-    #synchronizeActorStates() {
-        for (const actor of this.actors.values()) {
-            if (actor.state !== Constants.ACTOR_STATE.WON && actor.state !== Constants.ACTOR_STATE.LOST &&
-                actor.state !== Constants.ACTOR_STATE.QUALIFIED && actor.state !== Constants.ACTOR_STATE.ELIMINATED) {
-                actor.state = actor.key === this.ownerKey ? Constants.ACTOR_STATE.ACTIVE : Constants.ACTOR_STATE.READY;
+    /** Aligns non-final player states with current turn ownership. */
+    #synchronizePlayerStates() {
+        for (const player of this.players.values()) {
+            if (player.state !== Constants.PLAYER_STATE.WON && player.state !== Constants.PLAYER_STATE.LOST &&
+                player.state !== Constants.PLAYER_STATE.QUALIFIED && player.state !== Constants.PLAYER_STATE.ELIMINATED) {
+                player.state = player.key === this.ownerKey ? Constants.PLAYER_STATE.ACTIVE : Constants.PLAYER_STATE.READY;
             }
         }
     }
 
     [Symbol.iterator]() {
-        return this.actors.values();
+        return this.players.values();
     }
 
-    /** Serializes ordered actors and public cursor state. */
+    /** Serializes ordered players and public cursor state. */
     toJSON() {
         return {
-            actors: Array.from(this.actors.values(), function serialize(actor) {
-                return actor.toJSON();
+            players: Array.from(this.players.values(), function serialize(player) {
+                return player.toJSON();
             }),
-            actorCount: this.actors.size,
+            playerCount: this.players.size,
             ownerKey: this.ownerKey,
             direction: this.direction
         };

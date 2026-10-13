@@ -1,7 +1,7 @@
 /** Canonical immutable vocabulary, limits, card definitions, and timing shared across Pick 2. */
 export class Constants {
 
-    /** @type {number} Room wait for actor activity, empty-room closure, and the next Knockout match. */
+    /** @type {number} Room wait for player activity, empty-room closure, and the next Knockout match. */
     static ROOM_WAIT_MS = 30 * 1000;
 
     /** @type {number} Transition countdown length. */
@@ -15,17 +15,17 @@ export class Constants {
         CONNECTING: "connecting", CONNECTED: "connected", ERROR: "error", UNCONFIGURED: "unconfigured"
     });
 
-    /** @type {number} Default maximum actors per room. */
-    static ROOM_ACTOR_LIMIT = 4;
+    /** @type {number} Default maximum players per room. */
+    static ROOM_PLAYER_LIMIT = 4;
 
-    /** @type {number} Default number of cards dealt to each actor. */
+    /** @type {number} Default number of cards dealt to each player. */
     static INITIAL_ITEM_COUNT = 7;
 
     /** @type {number} Minimum automated-turn delay. */
-    static AUTOMATED_ACTOR_DELAY_MIN_MS = 2000;
+    static AUTOMATED_PLAYER_DELAY_MIN_MS = 2000;
 
     /** @type {number} Maximum automated-turn delay.*/
-    static AUTOMATED_ACTOR_DELAY_MAX_MS = 4000;
+    static AUTOMATED_PLAYER_DELAY_MAX_MS = 4000;
 
     /** @type {Readonly<Record<string, string>>} Connection and notification statuses. */
     static STATUS = Object.freeze({
@@ -35,8 +35,8 @@ export class Constants {
     /** @type {Readonly<Record<string, string>>} Room lifecycle states. */
     static ROOM_STATE = Object.freeze({ WAITING: "waiting", ACTIVE: "active", FINISHED: "finished" });
 
-    /** @type {Readonly<Record<string, string>>} Actor match states. */
-    static ACTOR_STATE = Object.freeze({ READY: "ready", ACTIVE: "active", WON: "won", LOST: "lost", QUALIFIED: "qualified", ELIMINATED: "eliminated" });
+    /** @type {Readonly<Record<string, string>>} Player match states. */
+    static PLAYER_STATE = Object.freeze({ READY: "ready", ACTIVE: "active", WON: "won", LOST: "lost", QUALIFIED: "qualified", ELIMINATED: "eliminated" });
 
     /** Room-table Knockout column values. */
     static KNOCKOUT_VALUE = Object.freeze({ YES: "yes", NO: "no" });
@@ -59,12 +59,12 @@ export class Constants {
             title: "welcome in!",
             message: "You’re viewing the room you selected.\nClick the JOIN button to participate."
         }),
-        ACTOR_WELCOME: Object.freeze({
+        PLAYER_WELCOME: Object.freeze({
             title: "welcome",
-            message: "You are now an actor.\nSee FAQ for the game guide.\n\nGood luck!"
+            message: "You are now a player.\nSee FAQ for the game guide.\n\nGood luck!"
         }),
         MOVED_TO_VIEWING: Object.freeze({ title: "Moved to viewing", message: "You were idle." }),
-        ROOM_CLOSED: Object.freeze({ title: "Room closed", message: "No actors remain." }),
+        ROOM_CLOSED: Object.freeze({ title: "Room closed", message: "No players remain." }),
         INVITE_COPIED: Object.freeze({
             title: "Invite copied",
             message: "Paste the room link wherever you want to share it."
@@ -88,9 +88,9 @@ export class Constants {
 
     /** Default rooms available in Direct and Hosted registries.*/
     static DEFAULT_ROOMS = Object.freeze([
-        Object.freeze({ roomName: "Default-R0", actorLimit: 4, botCount: 3 }),
-        Object.freeze({ roomName: "Default-R1", actorLimit: 4, botCount: 2 }),
-        Object.freeze({ roomName: "Default-R2", actorLimit: 4, botCount: 1 })
+        Object.freeze({ roomName: "Default-R0", playerLimit: 4, botCount: 3 }),
+        Object.freeze({ roomName: "Default-R1", playerLimit: 4, botCount: 2 }),
+        Object.freeze({ roomName: "Default-R2", playerLimit: 4, botCount: 1 })
     ]);
 
     /** Emoji groups used by room messages. */

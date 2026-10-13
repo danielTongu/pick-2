@@ -9,18 +9,18 @@ import { Constants } from "../core/Constants.js";
 import { Knockout, Match, Room } from "../core/Room.js";
 import { Host } from "../host/Host.js";
 
-function stopActors(room) {
-    for (const actor of room.match.turnOrder.actors.values()) actor.stopIdleMonitoring();
+function stopPlayers(room) {
+    for (const player of room.match.turnOrder.players.values()) player.stopIdleMonitoring();
 }
 
 async function playingRoom(t, names, knockout) {
     const room = new Room("Knockout Test", names.length);
-    t.after(function cleanup() { stopActors(room); });
-    for (const name of names) await room.joinActor(name);
+    t.after(function cleanup() { stopPlayers(room); });
+    for (const name of names) await room.joinPlayer(name);
     await room.startMatch(knockout);
     room.match.turnOrder.setOwner(names[0]);
     room.match.collections.play.items = [new Card("5", "hearts")];
-    for (const actor of room.match.turnOrder.actors.values()) actor.collection.clear();
+    for (const player of room.match.turnOrder.players.values()) player.collection.clear();
     return room;
 }
 
@@ -42,14 +42,14 @@ test("knockout eliminates every tied high penalty and waits for Play", async (t)
 
     await room.playItem("Alice", "7", "hearts");
     assert.equal(Object.hasOwn(room, "winners"), false);
-    assert.deepEqual([...room.match.turnOrder.actors.values()].filter(function eliminated(actor) {
-        return actor.state === Constants.ACTOR_STATE.ELIMINATED;
-    }).map(function nameOf(actor) { return actor.name; }), ["Bob", "Casey"]);
-    assert.deepEqual([...room.match.turnOrder.actors.values()].map(function stateOf(actor) { return actor.state; }),
+    assert.deepEqual([...room.match.turnOrder.players.values()].filter(function eliminated(player) {
+        return player.state === Constants.PLAYER_STATE.ELIMINATED;
+    }).map(function nameOf(player) { return player.name; }), ["Bob", "Casey"]);
+    assert.deepEqual([...room.match.turnOrder.players.values()].map(function stateOf(player) { return player.state; }),
         ["qualified", "eliminated", "eliminated", "qualified"]);
     assert.equal(room.match.turnOrder.get("Bob").collection.penalty, 12);
-    await room.moveActorToView("Bob", "bob-tab");
-    await room.moveActorToView("Casey", "casey-tab");
+    await room.movePlayerToView("Bob", "bob-tab");
+    await room.movePlayerToView("Casey", "casey-tab");
     assert.equal(room.match.nextMatchAvailable, true);
     assert.deepEqual(room.match.turnOrder.order, ["alice", "dana"]);
     const currentOrder = room.match.turnOrder;
@@ -61,20 +61,20 @@ test("knockout eliminates every tied high penalty and waits for Play", async (t)
     assert.equal(room.match.nextMatchAvailable, false);
 });
 
-test("knockout final match can tie and a one-on-one departure awards the remaining actor", async (t) => {
+test("knockout final match can tie and a one-on-one departure awards the remaining player", async (t) => {
     const room = await playingRoom(t, ["Alice", "Bob"], true);
     room.match.turnOrder.get("Alice").collection.add(new Card("7", "hearts"));
     room.match.turnOrder.get("Alice").collection.add(new Card("5", "clubs"));
     room.match.turnOrder.get("Bob").collection.add(new Card("5", "diamonds"));
     await room.playItem("Alice", "7", "hearts");
-    assert.deepEqual([...room.match.turnOrder.actors.values()].map(function stateOf(actor) { return actor.state; }),
-        [Constants.ACTOR_STATE.WON, Constants.ACTOR_STATE.WON]);
+    assert.deepEqual([...room.match.turnOrder.players.values()].map(function stateOf(player) { return player.state; }),
+        [Constants.PLAYER_STATE.WON, Constants.PLAYER_STATE.WON]);
     assert.equal(room.match.isKnockoutComplete, true);
     assert.equal(room.match.nextMatchAvailable, false);
 
     const forfeit = await playingRoom(t, ["Alice", "Bob"], true);
-    await forfeit.removeActor("Bob");
-    assert.equal(forfeit.match.turnOrder.get("Alice").state, Constants.ACTOR_STATE.WON);
+    await forfeit.removePlayer("Bob");
+    assert.equal(forfeit.match.turnOrder.get("Alice").state, Constants.PLAYER_STATE.WON);
     assert.equal(forfeit.match.isKnockoutComplete, true);
     assert.equal(forfeit.match.state, Constants.ROOM_STATE.FINISHED);
 });
@@ -84,31 +84,31 @@ test("ordinary match keeps its existing winner and departure behavior", async (t
     assert.ok(room.match instanceof Match);
     assert.equal(room.match instanceof Knockout, false);
     assert.equal("prepareNextMatch" in room.match, false);
-    assert.equal("afterActorRemoved" in room.match, false);
+    assert.equal("afterPlayerRemoved" in room.match, false);
     assert.equal("nextMatchAvailable" in room.match, false);
     assert.equal("isKnockoutComplete" in room.match, false);
     room.match.turnOrder.get("Alice").collection.add(new Card("7", "hearts"));
     room.match.turnOrder.get("Bob").collection.add(new Card("q", "clubs"));
     room.match.turnOrder.get("Casey").collection.add(new Card("3", "clubs"));
     await room.playItem("Alice", "7", "hearts");
-    assert.equal(room.match.turnOrder.get("Alice").state, Constants.ACTOR_STATE.WON);
+    assert.equal(room.match.turnOrder.get("Alice").state, Constants.PLAYER_STATE.WON);
     assert.equal(Object.hasOwn(room.match, "nextMatchAvailable"), false);
     assert.equal(room.match instanceof Knockout, false);
 });
 
-test("a qualified actor wins if the other actor leaves before the next Play", async (t) => {
+test("a qualified player wins if the other player leaves before the next Play", async (t) => {
     const room = await playingRoom(t, ["Alice", "Bob", "Casey"], true);
     room.match.turnOrder.get("Alice").collection.add(new Card("7", "hearts"));
     room.match.turnOrder.get("Bob").collection.add(new Card("q", "clubs"));
     room.match.turnOrder.get("Casey").collection.add(new Card("3", "clubs"));
     await room.playItem("Alice", "7", "hearts");
-    await room.moveActorToView("Bob", "bob-tab");
+    await room.movePlayerToView("Bob", "bob-tab");
     assert.equal(room.match.nextMatchAvailable, true);
-    await room.removeActor("Casey");
-    assert.equal(room.match.turnOrder.get("Alice").state, Constants.ACTOR_STATE.WON);
+    await room.removePlayer("Casey");
+    assert.equal(room.match.turnOrder.get("Alice").state, Constants.PLAYER_STATE.WON);
     assert.equal(room.match.isKnockoutComplete, true);
     assert.equal(room.match.nextMatchAvailable, false);
-    assert.equal(room.match.turnOrder.get("Alice").state, Constants.ACTOR_STATE.WON);
+    assert.equal(room.match.turnOrder.get("Alice").state, Constants.PLAYER_STATE.WON);
 });
 
 test("a full high-penalty tie eliminates everyone and ends the knockout in a tie", async (t) => {
@@ -118,11 +118,11 @@ test("a full high-penalty tie eliminates everyone and ends the knockout in a tie
     room.match.turnOrder.get("Bob").collection.add(new Card("5", "diamonds"));
     room.match.turnOrder.get("Casey").collection.add(new Card("5", "spades"));
     await room.playItem("Alice", "7", "hearts");
-    assert.deepEqual([...room.match.turnOrder.actors.values()].map(function stateOf(actor) { return actor.state; }),
-        [Constants.ACTOR_STATE.ELIMINATED, Constants.ACTOR_STATE.ELIMINATED, Constants.ACTOR_STATE.ELIMINATED]);
-    for (const name of ["Alice", "Bob", "Casey"]) await room.removeActor(name);
-    assert.equal([...room.match.turnOrder.actors.values()].some(function won(actor) {
-        return actor.state === Constants.ACTOR_STATE.WON;
+    assert.deepEqual([...room.match.turnOrder.players.values()].map(function stateOf(player) { return player.state; }),
+        [Constants.PLAYER_STATE.ELIMINATED, Constants.PLAYER_STATE.ELIMINATED, Constants.PLAYER_STATE.ELIMINATED]);
+    for (const name of ["Alice", "Bob", "Casey"]) await room.removePlayer(name);
+    assert.equal([...room.match.turnOrder.players.values()].some(function won(player) {
+        return player.state === Constants.PLAYER_STATE.WON;
     }), false);
     assert.equal(room.match.isKnockoutComplete, true);
 });
@@ -151,31 +151,31 @@ test("host retains knockout results until Play removes nonqualifiers and demotes
     const alice = connection("alice-tab");
     const bob = connection("bob-tab");
     const casey = connection("casey-tab");
-    await alice.request(Constants.COMMANDS.CREATE, { roomName: "Knockout Host", actorName: "Alice", actorLimit: 3 });
-    await bob.request(Constants.COMMANDS.JOIN, { roomName: "Knockout Host", actorName: "Bob" });
-    await casey.request(Constants.COMMANDS.JOIN, { roomName: "Knockout Host", actorName: "Casey" });
+    await alice.request(Constants.COMMANDS.CREATE, { roomName: "Knockout Host", playerName: "Alice", playerLimit: 3 });
+    await bob.request(Constants.COMMANDS.JOIN, { roomName: "Knockout Host", playerName: "Bob" });
+    await casey.request(Constants.COMMANDS.JOIN, { roomName: "Knockout Host", playerName: "Casey" });
     await alice.request(Constants.COMMANDS.START, { knockout: true });
     const room = host.createdRoom;
     room.match.turnOrder.setOwner("Alice");
     room.match.collections.play.items = [new Card("5", "hearts")];
-    for (const actor of room.match.turnOrder.actors.values()) actor.collection.clear();
+    for (const player of room.match.turnOrder.players.values()) player.collection.clear();
     room.match.turnOrder.get("Alice").collection.add(new Card("7", "hearts"));
     room.match.turnOrder.get("Bob").collection.add(new Card("q", "clubs"));
     room.match.turnOrder.get("Casey").collection.add(new Card("3", "clubs"));
     await alice.request(Constants.COMMANDS.DISCARD, { card: { value: "7", suit: "hearts" } });
     assert.equal(room.match.nextMatchAvailable, true);
-    assert.equal(room.hasActor("Bob"), true);
+    assert.equal(room.hasPlayer("Bob"), true);
     assert.equal(room.viewers.has("bob-tab"), false);
-    assert.equal(bob.responses.findLast(function isRoom(response) { return response.view === "room"; }).data.localActorName, "Bob");
+    assert.equal(bob.responses.findLast(function isRoom(response) { return response.view === "room"; }).data.localPlayerName, "Bob");
     assert.equal(room.match.state, Constants.ROOM_STATE.FINISHED);
     assert.equal(typeof room.match.turnOrder.get("Alice").onIdle, "function");
     await delay(1010);
     await bob.request(Constants.COMMANDS.START);
     assert.equal(room.match.state, Constants.ROOM_STATE.ACTIVE);
     assert.ok(room.match instanceof Knockout);
-    assert.equal(room.hasActor("Bob"), false);
+    assert.equal(room.hasPlayer("Bob"), false);
     assert.equal(room.viewers.has("bob-tab"), true);
-    assert.equal(bob.responses.findLast(function isRoom(response) { return response.view === "room"; }).data.localActorName, null);
+    assert.equal(bob.responses.findLast(function isRoom(response) { return response.view === "room"; }).data.localPlayerName, null);
 });
 
 test("a bot-only qualified field starts on the timer after the human is eliminated", async (t) => {
@@ -198,26 +198,26 @@ test("a bot-only qualified field starts on the timer after the human is eliminat
     async function request(command, data = {}) {
         await connection.receive({ command, data: { tabId: "alice-tab", sortKey: "none", ...data } });
     }
-    await request(Constants.COMMANDS.CREATE, { roomName: "Bot Knockout", actorName: "Alice", actorLimit: 3 });
+    await request(Constants.COMMANDS.CREATE, { roomName: "Bot Knockout", playerName: "Alice", playerLimit: 3 });
     await request(Constants.COMMANDS.START, { knockout: true });
     const room = host.createdRoom;
     room.match.turnOrder.setOwner("Alice");
     room.match.collections.play.items = [new Card("5", "hearts")];
-    for (const actor of room.match.turnOrder.actors.values()) actor.collection.clear();
+    for (const player of room.match.turnOrder.players.values()) player.collection.clear();
     room.match.turnOrder.get("Alice").collection.add(new Card("7", "hearts"));
     room.match.turnOrder.get("Alice").collection.add(new Card("q", "clubs"));
     room.match.turnOrder.get("CM").collection.add(new Card("3", "clubs"));
     room.match.turnOrder.get("XC").collection.add(new Card("4", "clubs"));
     await request(Constants.COMMANDS.DISCARD, { card: { value: "7", suit: "hearts" } });
-    assert.equal(room.hasActor("Alice"), true);
+    assert.equal(room.hasPlayer("Alice"), true);
     assert.equal(room.match.nextMatchAvailable, true);
     await delay(100);
     assert.equal(room.match.state, Constants.ROOM_STATE.ACTIVE);
-    assert.equal(room.hasActor("Alice"), false);
-    assert.deepEqual([...room.match.turnOrder.actors.values()].map(function nameOf(actor) { return actor.name; }), ["CM", "XC"]);
+    assert.equal(room.hasPlayer("Alice"), false);
+    assert.deepEqual([...room.match.turnOrder.players.values()].map(function nameOf(player) { return player.name; }), ["CM", "XC"]);
     assert.ok(responses.some(function sawResult(response) {
         return response.data?.match?.state === Constants.ROOM_STATE.FINISHED &&
-            response.data?.match?.turnOrder?.actors?.length === 3;
+            response.data?.match?.turnOrder?.players?.length === 3;
     }));
 });
 
@@ -242,25 +242,25 @@ test("an eliminated bot is recreated by name after the final knockout result", a
     async function request(command, data = {}) {
         await connection.receive({ command, data: { tabId: "alice-tab", sortKey: "none", ...data } });
     }
-    await request(Constants.COMMANDS.CREATE, { roomName: "Bot Return", actorName: "Alice", actorLimit: 3 });
+    await request(Constants.COMMANDS.CREATE, { roomName: "Bot Return", playerName: "Alice", playerLimit: 3 });
     await request(Constants.COMMANDS.START, { knockout: true });
     const room = host.createdRoom;
     const eliminatedBot = room.match.turnOrder.get("CM");
     room.match.turnOrder.setOwner("Alice");
     room.match.collections.play.items = [new Card("5", "hearts")];
-    for (const actor of room.match.turnOrder.actors.values()) actor.collection.clear();
+    for (const player of room.match.turnOrder.players.values()) player.collection.clear();
     room.match.turnOrder.get("Alice").collection.add(new Card("7", "hearts"));
     room.match.turnOrder.get("CM").collection.add(new Card("q", "clubs"));
     room.match.turnOrder.get("XC").collection.add(new Card("3", "clubs"));
     await request(Constants.COMMANDS.DISCARD, { card: { value: "7", suit: "hearts" } });
-    assert.equal(room.hasActor("CM"), true);
+    assert.equal(room.hasPlayer("CM"), true);
     await delay(100);
     assert.equal(room.match.state, Constants.ROOM_STATE.ACTIVE);
-    assert.equal(room.hasActor("CM"), false);
+    assert.equal(room.hasPlayer("CM"), false);
     assert.deepEqual(room.match.lostBotNames, ["CM"]);
     room.match.turnOrder.setOwner("Alice");
     room.match.collections.play.items = [new Card("5", "hearts")];
-    for (const actor of room.match.turnOrder.actors.values()) actor.collection.clear();
+    for (const player of room.match.turnOrder.players.values()) player.collection.clear();
     room.match.turnOrder.get("Alice").collection.add(new Card("7", "hearts"));
     room.match.turnOrder.get("XC").collection.add(new Card("3", "clubs"));
     await delay(260);
@@ -271,11 +271,11 @@ test("an eliminated bot is recreated by name after the final knockout result", a
     assert.notEqual(returningBot, eliminatedBot);
     assert.equal(returningBot.name, eliminatedBot.name);
     assert.deepEqual(room.match.lostBotNames, []);
-    assert.equal(returningBot.state, Constants.ACTOR_STATE.LOST);
+    assert.equal(returningBot.state, Constants.PLAYER_STATE.LOST);
     assert.equal(returningBot.collection.items.length, 0);
-    assert.equal(room.toJSON().match.turnOrder.actors.find(actor => actor.key === eliminatedBot.key).state,
-        Constants.ACTOR_STATE.LOST);
+    assert.equal(room.toJSON().match.turnOrder.players.find(player => player.key === eliminatedBot.key).state,
+        Constants.PLAYER_STATE.LOST);
     await room.startMatch(false);
     assert.equal(room.match.lostBotNames, null);
-    assert.ok([Constants.ACTOR_STATE.READY, Constants.ACTOR_STATE.ACTIVE].includes(returningBot.state));
+    assert.ok([Constants.PLAYER_STATE.READY, Constants.PLAYER_STATE.ACTIVE].includes(returningBot.state));
 });

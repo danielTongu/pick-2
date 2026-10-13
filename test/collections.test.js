@@ -6,7 +6,7 @@ import test from "node:test";
 import { Card } from "../core/Card.js";
 import { Constants } from "../core/Constants.js";
 import { CardCollection } from "../core/CardCollection.js";
-import { Actor } from "../core/Actor.js";
+import { Player } from "../core/Player.js";
 import { TurnOrder } from "../core/TurnOrder.js";
 
 const { VALUE, SUIT } = Constants.CARD;
@@ -91,9 +91,9 @@ test("shared sorting returns an ordered copy for browser rendering", () => {
 
 test("turn order moves, reverses, and preserves order after removal", () => {
     const turnOrder = new TurnOrder();
-    const alice = turnOrder.add(new Actor("Alice", { drawAllowance: 1 }));
-    const bob = turnOrder.add(new Actor("Bob", { drawAllowance: 1 }));
-    turnOrder.add(new Actor("Casey", { drawAllowance: 1 }));
+    const alice = turnOrder.add(new Player("Alice", { drawAllowance: 1 }));
+    const bob = turnOrder.add(new Player("Bob", { drawAllowance: 1 }));
+    turnOrder.add(new Player("Casey", { drawAllowance: 1 }));
 
     assert.equal(turnOrder.ownerKey, null);
     assert.throws(() => turnOrder.requireOwner(), /Turn owner is not assigned/);
@@ -117,7 +117,7 @@ test("turn order moves, reverses, and preserves order after removal", () => {
     assert.equal(turnOrder.relative(2).name, "Casey");
 });
 
-test("actor names produce stable keys", () => {
-    assert.equal(Actor.normalizeKey("  Ada Lovelace!  "), "ada-lovelace");
-    assert.throws(() => new Actor("   ", { drawAllowance: 1 }), /cannot be empty/);
+test("player names produce stable keys", () => {
+    assert.equal(Player.normalizeKey("  Ada Lovelace!  "), "ada-lovelace");
+    assert.throws(() => new Player("   ", { drawAllowance: 1 }), /cannot be empty/);
 });

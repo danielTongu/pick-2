@@ -79,11 +79,11 @@ export class ConnectionRegistry {
      * @param {string} tabId - Browser-tab identity.
      * @param {HostConnection} connection - Host connection.
      * @param {string} roomKey - Normalized room key.
-     * @param {string|null} actorName - Seated actor or null.
+     * @param {string|null} playerName - Seated player or null.
      * @returns {RoomMembership}
      */
-    register(tabId, connection, roomKey, actorName) {
-        const membership = new RoomMembership(tabId, connection, roomKey, actorName);
+    register(tabId, connection, roomKey, playerName) {
+        const membership = new RoomMembership(tabId, connection, roomKey, playerName);
         this.#memberships.set(tabId, membership);
         connection.authenticate(tabId);
 
@@ -135,12 +135,12 @@ export class ConnectionRegistry {
 
     /**
      * @param {string} roomKey - Normalized room key.
-     * @param {string} actorName - Actor name.
+     * @param {string} playerName - Player name.
      * @returns {RoomMembership|null}
      */
-    findActor(roomKey, actorName) {
+    findPlayer(roomKey, playerName) {
         return this.inRoom(roomKey).find(function matches(membership) {
-            return membership.actorName === actorName;
+            return membership.playerName === playerName;
         }) ?? null;
     }
 

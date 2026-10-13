@@ -30,13 +30,13 @@ export class BotStrategy {
     #state;
 
     /**
-     * Copies the bot hand, reachable next-actor hands, public discards, and turn positions.
-     * Other actors retain count-only summaries; the draw collection is never inspected.
-     * @param {import("./BotActor.js").BotActor} bot - Acting bot.
+     * Copies the bot hand, reachable next-player hands, public discards, and turn positions.
+     * Other players retain count-only summaries; the draw collection is never inspected.
+     * @param {import("./BotPlayer.js").BotPlayer} bot - Acting bot.
      * @param {import("./Room.js").Match} match - Current match.
      */
     constructor(bot, match) {
-        const turnActors = Array.from({ length: match.turnOrder.actors.size }, function relativeActor(_, index) {
+        const turnPlayers = Array.from({ length: match.turnOrder.players.size }, function relativePlayer(_, index) {
             return match.turnOrder.relative(index);
         });
 
@@ -44,37 +44,37 @@ export class BotStrategy {
         const top = match.getTopItem?.() ?? null;
         const legalCards = hand.getLegalCards(top, match.declaredSuit, bot.drawAllowance);
 
-        if (top?.isSuitChange() && match.pending?.actorKey === bot.key) {
+        if (top?.isSuitChange() && match.pending?.playerKey === bot.key) {
             legalCards.push(top);
         }
 
         const targets = new Set();
         for (const card of legalCards) {
-            const steps = card.isSkip(turnActors.length) ? 2 : card.isReverse(turnActors.length) ? -1 : 1;
-            const index = (steps + turnActors.length) % turnActors.length;
-            const target = turnActors[index];
+            const steps = card.isSkip(turnPlayers.length) ? 2 : card.isReverse(turnPlayers.length) ? -1 : 1;
+            const index = (steps + turnPlayers.length) % turnPlayers.length;
+            const target = turnPlayers[index];
 
             if (target === undefined || target.key === bot.key) continue;
 
             targets.add(target.key);
-            const direction = card.isReverse(turnActors.length) ? -1 : 1;
-            const following = turnActors[(index + direction + turnActors.length) % turnActors.length];
+            const direction = card.isReverse(turnPlayers.length) ? -1 : 1;
+            const following = turnPlayers[(index + direction + turnPlayers.length) % turnPlayers.length];
 
             if (following.key !== bot.key) targets.add(following.key);
         }
 
-        const actors = [];
-        for (const actor of match.turnOrder.actors.values()) {
-            actors.push({
-                key: actor.key,
-                cardCount: actor.collection.items.length,
-                hand: actor.key !== bot.key && targets.has(actor.key) ? new CardCollection(actor.collection.items) : null
+        const players = [];
+        for (const player of match.turnOrder.players.values()) {
+            players.push({
+                key: player.key,
+                cardCount: player.collection.items.length,
+                hand: player.key !== bot.key && targets.has(player.key) ? new CardCollection(player.collection.items) : null
             });
         }
 
         const byKey = new Map();
-        for (const actor of actors) {
-            byKey.set(actor.key, actor);
+        for (const player of players) {
+            byKey.set(player.key, player);
         }
 
         this.#state = {
@@ -85,11 +85,11 @@ export class BotStrategy {
             play: [...(match.collections?.play?.items ?? [])],
             top,
             declaredSuit: match.declaredSuit,
-            actors,
-            turnActors: turnActors.map(function actorSnapshot(actor){ return byKey.get(actor.key);}),
-            actorCount: actors.length,
-            nextActor: turnActors.length > 1 ? byKey.get(turnActors[1].key) : null,
-            lastDiscardActor: byKey.get(match.getLastDiscardActor?.()?.key) ?? null
+            players,
+            turnPlayers: turnPlayers.map(function playerSnapshot(player){ return byKey.get(player.key);}),
+            playerCount: players.length,
+            nextPlayer: turnPlayers.length > 1 ? byKey.get(turnPlayers[1].key) : null,
+            lastDiscardPlayer: byKey.get(match.getLastDiscardPlayer?.()?.key) ?? null
         };
     }
 
@@ -151,12 +151,12 @@ export class BotStrategy {
      * @returns {Object} Candidate action shared by scoring and lookahead.
      */
     #mapCardTargets(card, remaining = this.#state.hand.size - 1) {
-        const target = this.#nextActorAfter(card);
+        const target = this.#nextPlayerAfter(card);
         return {
             card,
             target,
-            returnsToBot: target === null && this.#state.actorCount > 0,
-            following: target === null ? null : this.#followingActor(card, target),
+            returnsToBot: target === null && this.#state.playerCount > 0,
+            following: target === null ? null : this.#followingPlayer(card, target),
             drawAllowance: card.isDrawFour() ? 4 : card.isDrawTwo() ? 2 : 1,
             declaredSuit: null,
             remainingPenalty: this.#state.penalty - (remaining < this.#state.hand.size ? card.rank : 0),
@@ -170,7 +170,7 @@ export class BotStrategy {
      * @returns {Object[]} Strategically available actions.
      */
     #preferredActions(actions) {
-        const next = this.#state.nextActor;
+        const next = this.#state.nextPlayer;
         const releaseShield = this.#state.drawAllowance > 1 ||
             (this.#state.drawAllowance <= 0 && next !== null && next.key !== this.#state.key && next.cardCount !== 1);
         return actions.filter(function conserveShield(action) {
@@ -179,7 +179,7 @@ export class BotStrategy {
     }
 
     /**
-     * Attacks only when the first two responding actors cannot exploit it to finish.
+     * Attacks only when the first two responding players cannot exploit it to finish.
      * Unavoidable finishes prioritize shedding penalty over conserving tactical cards.
      * @param {Object} action - Legal candidate.
      * @param {number} tacticalScore - Offensive pressure and hand setup.
@@ -193,7 +193,7 @@ export class BotStrategy {
 
     /**
      * Prioritizes legal counterattacks and shields during an active draw attack.
-     * Forced defense is not rejected because a later actor could finish.
+     * Forced defense is not rejected because a later player could finish.
      * @param {Object} action - Legal defensive candidate.
      * @param {number} tacticalScore - Defense, shedding, and continuation value.
      * @returns {{risk:number, score:number}} Defense priority.
@@ -206,7 +206,7 @@ export class BotStrategy {
      * Reconstructs unknown cards after removing the bot hand, public discards, and inspected hands.
      *
      * Cards recycled from an old discard pile correctly become unseen again, which is why
-     * persistent per-actor discard memory would produce inaccurate card counts.
+     * persistent per-player discard memory would produce inaccurate card counts.
      *
      * @returns {import("./Card.js").Card[]} Unseen cards.
      */
@@ -222,9 +222,9 @@ export class BotStrategy {
             knownCardIds.add(`${card.value}-${card.suit}`);
         }
 
-        for (const actor of this.#state.actors) {
-            if (actor.hand !== null) {
-                for (const card of actor.hand.items) knownCardIds.add(card.id);
+        for (const player of this.#state.players) {
+            if (player.hand !== null) {
+                for (const card of player.hand.items) knownCardIds.add(card.id);
             }
         }
 
@@ -258,7 +258,7 @@ export class BotStrategy {
         const opponentPressure = this.#scoreOpponentPressure(action, choiceCount, unseenCards);
         const handSetup = this.#scoreRemainingHand(action);
         const weakSuit = this.#continuesWeakSuit(action) ? SCORE.strong : 0;
-        const turnControl = card.isSkip(this.#state.actorCount) || card.isReverse(this.#state.actorCount) ? SCORE.continuation : 0;
+        const turnControl = card.isSkip(this.#state.playerCount) || card.isReverse(this.#state.playerCount) ? SCORE.continuation : 0;
 
         return shedding + opponentPressure + handSetup + weakSuit + turnControl + this.#scoreDrawDefense(card);
     }
@@ -294,7 +294,7 @@ export class BotStrategy {
     /**
      * Estimates how safely a candidate controls the projected opponent.
      *
-     * The projected actor accounts for skips and reverses. Neighboring hands provide exact
+     * The projected player accounts for skips and reverses. Neighboring hands provide exact
      * legal-response checks; other targets use their counts and the unknown-card pool.
      *
      * @param {Object} action - Candidate discard.
@@ -308,7 +308,7 @@ export class BotStrategy {
             return 0;
         }
 
-        const immediate = this.#state.nextActor;
+        const immediate = this.#state.nextPlayer;
         const projected = action.target;
         const urgency = this.#opponentUrgency(projected);
         const rerouting = immediate?.key !== projected?.key ? this.#opponentUrgency(immediate) - urgency : 0;
@@ -328,11 +328,11 @@ export class BotStrategy {
     }
 
     /**
-     * Projects finishing threats through two actor turns and every known legal first reply.
+     * Projects finishing threats through two player turns and every known legal first reply.
      * A bot finish has no following opponent turn. Forced draws retain the discard and clear the penalty.
      * @param {Object} action - Candidate discard.
      * @param {import("./Card.js").Card[]} unseenCards - Unknown cards.
-     * @returns {number} Probability that the projected actor can immediately empty its hand.
+     * @returns {number} Probability that the projected player can immediately empty its hand.
      */
     #opponentFinishRisk(action, unseenCards) {
         const card = action.card;
@@ -360,7 +360,7 @@ export class BotStrategy {
                 continuationRisk = Math.min(continuationRisk, risk);
                 continue;
             }
-            const following = this.#followingActor(card, target, response);
+            const following = this.#followingPlayer(card, target, response);
             let risk = this.#finishRiskOn(response, null, following, unseenCards, null, action.remainingPenalty);
             if (response.isSuitChange()) {
                 risk = Infinity;
@@ -383,22 +383,22 @@ export class BotStrategy {
     }
 
     /**
-     * Projects the actor after a target's response or penalty draw, including changed direction.
+     * Projects the player after a target's response or penalty draw, including changed direction.
      * @param {import("./Card.js").Card} card - Bot's candidate.
-     * @param {Object} target - First responding actor.
+     * @param {Object} target - First responding player.
      * @param {import("./Card.js").Card|null} response - Target discard, or null when drawing/passing.
-     * @returns {Object} Following actor snapshot.
+     * @returns {Object} Following player snapshot.
      */
-    #followingActor(card, target, response = null) {
-        const actors = this.#state.turnActors;
-        let direction = card.isReverse(actors.length) ? -1 : 1;
+    #followingPlayer(card, target, response = null) {
+        const players = this.#state.turnPlayers;
+        let direction = card.isReverse(players.length) ? -1 : 1;
 
-        if (response?.isReverse(actors.length)) {
+        if (response?.isReverse(players.length)) {
             direction *= -1;
         }
-        const steps = response?.isSkip(actors.length) ? 2 : 1;
-        const index = actors.indexOf(target);
-        const following = actors[(index + steps * direction + actors.length) % actors.length];
+        const steps = response?.isSkip(players.length) ? 2 : 1;
+        const index = players.indexOf(target);
+        const following = players[(index + steps * direction + players.length) % players.length];
 
         return following.key === this.#state.key ? null : following;
     }
@@ -407,22 +407,22 @@ export class BotStrategy {
      * Checks final-card finishes and losing seven-of-hearts outcomes on the simulated discard.
      * @param {import("./Card.js").Card} card - Simulated top card.
      * @param {string|null} suit - Simulated declared suit.
-     * @param {Object} actor - Projected actor.
+     * @param {Object} player - Projected player.
      * @param {import("./Card.js").Card[]} unseenCards - Unknown cards.
      * @param {number|null} allowance - Override after an attack is collected.
      * @param {number} remainingPenalty - Bot penalty after its candidate discard.
      * @returns {number} Exact or estimated finishing risk.
      */
-    #finishRiskOn(card, suit, actor, unseenCards, allowance = null, remainingPenalty = this.#state.penalty) {
-        if (actor === null || actor.key === this.#state.key) return 0;
-        if (actor.hand === null) {
-            return actor.cardCount === 1 ? this.#responseChance(card, suit, actor, unseenCards, allowance) : 0;
+    #finishRiskOn(card, suit, player, unseenCards, allowance = null, remainingPenalty = this.#state.penalty) {
+        if (player === null || player.key === this.#state.key) return 0;
+        if (player.hand === null) {
+            return player.cardCount === 1 ? this.#responseChance(card, suit, player, unseenCards, allowance) : 0;
         }
         const drawAllowance = allowance ?? (card.isDrawFour() ? 4 : card.isDrawTwo() ? 2 : 1);
-        const legal = actor.hand.getLegalCards(card, suit, drawAllowance);
-        if (actor.cardCount === 1 && legal.length > 0) return 1;
+        const legal = player.hand.getLegalCards(card, suit, drawAllowance);
+        if (player.cardCount === 1 && legal.length > 0) return 1;
         for (const response of legal) {
-            if (response.isMatchEndingCard() && actor.hand.penalty - response.rank < remainingPenalty) return 1;
+            if (response.isMatchEndingCard() && player.hand.penalty - response.rank < remainingPenalty) return 1;
         }
         return 0;
     }
@@ -431,38 +431,38 @@ export class BotStrategy {
      * Uses exact neighboring cards when available, otherwise estimates from unseen cards.
      * @param {import("./Card.js").Card} card - Candidate discard.
      * @param {string|null} declaredSuit - Candidate declared suit.
-     * @param {Object} actor - Projected opponent snapshot.
+     * @param {Object} player - Projected opponent snapshot.
      * @param {import("./Card.js").Card[]} unseenCards - Unknown cards.
      * @param {number|null} drawAllowance - Override for a simulated turn after collection.
      * @returns {number} Exact response availability or estimated probability.
      */
-    #responseChance(card, declaredSuit, actor, unseenCards, drawAllowance = null) {
+    #responseChance(card, declaredSuit, player, unseenCards, drawAllowance = null) {
         const allowance = drawAllowance ?? (card.isDrawFour() ? 4 : card.isDrawTwo() ? 2 : 1);
 
-        if (actor.hand === null) {
-            return CardOdds.responseChance(card, declaredSuit, actor.cardCount, unseenCards, allowance);
+        if (player.hand === null) {
+            return CardOdds.responseChance(card, declaredSuit, player.cardCount, unseenCards, allowance);
         }
-        return actor.hand.getLegalCards(card, declaredSuit, allowance).length > 0 ? 1 : 0;
+        return player.hand.getLegalCards(card, declaredSuit, allowance).length > 0 ? 1 : 0;
     }
 
     /**
      * Assigns urgency from an opponent's visible hand count.
      *
-     * @param {{key:string, cardCount:number}|null} actor - Projected opponent.
+     * @param {{key:string, cardCount:number}|null} player - Projected opponent.
      * @returns {number} Danger priority.
      */
-    #opponentUrgency(actor) {
-        if (actor === null || actor.key === this.#state.key) return 0;
-        if (actor.cardCount === 1) return SCORE.urgent;
-        if (actor.cardCount === 2) return SCORE.strong;
-        if (actor.cardCount === 3) return SCORE.moderate;
-        return actor.cardCount > 3 ? SCORE.continuation : 0;
+    #opponentUrgency(player) {
+        if (player === null || player.key === this.#state.key) return 0;
+        if (player.cardCount === 1) return SCORE.urgent;
+        if (player.cardCount === 2) return SCORE.strong;
+        if (player.cardCount === 3) return SCORE.moderate;
+        return player.cardCount > 3 ? SCORE.continuation : 0;
     }
 
     /**
      * Rewards plays that keep the bot's high-penalty remaining cards playable.
      *
-     * A two-actor skip that returns an immediately playable final card to the bot receives
+     * A two-player skip that returns an immediately playable final card to the bot receives
      * the strongest setup bonus.
      *
      * @param {Object} action - Candidate discard.
@@ -508,23 +508,23 @@ export class BotStrategy {
     }
 
     /**
-     * Predicts the next actor after applying a candidate’s skip or reverse effect.
+     * Predicts the next player after applying a candidate’s skip or reverse effect.
      *
      * @param {import("./Card.js").Card} card - Candidate discard.
      * @returns {{key:string, cardCount:number}|null} Projected opponent, or null when the turn returns to the bot.
      */
-    #nextActorAfter(card) {
-        const actors = this.#state.turnActors;
-        if (actors.length === 0) return null;
-        const steps = card.isSkip(actors.length) ? 2 : card.isReverse(actors.length) ? -1 : 1;
-        const actor = actors[(steps + actors.length) % actors.length];
-        return actor.key === this.#state.key ? null : actor;
+    #nextPlayerAfter(card) {
+        const players = this.#state.turnPlayers;
+        if (players.length === 0) return null;
+        const steps = card.isSkip(players.length) ? 2 : card.isReverse(players.length) ? -1 : 1;
+        const player = players[(steps + players.length) % players.length];
+        return player.key === this.#state.key ? null : player;
     }
 
     /**
      * Detects whether a candidate pressures an opponent’s inferred weak suit.
      *
-     * Playing the lowest ordinary rank suggests the previous actor may have exhausted that
+     * Playing the lowest ordinary rank suggests the previous player may have exhausted that
      * suit, so the bot presses the same suit when it has a legal choice.
      *
      * @param {Object} action - Candidate discard.
@@ -533,15 +533,15 @@ export class BotStrategy {
     #continuesWeakSuit(action) {
         const card = action.card;
         const top = this.#state.top;
-        const lastActor = this.#state.lastDiscardActor;
-        const projectedActor = action.target;
+        const lastPlayer = this.#state.lastDiscardPlayer;
+        const projectedPlayer = action.target;
 
         return (
             top !== null &&
-            lastActor !== null &&
-            projectedActor !== null &&
-            lastActor.key !== this.#state.key &&
-            projectedActor.key === lastActor.key &&
+            lastPlayer !== null &&
+            projectedPlayer !== null &&
+            lastPlayer.key !== this.#state.key &&
+            projectedPlayer.key === lastPlayer.key &&
             !top.isSpecial() &&
             Constants.getCardValue(top.value).rank === Constants.CARD.VALUE.THREE.rank &&
             card.suit === top.suit
@@ -550,7 +550,7 @@ export class BotStrategy {
 
     /**
      * Returns whether this bot can extend an active draw attack.
-     * @returns {boolean} True if actor has a draw card.
+     * @returns {boolean} True if player has a draw card.
      */
     #hasDrawCard() {
         for (const card of this.#state.hand.items) {
@@ -599,15 +599,15 @@ export class BotStrategy {
         const remainingPenalty = this.#state.penalty - card.rank;
         let winProbability = 1;
 
-        for (const actor of this.#state.actors) {
-            if (actor.key !== this.#state.key) {
+        for (const player of this.#state.players) {
+            if (player.key !== this.#state.key) {
                 let opponentProbability;
-                if (actor.hand !== null) {
+                if (player.hand !== null) {
                     let penalty = 0;
-                    for (const held of actor.hand.items) penalty += held.rank;
+                    for (const held of player.hand.items) penalty += held.rank;
                     opponentProbability = penalty >= remainingPenalty ? 1 : 0;
                 } else {
-                    opponentProbability = CardOdds.penaltyChance(remainingPenalty, actor.cardCount, unseenCards);
+                    opponentProbability = CardOdds.penaltyChance(remainingPenalty, player.cardCount, unseenCards);
                 }
                 winProbability *= opponentProbability;
             }
@@ -617,7 +617,7 @@ export class BotStrategy {
     }
 
     /**
-     * Prefers the most common safe held suit after evaluating both projected actors.
+     * Prefers the most common safe held suit after evaluating both projected players.
      *
      * @param {import("./Card.js").Card|null} excludedCard - Candidate card to exclude.
      * @param {import("./Card.js").Card[]|null} unseenCards - Optional previously reconstructed unseen cards.

@@ -4,11 +4,11 @@ import { Serializable } from "./Serializable.js";
 import { Constants } from "./Constants.js";
 import { ValidationUtils } from "./ValidationUtils.js";
 import { UserNotification } from "./UserNotification.js";
-import { Actor } from "./Actor.js";
+import { Player } from "./Player.js";
 import { TurnOrder } from "./TurnOrder.js";
 import { CardCollection } from "./CardCollection.js";
 import { Card } from "./Card.js";
-import { BotActor } from "./BotActor.js";
+import { BotPlayer } from "./BotPlayer.js";
 
 /** Owns a Pick2 room, its membership, and all item rules. */
 export class Room extends Serializable {
@@ -18,22 +18,22 @@ export class Room extends Serializable {
     #operationQueue = Promise.resolve();
 
     /**
-     * Creates a room with a given name and actor limit.
+     * Creates a room with a given name and player limit.
      *
      * @param {string} roomName - Match room name.
-     * @param {number} actorLimit - Maximum number of seated actors.
+     * @param {number} playerLimit - Maximum number of seated players.
      * @throws {Error} When a value violates an internal room invariant.
      */
-    constructor(roomName, actorLimit = Constants.ROOM_ACTOR_LIMIT) {
+    constructor(roomName, playerLimit = Constants.ROOM_PLAYER_LIMIT) {
         super();
         this.name = ValidationUtils.namedString(roomName, "Room name", ValidationUtils.roomNameMaxLength);
-        this.actorLimit = Room.#normalizeActorLimit(actorLimit);
+        this.playerLimit = Room.#normalizePlayerLimit(playerLimit);
         this.match = new Match();
         this.createdAt = Date.now();
         this.lastActiveAt = this.createdAt;
         this.viewers = new Set();
         this.onAnyChange = null;
-        this.onActorIdle = null;
+        this.onPlayerIdle = null;
     }
 
     /** Serializes room identity and its nested match without duplicating match fields. */
@@ -48,25 +48,25 @@ export class Room extends Serializable {
         };
     }
 
-    /** Returns whether the room has no seated actors. */
+    /** Returns whether the room has no seated players. */
     isEmpty() {
-        return this.match.turnOrder.actors.size === 0;
+        return this.match.turnOrder.players.size === 0;
     }
 
-    /** Returns whether actor capacity has been reached. */
+    /** Returns whether player capacity has been reached. */
     isFull() {
-        return this.match.turnOrder.actors.size >= this.actorLimit;
+        return this.match.turnOrder.players.size >= this.playerLimit;
     }
 
     /**
 
-     * Returns whether a normalized actor identity is seated.
-     * @param {string} actorNameOrKey - Actor name or normalized key.
-     * @returns {boolean} Whether the Actor is seated.
+     * Returns whether a normalized player identity is seated.
+     * @param {string} playerNameOrKey - Player name or normalized key.
+     * @returns {boolean} Whether the Player is seated.
      */
-    hasActor(actorNameOrKey) {
+    hasPlayer(playerNameOrKey) {
         try {
-            return this.match.turnOrder.has(actorNameOrKey);
+            return this.match.turnOrder.has(playerNameOrKey);
         } catch (_error) {
             return false;
         }
@@ -148,15 +148,15 @@ export class Room extends Serializable {
 
     /**
 
-     * Adds a human or automated actor through the serialized operation queue.
-     * @param {string} actorName - Name of the Actor to seat.
-     * @param {boolean} [isAutomated] - Whether the Actor is a Bot.
+     * Adds a human or automated player through the serialized operation queue.
+     * @param {string} playerName - Name of the Player to seat.
+     * @param {boolean} [isAutomated] - Whether the Player is a Bot.
      * @param {string|null} [viewerKey] - Viewer tab to promote, if any.
-     * @returns {Promise<Actor>} Added Actor.
+     * @returns {Promise<Player>} Added Player.
      */
-    async joinActor(actorName, isAutomated = false, viewerKey = null) {
+    async joinPlayer(playerName, isAutomated = false, viewerKey = null) {
         return this._enqueue(
-            /** Adds an actor as one serialized room mutation. */
+            /** Adds a player as one serialized room mutation. */
             function joinOperation() {
                 const normalizedViewerKey = Room.#optionalText(viewerKey);
 
@@ -164,7 +164,7 @@ export class Room extends Serializable {
                     throw new UserNotification("Room already in progress.");
                 }
                 if (this.match instanceof Knockout && !this.match.isKnockoutComplete) {
-                    throw new UserNotification("Actors cannot join a knockout after it starts.");
+                    throw new UserNotification("Players cannot join a knockout after it starts.");
                 }
                 if (this.isFull()) {
                     throw new UserNotification("Room is full.");
@@ -173,28 +173,28 @@ export class Room extends Serializable {
                     throw new UserNotification("Viewer not found.");
                 }
 
-                const actor = isAutomated ? new BotActor(actorName) : new Actor(actorName, { drawAllowance: 1 });
+                const player = isAutomated ? new BotPlayer(playerName) : new Player(playerName, { drawAllowance: 1 });
 
-                this.match.turnOrder.add(actor);
+                this.match.turnOrder.add(player);
                 this.viewers.delete(normalizedViewerKey);
                 this.#publishMutation();
-                return actor;
+                return player;
             }.bind(this)
         );
     }
 
     /**
 
-     * Removes a seated actor and releases its items.
-     * @param {string} actorNameOrKey - Actor name or normalized key.
-     * @returns {Promise<Actor>} Removed Actor.
+     * Removes a seated player and releases its items.
+     * @param {string} playerNameOrKey - Player name or normalized key.
+     * @returns {Promise<Player>} Removed Player.
      */
-    async removeActor(actorNameOrKey) {
-        return this.#removeActor(actorNameOrKey, null);
+    async removePlayer(playerNameOrKey) {
+        return this.#removePlayer(playerNameOrKey, null);
     }
 
     /**
-     * Repopulates the completed knockout's retained bot names as lost actors.
+     * Repopulates the completed knockout's retained bot names as lost players.
      * @returns {Promise<void>} Resolves when retained bots are restored.
      */
     async restoreLostBots() {
@@ -204,12 +204,12 @@ export class Room extends Serializable {
             }
             const names = this.match.lostBotNames;
             while (names.length > 0) {
-                const actor = new BotActor(names[0]);
-                if (this.isFull() || this.hasActor(actor.key)) {
+                const player = new BotPlayer(names[0]);
+                if (this.isFull() || this.hasPlayer(player.key)) {
                     throw new UserNotification("Bot cannot return to this room yet.");
                 }
-                actor.state = Constants.ACTOR_STATE.LOST;
-                this.match.turnOrder.add(actor);
+                player.state = Constants.PLAYER_STATE.LOST;
+                this.match.turnOrder.add(player);
                 names.shift();
                 this.#publishMutation();
             }
@@ -218,20 +218,20 @@ export class Room extends Serializable {
 
     /**
 
-     * Removes an actor and registers the same client as a viewer.
-     * @param {string} actorNameOrKey - Actor name or normalized key.
+     * Removes a player and registers the same client as a viewer.
+     * @param {string} playerNameOrKey - Player name or normalized key.
      * @param {string} viewerKey - Viewer tab to register.
-     * @returns {Promise<Actor>} Removed Actor.
+     * @returns {Promise<Player>} Removed Player.
      */
-    async moveActorToView(actorNameOrKey, viewerKey) {
-        return this.#removeActor(actorNameOrKey, viewerKey);
+    async movePlayerToView(playerNameOrKey, viewerKey) {
+        return this.#removePlayer(playerNameOrKey, viewerKey);
     }
 
     /**
      * Starts a match in the room.
      *
      * @param {boolean|null} knockout - Initial Knockout choice, or null to continue.
-     * @returns {Promise<Actor[]>} Eliminated actors removed when advancing a knockout.
+     * @returns {Promise<Player[]>} Eliminated players removed when advancing a knockout.
      */
     async startMatch(knockout = null) {
         return this._enqueue(
@@ -249,7 +249,7 @@ export class Room extends Serializable {
                 this.match.setCollection("draw", CardCollection.createDeck(true));
                 this.#dealInitialItem();
                 this.#dealInitialHands();
-                this.#selectRandomFirstActor();
+                this.#selectRandomFirstPlayer();
                 this.match.state = Constants.ROOM_STATE.ACTIVE;
                 this.#publishMutation();
                 return eliminated;
@@ -260,7 +260,7 @@ export class Room extends Serializable {
     /** Validates the selected or continuing match type inside the Room queue. */
     #beforeStartMatch(knockout) {
         this.#assertMatchNotStarted();
-        this.#assertMinimumActorCount();
+        this.#assertMinimumPlayerCount();
         if (knockout !== null && typeof knockout !== "boolean") {
             throw new UserNotification("Choose whether to start a knockout.");
         }
@@ -276,7 +276,7 @@ export class Room extends Serializable {
     /**
      * Resumes waiting-state transactions after completed results were visible.
      *
-     * Actors, hands, the deck, and the discard pile remain unchanged.
+     * Players, hands, the deck, and the discard pile remain unchanged.
      * Starting another match performs the separate full reset.
      *
      * @returns {Promise<void>}
@@ -304,19 +304,19 @@ export class Room extends Serializable {
      * Dispatches a card command through the room's existing serialized actions.
      * The action methods remain available to existing callers and tests.
      * @param {string} command - Canonical command.
-     * @param {string} actorName - Acting actor's name.
+     * @param {string} playerName - Acting player's name.
      * @param {Object} data - Command payload.
      * @returns {Promise<*>} Action result.
      */
-    async perform(command, actorName, data = {}) {
+    async perform(command, playerName, data = {}) {
         switch (command) {
             case Constants.COMMANDS.DRAW:
-                return this.drawItems(actorName, data.sortKey);
+                return this.drawItems(playerName, data.sortKey);
             case Constants.COMMANDS.PASS:
-                return this.passTurn(actorName, data.sortKey);
+                return this.passTurn(playerName, data.sortKey);
             case Constants.COMMANDS.DISCARD: {
                 const card = Card.from(data.card);
-                return this.playItem(actorName, card.value, card.suit, data.sortKey);
+                return this.playItem(playerName, card.value, card.suit, data.sortKey);
             }
             case Constants.COMMANDS.DECLARE:
                 return this.declareSuit(data.suit);
@@ -328,34 +328,34 @@ export class Room extends Serializable {
     /**
      * Serializes a legal draw, applies allowances, sorts the hand, and advances state when required.
      *
-     * @param {string} actorName - Actor name.
+     * @param {string} playerName - Player name.
      * @param {string} sortKey - The sort key.
      * @returns {Promise<Card[]>} Drawn items.
      */
-    async drawItems(actorName, sortKey = "none") {
+    async drawItems(playerName, sortKey = "none") {
         return this._enqueue(
             /** Draws items inside the room queue. */
             function drawItemsOperation() {
                 let drawnItems = [];
 
                 if (this.match.state !== Constants.ROOM_STATE.FINISHED) {
-                    const actor = this.match.turnOrder.get(actorName);
+                    const player = this.match.turnOrder.get(playerName);
 
-                    this.#assertCanAct(actor);
-                    actor.collection.sort(sortKey);
+                    this.#assertCanAct(player);
+                    player.collection.sort(sortKey);
 
                     const usesPlayingRules =
                         this.match.state === Constants.ROOM_STATE.ACTIVE && this.match.turnOrder.ownerKey !== null;
-                    const drawCount = usesPlayingRules ? actor.drawAllowance : 1;
+                    const drawCount = usesPlayingRules ? player.drawAllowance : 1;
 
                     if (drawCount <= 0) {
                         throw new UserNotification("No draw allowance remaining.");
                     }
 
-                    drawnItems = this.#drawItemsForActor(actor, drawCount);
+                    drawnItems = this.#drawItemsForPlayer(player, drawCount);
 
                     if (usesPlayingRules) {
-                        actor.drawAllowance = 0;
+                        player.drawAllowance = 0;
 
                         if (drawCount > 1) {
                             this.#advanceTurn(1, 1);
@@ -371,36 +371,36 @@ export class Room extends Serializable {
     }
 
     /**
-     * Serializes a legal pass, commits hand order, and advances to the next actor.
+     * Serializes a legal pass, commits hand order, and advances to the next player.
      *
-     * @param {string} actorName - Actor name.
+     * @param {string} playerName - Player name.
      * @param {string} sortKey - Items sort order keyword
      * @returns {Promise<Card[]>} Items drawn while passing.
      */
-    async passTurn(actorName, sortKey = "none") {
+    async passTurn(playerName, sortKey = "none") {
         return this._enqueue(
             /** Passes the active turn inside the room queue. */
             function passTurnOperation() {
                 const drawnItems = [];
 
                 if (this.match.state !== Constants.ROOM_STATE.FINISHED) {
-                    const actor = this.match.turnOrder.get(actorName);
+                    const player = this.match.turnOrder.get(playerName);
 
-                    this.#assertCanAct(actor);
-                    actor.collection.sort(sortKey);
+                    this.#assertCanAct(player);
+                    player.collection.sort(sortKey);
 
                     if (this.match.state === Constants.ROOM_STATE.ACTIVE && this.match.turnOrder.ownerKey !== null) {
-                        const remainingDrawAllowance = Math.max(0, actor.drawAllowance);
+                        const remainingDrawAllowance = Math.max(0, player.drawAllowance);
 
                         if (remainingDrawAllowance > 0) {
-                            drawnItems.push(...this.#drawItemsForActor(actor, remainingDrawAllowance));
+                            drawnItems.push(...this.#drawItemsForPlayer(player, remainingDrawAllowance));
                         }
 
-                        actor.drawAllowance = 0;
+                        player.drawAllowance = 0;
                         this.#advanceTurn(1, 1);
                     }
 
-                    actor.recordActivity();
+                    player.recordActivity();
                     this.#publishMutation();
                 }
                 return drawnItems;
@@ -411,29 +411,29 @@ export class Room extends Serializable {
     /**
      * Serializes a legal discard, applies card effects, and advances or finishes the match.
      *
-     * @param {string} actorName - Actor name.
+     * @param {string} playerName - Player name.
      * @param {string} value - Card value.
      * @param {string} suit - Card suit.
      * @param {string} sortKey - Items sort order keyword
      * @returns {Promise<Card[]>} Items drawn as a result.
      */
-    async playItem(actorName, value, suit, sortKey = "none") {
+    async playItem(playerName, value, suit, sortKey = "none") {
         return this._enqueue(
             /** Discards an item inside the room queue. */
             function playItemOperation() {
                 const drawnItems = [];
 
                 if (this.match.state !== Constants.ROOM_STATE.FINISHED) {
-                    const actor = this.match.turnOrder.get(actorName);
+                    const player = this.match.turnOrder.get(playerName);
                     const item = new Card(value, suit);
 
-                    this.#assertCanAct(actor);
-                    actor.collection.sort(sortKey);
-                    this.#assertActorHasItem(actor, item);
+                    this.#assertCanAct(player);
+                    player.collection.sort(sortKey);
+                    this.#assertPlayerHasItem(player, item);
                     this.#assertItemIsPlayable(item);
 
-                    this.#applyDiscard(actor, item);
-                    actor.recordActivity();
+                    this.#applyDiscard(player, item);
+                    player.recordActivity();
 
                     this.#publishMutation();
                 }
@@ -444,7 +444,7 @@ export class Room extends Serializable {
     }
 
     /**
-     * Resolves the pending wild-card decision and advances to the next actor.
+     * Resolves the pending wild-card decision and advances to the next player.
      *
      * @param {string} suit - Declared suit.
      * @returns {Promise<void>}
@@ -458,13 +458,13 @@ export class Room extends Serializable {
                         throw new UserNotification("No suit pending declaration.");
                     }
 
-                    const actor = this.match.turnOrder.requireOwner();
+                    const player = this.match.turnOrder.requireOwner();
                     this.match.declaredSuit = Room.normalizeSuit(suit);
                     this.match.pending = null;
                     this.match.state = Constants.ROOM_STATE.ACTIVE;
 
                     this.#advanceTurn(1, 1);
-                    actor.recordActivity();
+                    player.recordActivity();
                     this.#publishMutation();
                 }
 
@@ -486,7 +486,7 @@ export class Room extends Serializable {
 
     /**
 
-     * Returns a departing actor’s cards to the draw collection and reshuffles it.
+     * Returns a departing player’s cards to the draw collection and reshuffles it.
      * @param {Card[]} items - Released cards.
      */
     _storeReleasedItems(items) {
@@ -496,23 +496,23 @@ export class Room extends Serializable {
 
     /**
 
-     * Restores a valid match or turn state after an actor leaves.
-     * @param {Actor} actor - Departing Actor.
+     * Restores a valid match or turn state after a player leaves.
+     * @param {Player} player - Departing Player.
      * @param {string|null} viewerKey - Viewer tab to register, if any.
      * @param {boolean} wasKnockoutDuel - Whether a departure ended an active one-on-one.
      */
-    #afterActorRemoved(actor, viewerKey, wasKnockoutDuel) {
+    #afterPlayerRemoved(player, viewerKey, wasKnockoutDuel) {
         if (this.isMatchActive()) {
-            if (this.match.turnOrder.actors.size < 2) {
+            if (this.match.turnOrder.players.size < 2) {
                 if (wasKnockoutDuel) {
-                    const survivor = this.match.turnOrder.actors.values().next().value;
-                    this.match.finishByForfeit(survivor, actor);
+                    const survivor = this.match.turnOrder.players.values().next().value;
+                    this.match.finishByForfeit(survivor, player);
                 } else {
                     this.match.resetMatchState();
                 }
             } else {
                 const isTurnOwnerRemoved =
-                    this.match.turnOrder.ownerKey === null || this.match.turnOrder.ownerKey === actor.key;
+                    this.match.turnOrder.ownerKey === null || this.match.turnOrder.ownerKey === player.key;
 
                 if (isTurnOwnerRemoved) {
                     this.#advanceTurn(1, 1);
@@ -520,70 +520,70 @@ export class Room extends Serializable {
             }
         }
 
-        if (this.match instanceof Knockout) this.match.afterActorRemoved();
+        if (this.match instanceof Knockout) this.match.afterPlayerRemoved();
 
         const normalizedViewerKey = Room.#optionalText(viewerKey);
         if (normalizedViewerKey) this.viewers.add(normalizedViewerKey);
         this.#publishMutation();
     }
 
-    /** Applies the hosted idle policy to the currently eligible human actors. */
+    /** Applies the hosted idle policy to the currently eligible human players. */
     _refreshIdleMonitoring() {
-        for (const actor of this.match.turnOrder.actors.values()) {
-            const isBot = actor instanceof BotActor;
+        for (const player of this.match.turnOrder.players.values()) {
+            const isBot = player instanceof BotPlayer;
             const awaitingKnockout = this.match.state === Constants.ROOM_STATE.FINISHED && this.match.nextMatchAvailable;
-            const shouldTrack = !isBot && (!awaitingKnockout || actor.state === Constants.ACTOR_STATE.QUALIFIED) &&
-                (!this.isMatchActive() || actor.key === this.match.turnOrder.ownerKey);
+            const shouldTrack = !isBot && (!awaitingKnockout || player.state === Constants.PLAYER_STATE.QUALIFIED) &&
+                (!this.isMatchActive() || player.key === this.match.turnOrder.ownerKey);
 
             if (shouldTrack) {
-                actor.onIdle = function handleIdle(idleActor) {
-                    if (typeof this.onActorIdle === "function") this.onActorIdle(idleActor.name);
+                player.onIdle = function handleIdle(idlePlayer) {
+                    if (typeof this.onPlayerIdle === "function") this.onPlayerIdle(idlePlayer.name);
                 }.bind(this);
-                actor.recordActivity();
+                player.recordActivity();
             } else {
-                actor.stopIdleMonitoring();
+                player.stopIdleMonitoring();
             }
         }
     }
 
     /**
 
-     * Serializes actor removal, item recovery, viewer conversion, activity, and publication.
-     * @param {string} actorNameOrKey - Actor name or normalized key.
+     * Serializes player removal, item recovery, viewer conversion, activity, and publication.
+     * @param {string} playerNameOrKey - Player name or normalized key.
      * @param {string|null} viewerKey - Viewer tab to register, if any.
-     * @returns {Promise<Actor>} Removed Actor.
+     * @returns {Promise<Player>} Removed Player.
      */
-    async #removeActor(actorNameOrKey, viewerKey) {
+    async #removePlayer(playerNameOrKey, viewerKey) {
         return this._enqueue(
-            /** Removes an actor as one serialized room mutation. */
+            /** Removes a player as one serialized room mutation. */
             function removeOperation() {
-                const actor = this.match.turnOrder.get(actorNameOrKey);
+                const player = this.match.turnOrder.get(playerNameOrKey);
                 const wasKnockoutDuel = this.match instanceof Knockout && this.isMatchActive() &&
-                    this.match.turnOrder.actors.size === 2;
-                const items = actor.collection?.clear() ?? [];
-                actor.stopIdleMonitoring();
-                this.match.turnOrder.remove(actor.key);
+                    this.match.turnOrder.players.size === 2;
+                const items = player.collection?.clear() ?? [];
+                player.stopIdleMonitoring();
+                this.match.turnOrder.remove(player.key);
                 this._storeReleasedItems(items);
-                this.#afterActorRemoved(actor, viewerKey, wasKnockoutDuel);
-                return actor;
+                this.#afterPlayerRemoved(player, viewerKey, wasKnockoutDuel);
+                return player;
             }.bind(this)
         );
     }
 
     /**
-     * Advances the turn to the next actor.
+     * Advances the turn to the next player.
      *
-     * @param {number} drawAllowance - Draw allowance for the next actor.
-     * @param {number} steps - Number of actors to advance.
+     * @param {number} drawAllowance - Draw allowance for the next player.
+     * @param {number} steps - Number of players to advance.
      */
     #advanceTurn(drawAllowance = 1, steps = 1) {
         const moved = this.match.turnOrder.move(steps);
 
         if (moved) {
-            const actor = this.match.turnOrder.requireOwner();
+            const player = this.match.turnOrder.requireOwner();
 
-            actor.drawAllowance = drawAllowance;
-            actor.recordActivity();
+            player.drawAllowance = drawAllowance;
+            player.recordActivity();
         }
     }
 
@@ -597,11 +597,11 @@ export class Room extends Serializable {
     }
 
     /**
-     * Asserts the room has enough actors to start a match.
+     * Asserts the room has enough players to start a match.
      */
-    #assertMinimumActorCount() {
-        if (this.match.turnOrder.actors.size < 2) {
-            throw new UserNotification("Need at least two actors.");
+    #assertMinimumPlayerCount() {
+        if (this.match.turnOrder.players.size < 2) {
+            throw new UserNotification("Need at least two players.");
         }
     }
 
@@ -654,72 +654,72 @@ export class Room extends Serializable {
     }
 
     /**
-     * Deals initial hands to all actors.
+     * Deals initial hands to all players.
      */
     #dealInitialHands() {
-        const totalNeeded = this.match.turnOrder.actors.size * Constants.INITIAL_ITEM_COUNT;
+        const totalNeeded = this.match.turnOrder.players.size * Constants.INITIAL_ITEM_COUNT;
 
         this.#ensureDeckCapacity(totalNeeded);
         this.match.disperseItems("draw", Constants.INITIAL_ITEM_COUNT);
     }
 
     /**
-     * Picks a random first actor.
+     * Picks a random first player.
      */
-    #selectRandomFirstActor() {
-        const actorKeys = Array.from(this.match.turnOrder.actors.keys());
-        const randomIndex = Math.floor(Math.random() * actorKeys.length);
+    #selectRandomFirstPlayer() {
+        const playerKeys = Array.from(this.match.turnOrder.players.keys());
+        const randomIndex = Math.floor(Math.random() * playerKeys.length);
 
-        this.match.turnOrder.setOwner(actorKeys[randomIndex]);
+        this.match.turnOrder.setOwner(playerKeys[randomIndex]);
     }
 
     /**
-     * Asserts an actor can perform the requested command.
+     * Asserts a player can perform the requested command.
      *
-     * @param {Actor|null} actor - Acting actor.
+     * @param {Player|null} player - Acting player.
      */
-    #assertCanAct(actor) {
-        if (actor === null || actor === undefined) {
-            throw new UserNotification(`Actor not found.`);
+    #assertCanAct(player) {
+        if (player === null || player === undefined) {
+            throw new UserNotification(`Player not found.`);
         }
 
         if (this.match.pending !== null) {
             throw new UserNotification("Room is waiting for suit declaration.");
         }
 
-        const isAnotherActorsTurn =
+        const isAnotherPlayersTurn =
             this.match.state === Constants.ROOM_STATE.ACTIVE &&
-            this.match.turnOrder.ownerKey !== null && this.match.turnOrder.ownerKey !== actor.key;
+            this.match.turnOrder.ownerKey !== null && this.match.turnOrder.ownerKey !== player.key;
 
-        if (isAnotherActorsTurn) {
+        if (isAnotherPlayersTurn) {
             throw new UserNotification("Not your turn.");
         }
     }
 
     /**
-     * Draws items for an actor.
+     * Draws items for a player.
      *
-     * @param {Actor} actor - Target actor.
+     * @param {Player} player - Target player.
      * @param {number} count - Number of items.
      * @returns {Card[]} Drawn items.
      */
-    #drawItemsForActor(actor, count) {
+    #drawItemsForPlayer(player, count) {
         this.#ensureDeckCapacity(count);
-        const items = this.match.takeItems(actor.key, "draw", count);
-        actor.recordActivity();
+        const items = this.match.takeItems(player.key, "draw", count);
+        player.recordActivity();
 
         return items;
     }
 
     /**
-     * Asserts an actor has an item.
+     * Asserts a player has an item.
      *
-     * @param {Actor} actor - Actor.
+     * @param {Player} player - Player.
      * @param {Card} item - Card to check.
      */
-    #assertActorHasItem(actor, item) {
-        for (const actorItem of actor.collection) {
-            if (actorItem.value === item.value && actorItem.suit === item.suit) {
+    #assertPlayerHasItem(player, item) {
+        for (const playerItem of player.collection) {
+            if (playerItem.value === item.value && playerItem.suit === item.suit) {
                 return true;
             }
         }
@@ -750,27 +750,27 @@ export class Room extends Serializable {
     /**
      * Plays a item and applies its effects.
      *
-     * @param {Actor} actor - Acting actor.
+     * @param {Player} player - Acting player.
      * @param {Card} item - Card to play.
      */
-    #applyDiscard(actor, item) {
-        this.match.putItem(actor.key, "play", item);
+    #applyDiscard(player, item) {
+        this.match.putItem(player.key, "play", item);
 
         if (this.match.state === Constants.ROOM_STATE.ACTIVE) {
-            this.match._lastDiscardActorKey = actor.key;
-            actor.drawAllowance = 0;
+            this.match._lastDiscardPlayerKey = player.key;
+            player.drawAllowance = 0;
             this.match.declaredSuit = null;
 
-            if (item.isMatchEndingMove(actor.collection.items.length)) {
+            if (item.isMatchEndingMove(player.collection.items.length)) {
                 this.match.finishMatch();
             } else if (item.isSuitChange()) {
-                this.match.pending = { command: Constants.COMMANDS.DECLARE, actorKey: actor.key };
+                this.match.pending = { command: Constants.COMMANDS.DECLARE, playerKey: player.key };
             } else {
-                const actorCount = this.match.turnOrder.actors.size;
+                const playerCount = this.match.turnOrder.players.size;
 
-                if (item.isSkip(actorCount)) {
+                if (item.isSkip(playerCount)) {
                     this.#advanceTurn(1, 2);
-                } else if (item.isReverse(actorCount)) {
+                } else if (item.isReverse(playerCount)) {
                     this.match.turnOrder.reverse();
                     this.#advanceTurn(1, 1);
                 } else if (item.isDrawFour()) {
@@ -795,17 +795,17 @@ export class Room extends Serializable {
     }
 
     /**
-     * Normalizes the Room actor limit.
+     * Normalizes the Room player limit.
      *
      * @param {*} value - Value.
-     * @returns {number} Actor limit.
+     * @returns {number} Player limit.
      * @throws {Error} When a value violates an internal room invariant.
      */
-    static #normalizeActorLimit(value) {
-        const isValid = Number.isInteger(value) && value >= 2 && value <= Constants.ROOM_ACTOR_LIMIT;
+    static #normalizePlayerLimit(value) {
+        const isValid = Number.isInteger(value) && value >= 2 && value <= Constants.ROOM_PLAYER_LIMIT;
 
         if (!isValid) {
-            throw new UserNotification(`Limit must be between 2 and ${Constants.ROOM_ACTOR_LIMIT}.`);
+            throw new UserNotification(`Limit must be between 2 and ${Constants.ROOM_PLAYER_LIMIT}.`);
         }
 
         return value;
@@ -832,7 +832,7 @@ export class Match extends Serializable {
     /** @type {string[]|null} Lost bot names; ordinary matches retain none. */
     lostBotNames = null;
 
-    /** Creates a waiting match using the room's existing seated actors. */
+    /** Creates a waiting match using the room's existing seated players. */
     constructor(turnOrder = new TurnOrder()) {
         super();
         this.state = Constants.ROOM_STATE.WAITING;
@@ -843,7 +843,7 @@ export class Match extends Serializable {
         };
         this.turnOrder = turnOrder;
         this.declaredSuit = null;
-        this._lastDiscardActorKey = null;
+        this._lastDiscardPlayerKey = null;
     }
 
     /** Registers a named card collection. */
@@ -862,30 +862,30 @@ export class Match extends Serializable {
         return collection;
     }
 
-    /** Transfers a card from an actor into a match collection. */
-    putItem(actorNameOrKey, destinationName, item) {
-        const actor = this.turnOrder.get(actorNameOrKey);
+    /** Transfers a card from a player into a match collection. */
+    putItem(playerNameOrKey, destinationName, item) {
+        const player = this.turnOrder.get(playerNameOrKey);
         const destination = this.getCollection(destinationName);
         this.#assertTransferAllowed();
-        return this.#moveItem(actor.collection, destination, item);
+        return this.#moveItem(player.collection, destination, item);
     }
 
-    /** Transfers the top card from a match collection to an actor. */
-    takeItem(actorNameOrKey, sourceName) {
-        const actor = this.turnOrder.get(actorNameOrKey);
+    /** Transfers the top card from a match collection to a player. */
+    takeItem(playerNameOrKey, sourceName) {
+        const player = this.turnOrder.get(playerNameOrKey);
         const source = this.getCollection(sourceName);
         const item = source.peek();
         if (item === null) return null;
         this.#assertTransferAllowed();
-        return this.#moveItem(source, actor.collection, item);
+        return this.#moveItem(source, player.collection, item);
     }
 
-    /** Transfers up to a requested number of cards to an actor. */
-    takeItems(actorNameOrKey, sourceName, count) {
+    /** Transfers up to a requested number of cards to a player. */
+    takeItems(playerNameOrKey, sourceName, count) {
         ValidationUtils.nonNegativeInteger(count, "Item count");
         const items = [];
         for (let index = 0; index < count; index += 1) {
-            const item = this.takeItem(actorNameOrKey, sourceName);
+            const item = this.takeItem(playerNameOrKey, sourceName);
             if (item === null) break;
             items.push(item);
         }
@@ -900,13 +900,13 @@ export class Match extends Serializable {
         return this.#moveItem(source, destination, item);
     }
 
-    /** Deals a fixed number of cards to every actor in turn order. */
+    /** Deals a fixed number of cards to every player in turn order. */
     disperseItems(sourceName, count) {
         ValidationUtils.nonNegativeInteger(count, "Item count");
         const dispersed = [];
         for (let pass = 0; pass < count; pass += 1) {
-            for (const actor of this.turnOrder) {
-                const item = this.takeItem(actor.key, sourceName);
+            for (const player of this.turnOrder) {
+                const item = this.takeItem(player.key, sourceName);
                 if (item === null) return dispersed;
                 dispersed.push(item);
             }
@@ -922,10 +922,10 @@ export class Match extends Serializable {
         return this.collections.play.items[index] ?? null;
     }
 
-    /** Resolves the actor who made the latest active-match discard. */
-    getLastDiscardActor() {
-        return this._lastDiscardActorKey === null
-            ? null : (this.turnOrder.actors.get(this._lastDiscardActorKey) ?? null);
+    /** Resolves the player who made the latest active-match discard. */
+    getLastDiscardPlayer() {
+        return this._lastDiscardPlayerKey === null
+            ? null : (this.turnOrder.players.get(this._lastDiscardPlayerKey) ?? null);
     }
 
     /** Enforces card-transfer lifecycle and pending-decision rules. */
@@ -955,14 +955,14 @@ export class Match extends Serializable {
     /** Records ordinary lowest-penalty winners. */
     resolveOutcome() {
         let minimumPenalty = Infinity;
-        for (const actor of this.turnOrder.actors.values()) {
-            minimumPenalty = Math.min(minimumPenalty, actor.collection.penalty);
+        for (const player of this.turnOrder.players.values()) {
+            minimumPenalty = Math.min(minimumPenalty, player.collection.penalty);
         }
-        for (const actor of this.turnOrder.actors.values()) {
-            actor.drawAllowance = 1;
-            actor.state = actor.collection.penalty === minimumPenalty
-                ? Constants.ACTOR_STATE.WON : Constants.ACTOR_STATE.LOST;
-            actor.recordActivity();
+        for (const player of this.turnOrder.players.values()) {
+            player.drawAllowance = 1;
+            player.state = player.collection.penalty === minimumPenalty
+                ? Constants.PLAYER_STATE.WON : Constants.PLAYER_STATE.LOST;
+            player.recordActivity();
         }
     }
 
@@ -974,16 +974,16 @@ export class Match extends Serializable {
         this.state = Constants.ROOM_STATE.FINISHED;
     }
 
-    /** Resets transient match state and actor hands before dealing. */
+    /** Resets transient match state and player hands before dealing. */
     resetMatchState() {
         this.pending = null;
         this.declaredSuit = null;
-        this._lastDiscardActorKey = null;
+        this._lastDiscardPlayerKey = null;
         this.collections.play.clear();
         this.collections.draw = CardCollection.createDeck(true);
         this.state = Constants.ROOM_STATE.WAITING;
         this.turnOrder.reset();
-        for (const actor of this.turnOrder.actors.values()) actor.recordActivity();
+        for (const player of this.turnOrder.players.values()) player.recordActivity();
     }
 }
 
@@ -1005,71 +1005,71 @@ export class Knockout extends Match {
 
     /**
      * Excludes nonqualifiers and retains lost bot names for the final return.
-     * @returns {Actor[]} Removed actors whose memberships may need updating.
+     * @returns {Player[]} Removed players whose memberships may need updating.
      */
     prepareNextMatch() {
         if (!this.nextMatchAvailable) return [];
         const eliminated = [];
-        for (const actor of [...this.turnOrder.actors.values()]) {
-            if (actor.state !== Constants.ACTOR_STATE.QUALIFIED) {
-                actor.stopIdleMonitoring();
-                if (actor instanceof BotActor) this.lostBotNames.push(actor.name);
-                this.turnOrder.remove(actor.key);
-                eliminated.push(actor);
+        for (const player of [...this.turnOrder.players.values()]) {
+            if (player.state !== Constants.PLAYER_STATE.QUALIFIED) {
+                player.stopIdleMonitoring();
+                if (player instanceof BotPlayer) this.lostBotNames.push(player.name);
+                this.turnOrder.remove(player.key);
+                eliminated.push(player);
             }
         }
         this.nextMatchAvailable = false;
         return eliminated;
     }
 
-    /** Uses elimination for three or more actors and ordinary results for a duel. */
+    /** Uses elimination for three or more players and ordinary results for a duel. */
     resolveOutcome() {
-        if (this.turnOrder.actors.size <= 2) {
+        if (this.turnOrder.players.size <= 2) {
             this.nextMatchAvailable = false;
             super.resolveOutcome();
             return;
         }
         let highestPenalty = -Infinity;
-        for (const actor of this.turnOrder.actors.values()) {
-            highestPenalty = Math.max(highestPenalty, actor.collection.penalty);
+        for (const player of this.turnOrder.players.values()) {
+            highestPenalty = Math.max(highestPenalty, player.collection.penalty);
         }
-        for (const actor of this.turnOrder.actors.values()) {
-            actor.drawAllowance = 1;
-            actor.state = actor.collection.penalty === highestPenalty
-                ? Constants.ACTOR_STATE.ELIMINATED : Constants.ACTOR_STATE.QUALIFIED;
-            actor.recordActivity();
+        for (const player of this.turnOrder.players.values()) {
+            player.drawAllowance = 1;
+            player.state = player.collection.penalty === highestPenalty
+                ? Constants.PLAYER_STATE.ELIMINATED : Constants.PLAYER_STATE.QUALIFIED;
+            player.recordActivity();
         }
         this.#resolveQualifiedOutcome();
     }
 
     /** Rechecks whether a departure leaves another match or a sole survivor. */
-    afterActorRemoved() {
+    afterPlayerRemoved() {
         if (this.state === Constants.ROOM_STATE.FINISHED && this.nextMatchAvailable) {
             this.#resolveQualifiedOutcome();
         }
     }
 
-    /** Marks the remaining actor as winner of an abandoned one-on-one. */
+    /** Marks the remaining player as winner of an abandoned one-on-one. */
     finishByForfeit(survivor, departed) {
-        survivor.state = Constants.ACTOR_STATE.WON;
-        departed.state = Constants.ACTOR_STATE.LOST;
+        survivor.state = Constants.PLAYER_STATE.WON;
+        departed.state = Constants.PLAYER_STATE.LOST;
         this.state = Constants.ROOM_STATE.FINISHED;
         this.nextMatchAvailable = false;
         this.pending = null;
         this.declaredSuit = null;
     }
 
-    /** Resolves the surviving qualified actor or marks another match available. */
+    /** Resolves the surviving qualified player or marks another match available. */
     #resolveQualifiedOutcome() {
         let count = 0;
         let survivor = null;
-        for (const actor of this.turnOrder.actors.values()) {
-            if (actor.state === Constants.ACTOR_STATE.QUALIFIED) {
+        for (const player of this.turnOrder.players.values()) {
+            if (player.state === Constants.PLAYER_STATE.QUALIFIED) {
                 count += 1;
-                survivor = actor;
+                survivor = player;
             }
         }
         this.nextMatchAvailable = count >= 2;
-        if (count === 1) survivor.state = Constants.ACTOR_STATE.WON;
+        if (count === 1) survivor.state = Constants.PLAYER_STATE.WON;
     }
 }

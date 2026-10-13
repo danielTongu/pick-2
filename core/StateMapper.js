@@ -48,7 +48,7 @@ export class StateMapper {
     static toRoomInfo(source) {
         const room = typeof source?.toJSON === "function" ? source.toJSON() : (source ?? {});
         const match = room.match ?? {};
-        const actorCount = match.turnOrder?.actorCount;
+        const playerCount = match.turnOrder?.playerCount;
 
         return Object.freeze({
             name: room.name,
@@ -56,10 +56,10 @@ export class StateMapper {
                 state: match.state,
                 isKnockout: match.isKnockout === true,
                 turnOrder: Object.freeze({
-                    actorCount: Number.isInteger(actorCount) ? actorCount : StateMapper.collectionCount(match.turnOrder?.actors)
+                    playerCount: Number.isInteger(playerCount) ? playerCount : StateMapper.collectionCount(match.turnOrder?.players)
                 })
             }),
-            actorLimit: room.actorLimit,
+            playerLimit: room.playerLimit,
             viewers: StateMapper.collectionCount(room.viewers),
             lastActiveAt: StateMapper.formatDate(room.lastActiveAt),
             createdAt: StateMapper.formatDate(room.createdAt)
@@ -91,15 +91,15 @@ export class StateMapper {
 
     /**
 
-     * Maps a complete Room model to the immutable actor-specific transport snapshot.
+     * Maps a complete Room model to the immutable player-specific transport snapshot.
      * @param {import("./Room.js").Room} room - Authoritative Room.
-     * @param {string|null} actorName - Recipient's seated Actor name.
+     * @param {string|null} playerName - Recipient's seated Player name.
      * @returns {Object} Recipient-specific Room data.
      */
-    static toRoomData(room, actorName) {
+    static toRoomData(room, playerName) {
         const state = room.toJSON();
         return Object.freeze({
-            localActorName: actorName,
+            localPlayerName: playerName,
             ...StateMapper.toRoomInfo(state),
             match: Object.freeze({
                 state: state.match.state,
@@ -135,14 +135,14 @@ export class StateMapper {
 
     /**
 
-     * Maps ordered actors and the public turn cursor without leaking domain internals.
+     * Maps ordered players and the public turn cursor without leaking domain internals.
      * @param {Object} state - Serialized Room state.
      * @returns {Object} Public turn order.
      */
     static #toTurnOrder(state) {
         return Object.freeze({
-            actors: StateMapper.#toActors(state),
-            actorCount: state.turnOrder?.actorCount ?? 0,
+            players: StateMapper.#toPlayers(state),
+            playerCount: state.turnOrder?.playerCount ?? 0,
             ownerKey: state.turnOrder?.ownerKey ?? null,
             direction: state.turnOrder?.direction ?? 1
         });
@@ -150,23 +150,23 @@ export class StateMapper {
 
     /**
 
-     * Maps actor identity, public state, collection data, and draw allowance.
+     * Maps player identity, public state, collection data, and draw allowance.
      * @param {Object} state - Serialized Room state.
-     * @returns {Object[]} Public Actor records.
+     * @returns {Object[]} Public Player records.
      */
-    static #toActors(state) {
-        const actors = Array.isArray(state.turnOrder?.actors) ? state.turnOrder.actors : [];
-        return actors.map(function mapActor(actor) {
-            const collection = actor.collection ?? {};
+    static #toPlayers(state) {
+        const players = Array.isArray(state.turnOrder?.players) ? state.turnOrder.players : [];
+        return players.map(function mapPlayer(player) {
+            const collection = player.collection ?? {};
             return Object.freeze({
-                key: actor.key,
-                name: actor.name,
+                key: player.key,
+                name: player.name,
                 collection: Object.freeze({
                     items: StateMapper.#toCards(collection.items),
                     penalty: collection.penalty
                 }),
-                drawAllowance: actor.drawAllowance,
-                state: actor.state
+                drawAllowance: player.drawAllowance,
+                state: player.state
             });
         });
     }

@@ -124,16 +124,16 @@ td[data-state="error"] > .status-indicator {
     background: var(--red);
 }
 
-td[data-turn-order-actor-count]::before {
-    content: attr(data-turn-order-actor-count);
+td[data-turn-order-player-count]::before {
+    content: attr(data-turn-order-player-count);
 }
 
 td[data-viewers]::before {
     content: attr(data-viewers);
 }
 
-td[data-actor-limit]::before {
-    content: attr(data-actor-limit);
+td[data-player-limit]::before {
+    content: attr(data-player-limit);
 }
 
 td[data-last-active-at]::before {

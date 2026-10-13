@@ -34,7 +34,7 @@ test("HostRequestContext accumulates typed authentication and room state", () =>
     assert.equal(context.tabId, "tab-1");
     assert.equal(context.membership, membership);
     assert.equal(context.room, room);
-    assert.equal(context.membership.actorName, "Daniel");
+    assert.equal(context.membership.playerName, "Daniel");
 });
 
 test("HostConnection owns transport state and RoomMembership owns membership state", () => {
@@ -52,9 +52,9 @@ test("HostConnection owns transport state and RoomMembership owns membership sta
 
     assert.equal(connection.tabId, "tab-1");
     assert.deepEqual(published, [{ view: "home" }]);
-    assert.notEqual(membership.actorName, null);
+    assert.notEqual(membership.playerName, null);
     assert.equal(membership.roomKey, "test-room");
-    assert.equal(membership.actorName, "Daniel");
+    assert.equal(membership.playerName, "Daniel");
 
     membership.view();
     connection.markClosed();
@@ -62,7 +62,7 @@ test("HostConnection owns transport state and RoomMembership owns membership sta
     connection.terminate(1001, "Done");
     connection.clearAuthentication("tab-1");
 
-    assert.equal(membership.actorName, null);
+    assert.equal(membership.playerName, null);
     assert.equal(connection.isOpen, false);
     assert.equal(connection.tabId, null);
     assert.deepEqual(published, [{ view: "home" }]);
@@ -82,7 +82,7 @@ test("ConnectionRegistry owns Home subscriptions and room membership indexes", (
     assert.equal(registry.findConnection(connection), membership);
 
     membership.join("Daniel");
-    assert.equal(registry.findActor("test-room", "Daniel"), membership);
+    assert.equal(registry.findPlayer("test-room", "Daniel"), membership);
     assert.equal(registry.isCurrent(membership), true);
 
     assert.equal(registry.unregister("tab-1", connection), membership);

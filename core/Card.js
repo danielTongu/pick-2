@@ -261,15 +261,15 @@ export class Card extends Serializable {
     }
 
     /**
-     * Applies actor-count-sensitive skip semantics for eights and jacks.
+     * Applies player-count-sensitive skip semantics for eights and jacks.
      *
-     * @param {number} actorCount - Number of actors.
+     * @param {number} playerCount - Number of players.
      * @returns {boolean} True when this card skips.
      */
-    isSkip(actorCount) {
+    isSkip(playerCount) {
         return (
             this.value === Constants.CARD.VALUE.EIGHT.id ||
-            (this.value === Constants.CARD.VALUE.JACK.id && actorCount === 2)
+            (this.value === Constants.CARD.VALUE.JACK.id && playerCount === 2)
         );
     }
 
@@ -283,13 +283,13 @@ export class Card extends Serializable {
     }
 
     /**
-     * Returns whether a jack reverses a circle containing more than two actors.
+     * Returns whether a jack reverses a circle containing more than two players.
      *
-     * @param {number} actorCount - Number of actors.
+     * @param {number} playerCount - Number of players.
      * @returns {boolean} True when this card reverses direction.
      */
-    isReverse(actorCount) {
-        return this.value === Constants.CARD.VALUE.JACK.id && actorCount > 2;
+    isReverse(playerCount) {
+        return this.value === Constants.CARD.VALUE.JACK.id && playerCount > 2;
     }
 
     /**

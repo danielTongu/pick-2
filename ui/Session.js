@@ -985,7 +985,7 @@ export class RoomSession extends Session {
         this.#intent = {
             ...this.#intent,
             command: Constants.COMMANDS.JOIN,
-            data: {roomName: room.name, actorName: this.#intent.data.actorName}
+            data: {roomName: room.name, playerName: this.#intent.data.playerName}
         };
         SessionState.setIntent(this.#intent);
     }

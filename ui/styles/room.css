@@ -106,23 +106,23 @@
     overflow: clip;
 }
 
-/* actor: 3 rows (opponents, table, actor) */
-#game-region[data-has-local-actor="true"] {
+/* player: 3 rows (opponents, table, player) */
+#game-region[data-has-local-player="true"] {
     --play-area-rows:
         minmax(var(--card-height-min), 0.2fr)
         minmax(calc(var(--card-row-floor) * 2), 0.3fr)
         minmax(calc(var(--card-row-floor) * 5/2), 0.5fr);
 }
 
-/* viewer: 2 rows (opponents, table) — no actor region in the DOM */
-#game-region[data-has-local-actor="false"] {
+/* viewer: 2 rows (opponents, table) — no player region in the DOM */
+#game-region[data-has-local-player="false"] {
     --play-area-rows:
         minmax(var(--card-height-min), 0.2fr)
         minmax(var(--card-row-floor), 0.8fr);
 }
 
-#game-region[data-has-local-actor="false"] > #local-actor-region,
-#game-region[data-connection-mode="direct"] > #local-actor-region #actor-idle-warning {
+#game-region[data-has-local-player="false"] > #local-player-region,
+#game-region[data-connection-mode="direct"] > #local-player-region #player-idle-warning {
     display: none;
 }
 
@@ -131,7 +131,7 @@
     display: none;
 }
 
-.actor-region {
+.player-region {
     background: color-mix(in srgb, var(--white) 4%, transparent);
     border: 3px solid;
     box-shadow: var(--shadow-black);
@@ -140,50 +140,50 @@
 
 /* ---------- STATE-DRIVEN STATUS STYLING ---------- */
 
-.actor-region[data-actor-state="active"] {
+.player-region[data-player-state="active"] {
     animation: turn-owner-border-strobe 1.2s ease-in-out infinite;
 }
 
-.actor-region[data-actor-state="active"] #actor-status::before {
+.player-region[data-player-state="active"] #player-status::before {
     content: "your turn";
 }
 
-.actor-region[data-actor-state="won"] {
+.player-region[data-player-state="won"] {
     border-color: var(--gold) !important;
 }
 
-.actor-region[data-actor-state="won"] #actor-status::before {
+.player-region[data-player-state="won"] #player-status::before {
     content: "🏆 you won!";
 }
 
-ul#actors-list > li[data-actor-state="won"]::before {
-    content: "🏆 " attr(data-actor-name);
+ul#players-list > li[data-player-state="won"]::before {
+    content: "🏆 " attr(data-player-name);
 }
 
-.actor-region[data-actor-state="lost"] #actor-status::before {
+.player-region[data-player-state="lost"] #player-status::before {
     content: "😂 you lost!";
 }
 
-.actor-region[data-actor-state="qualified"] #actor-status::before {
+.player-region[data-player-state="qualified"] #player-status::before {
     content: "✅ qualified!";
 }
 
-ul#actors-list > li[data-actor-state="qualified"]::before {
-    content: "✅ " attr(data-actor-name);
+ul#players-list > li[data-player-state="qualified"]::before {
+    content: "✅ " attr(data-player-name);
 }
 
-.actor-region[data-actor-state="eliminated"] #actor-status::before {
+.player-region[data-player-state="eliminated"] #player-status::before {
     content: "❌ eliminated!";
 }
 
-ul#actors-list > li[data-actor-state="eliminated"]::before {
-    content: "❌ " attr(data-actor-name);
+ul#players-list > li[data-player-state="eliminated"]::before {
+    content: "❌ " attr(data-player-name);
 }
 
 
 /* ---------- OPPONENTS ---------- */
 
-ul#actors-list {
+ul#players-list {
     container-type: size;
     display: grid;
     grid-auto-flow: column;
@@ -201,16 +201,16 @@ ul#actors-list {
     list-style: none;
 }
 
-ul#actors-list:empty {
+ul#players-list:empty {
     place-items: center;
 }
 
-ul#actors-list:empty::before {
+ul#players-list:empty::before {
     content: "waiting for opponents…";
     font-style: italic;
 }
 
-ul#actors-list > li {
+ul#players-list > li {
     --opponent-height: 100cqh;
     --opponent-width: calc(var(--opponent-height) * 0.72);
     --opponent-skin: var(--peach);
@@ -226,8 +226,8 @@ ul#actors-list > li {
     user-select: none;
 }
 
-ul#actors-list > li::before {
-    content: attr(data-actor-name);
+ul#players-list > li::before {
+    content: attr(data-player-name);
     display: block;
     padding: 0.5rem;
     overflow: hidden;
@@ -239,11 +239,11 @@ ul#actors-list > li::before {
     white-space: nowrap;
 }
 
-ul#actors-list > li[data-item-count="0"]::after {
+ul#players-list > li[data-item-count="0"]::after {
     display: none;
 }
 
-ul#actors-list > li::after {
+ul#players-list > li::after {
     content: attr(data-item-count);
     position: absolute;
     bottom: 0;
@@ -265,7 +265,7 @@ ul#actors-list > li::after {
     transition: content 1.2s ease-in-out;
 }
 
-ul#actors-list > li > div {
+ul#players-list > li > div {
     position: relative;
     display: grid;
     grid-template-rows: 40% 50%;
@@ -273,20 +273,20 @@ ul#actors-list > li > div {
     min-height: 0;
 }
 
-ul#actors-list > li > div::before,
-ul#actors-list > li > div::after {
+ul#players-list > li > div::before,
+ul#players-list > li > div::after {
     content: "";
     display: block;
     background: var(--opponent-skin);
 }
 
-ul#actors-list > li > div::before {
+ul#players-list > li > div::before {
     width: 60%;
     aspect-ratio: 1;
     border-radius: 50%;
 }
 
-ul#actors-list > li > div::after {
+ul#players-list > li > div::after {
     width: 100%;
     height: 100%;
     border-radius: 50% 50% 0 0;
@@ -350,18 +350,18 @@ ul#actors-list > li > div::after {
         background 0.3s ease;
 }
 
-/* ---------- LOCAL ACTOR REGION ---------- */
+/* ---------- LOCAL PLAYER REGION ---------- */
 
-#local-actor-region {
+#local-player-region {
     display: grid;
     grid-template-rows: auto minmax(var(--card-height-min), 1fr) auto auto;
     min-height: 0;
     border-radius: var(--container-radius);
 }
 
-/* ---------- ACTOR SUMMARY ---------- */
+/* ---------- PLAYER SUMMARY ---------- */
 
-#actor-summary {
+#player-summary {
     display: grid;
     grid-template-columns: 1fr auto;
     align-items: center;
@@ -371,21 +371,21 @@ ul#actors-list > li > div::after {
     font-weight: 600;
 }
 
-#actor-summary > span#actor-status {
+#player-summary > span#player-status {
     border-right: 1px solid var(--line);
 }
 
-#actor-summary > span:last-child {
+#player-summary > span:last-child {
     opacity: 0.7;
 }
 
-#actor-summary > [data-item-count]::after {
+#player-summary > [data-item-count]::after {
     content: "card count: " attr(data-item-count);
 }
 
-/* ---------- ACTOR HAND ---------- */
+/* ---------- PLAYER HAND ---------- */
 
-#actor-hand {
+#player-hand {
     container-type: size;
     overflow-x: auto;
     overflow-y: hidden;
@@ -400,7 +400,7 @@ ul#actors-list > li > div::after {
     margin-left: 5px;
 }
 
-#actor-hand > .playing-card-area {
+#player-hand > .playing-card-area {
     margin-right: 4px;
     width: max-content;
     min-width: 0;
@@ -408,15 +408,15 @@ ul#actors-list > li > div::after {
     container-type: normal;
 }
 
-/* ---------- ACTOR IDLE WARNING AND COMMANDS ---------- */
+/* ---------- PLAYER IDLE WARNING AND COMMANDS ---------- */
 
-#actor-idle-warning {
+#player-idle-warning {
     margin: 0;
     text-align: center;
     text-wrap: wrap;
 }
 
-#actor-idle-warning em {
+#player-idle-warning em {
     font-style: normal;
     font-weight: 700;
 }
@@ -425,12 +425,12 @@ ul#actors-list > li > div::after {
     content: attr(data-idle-seconds) " ";
 }
 
-[data-match-state] #actor-status::before {
-    content: attr(data-actor-name);
+[data-match-state] #player-status::before {
+    content: attr(data-player-name);
     text-transform: capitalize;
 }
 
-#actor-commands {
+#player-commands {
     --button-radius: 0.9rem;
     --button-padding: 1rem;
     --button-border: 3px solid var(--dark-green);
@@ -496,7 +496,7 @@ ul#actors-list > li > div::after {
 /* ---------- REDUCED MOTION ---------- */
 
 @media (prefers-reduced-motion: reduce) {
-    [data-actor-state="active"] {
+    [data-player-state="active"] {
         animation: none;
     }
 

@@ -2,16 +2,16 @@
 
 import { Constants } from "./Constants.js";
 import { BotStrategy } from "./BotStrategy.js";
-import { Actor } from "./Actor.js";
+import { Player } from "./Player.js";
 
-/** Automated actor that chooses legal moves from private hand data and public room state. */
-export class BotActor extends Actor {
+/** Automated player that chooses legal moves from private hand data and public room state. */
+export class BotPlayer extends Player {
 
     /**
-     * Creates a bot actor.
+     * Creates a bot player.
      *
-     * @param {string} name - Bot actor name.
-     * @throws {Error} When the bot name is not a valid actor identity.
+     * @param {string} name - Bot player name.
+     * @throws {Error} When the bot name is not a valid player identity.
      */
     constructor(name) {
         super(name, { drawAllowance: 1 });
@@ -28,8 +28,8 @@ export class BotActor extends Actor {
 
     /** Waits for a randomized human-like delay. */
     async _waitForTurnDelay() {
-        const range = Constants.AUTOMATED_ACTOR_DELAY_MAX_MS - Constants.AUTOMATED_ACTOR_DELAY_MIN_MS + 1;
-        const delay = Constants.AUTOMATED_ACTOR_DELAY_MIN_MS + Math.floor(Math.random() * range);
+        const range = Constants.AUTOMATED_PLAYER_DELAY_MAX_MS - Constants.AUTOMATED_PLAYER_DELAY_MIN_MS + 1;
+        const delay = Constants.AUTOMATED_PLAYER_DELAY_MIN_MS + Math.floor(Math.random() * range);
         await new Promise(function wait(resolve) {
             setTimeout(resolve, delay);
         });

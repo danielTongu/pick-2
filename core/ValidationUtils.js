@@ -10,9 +10,9 @@ export class ValidationUtils {
     static namePattern = /^[\p{L}\p{N}]+(?:[ '\u2019-][\p{L}\p{N}]+)*$/u;
 
     /**
-     * @type {number} Maximum accepted actor display-name length.
+     * @type {number} Maximum accepted player display-name length.
      */
-    static actorNameMaxLength = 24;
+    static playerNameMaxLength = 24;
 
     /**
      * @type {number} Maximum accepted room display-name length.
@@ -20,7 +20,7 @@ export class ValidationUtils {
     static roomNameMaxLength = 48;
 
     /**
-     * Validates and trims a user-facing actor or room display name.
+     * Validates and trims a user-facing player or room display name.
      *
      * @param {*} value - Raw name.
      * @param {string} label - Error label.

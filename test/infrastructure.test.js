@@ -13,7 +13,7 @@ import { UserNotification } from "../core/UserNotification.js";
 import { RoomRowUtils } from "../ui/utilities/RoomRowUtils.js";
 import { RequestThrottle } from "../host/Host.js";
 import { NotificationUtils } from "../ui/utilities/NotificationUtils.js";
-import { ActorUtils } from "../ui/utilities/ActorUtils.js";
+import { PlayerUtils } from "../ui/utilities/PlayerUtils.js";
 import { TemplateUtils } from "../ui/utilities/TemplateUtils.js";
 
 const INDEX_HTML = readFileSync(new URL("../room.html", import.meta.url), "utf8");
@@ -41,7 +41,7 @@ test("browser controller, custom element, and template utility families share th
             { ResultsController },
             { RoomController },
             { HomeController },
-            { LocalActorController },
+            { LocalPlayerController },
             { ConnectionController },
             { SuitSelectionController },
             { ViewController },
@@ -52,7 +52,7 @@ test("browser controller, custom element, and template utility families share th
             import("../ui/controllers/ResultsController.js"),
             import("../ui/controllers/RoomController.js"),
             import("../ui/controllers/HomeController.js"),
-            import("../ui/controllers/LocalActorController.js"),
+            import("../ui/controllers/LocalPlayerController.js"),
             import("../ui/controllers/ConnectionController.js"),
             import("../ui/controllers/SuitSelectionController.js"),
             import("../ui/controllers/ViewController.js"),
@@ -80,7 +80,7 @@ test("browser controller, custom element, and template utility families share th
         assert.equal(typeof ConnectionController.prototype.initialize, "function");
         assert.equal(typeof ConnectionController.prototype.render, "function");
 
-        for (const Type of [ActorUtils, RoomRowUtils]) {
+        for (const Type of [PlayerUtils, RoomRowUtils]) {
             assert.equal(Type.prototype instanceof TemplateUtils, true);
             assert.equal(typeof Type.load, "function");
             assert.equal(typeof Type.create, "function");
@@ -101,22 +101,22 @@ test("browser controller, custom element, and template utility families share th
             );
         }
 
-        assert.equal(LocalActorController.prototype instanceof ViewController, true);
+        assert.equal(LocalPlayerController.prototype instanceof ViewController, true);
             assert.equal(typeof ViewController.prototype.bindDismissButton, "function");
             assert.equal(typeof ViewController.prototype.renderYear, "function");
         assert.equal(PlayingCard.prototype instanceof globalThis.HTMLElement, true);
         assert.equal(registeredElements.get(PlayingCard.elementName), PlayingCard);
         assert.equal(Object.getOwnPropertyDescriptor(PlayingCard.prototype, "card"), undefined);
 
-        const actors = [{ name: "Alice" }, { name: "Bob" }, { name: "Casey" }, { name: "Daniel" }];
+        const players = [{ name: "Alice" }, { name: "Bob" }, { name: "Casey" }, { name: "Daniel" }];
         assert.deepEqual(
-            ResultsController.localFirst(actors, "Casey").map(function getName(actor) {
-                return actor.name;
+            ResultsController.localFirst(players, "Casey").map(function getName(player) {
+                return player.name;
             }),
             ["Casey", "Daniel", "Alice", "Bob"]
         );
-        assert.deepEqual(ResultsController.localFirst(actors, null), actors);
-        assert.deepEqual(ResultsController.localFirst(actors, "Unknown"), actors);
+        assert.deepEqual(ResultsController.localFirst(players, null), players);
+        assert.deepEqual(ResultsController.localFirst(players, "Unknown"), players);
         assert.deepEqual(ResultsController.localFirst(null, "Alice"), []);
     } finally {
         if (OriginalHTMLElement === undefined) {
@@ -174,17 +174,17 @@ test("StateMapper builds immutable response, message, Home, and detailed Game pa
     const response = StateMapper.toResponse(Constants.VIEWS.ROOM, message, { version: 1 });
     const state = {
         name: "Mapped Room",
-        actorLimit: 4,
+        playerLimit: 4,
         createdAt: "invalid",
         lastActiveAt: 0,
         viewers: ["one", "two"],
         match: {
             state: Constants.ROOM_STATE.ACTIVE,
         turnOrder: {
-            actorCount: 1,
+            playerCount: 1,
             ownerKey: "alice",
             direction: 1,
-            actors: [
+            players: [
                 {
                     key: "alice",
                     name: "Alice",
@@ -194,7 +194,7 @@ test("StateMapper builds immutable response, message, Home, and detailed Game pa
                         items: [{ value: "5", suit: "clubs", rank: 5, rotation: 10 }]
                     },
                     drawAllowance: 2,
-                    state: Constants.ACTOR_STATE.WON,
+                    state: Constants.PLAYER_STATE.WON,
                     ws: {}
                 }
             ]
@@ -203,7 +203,7 @@ test("StateMapper builds immutable response, message, Home, and detailed Game pa
             play: { items: [{ value: "3", suit: "hearts", rank: 3, rotation: 20 }] },
             draw: { items: [{}, {}] }
         },
-        pending: { command: Constants.COMMANDS.DECLARE, actorKey: "alice" },
+        pending: { command: Constants.COMMANDS.DECLARE, playerKey: "alice" },
         declaredSuit: Constants.CARD.SUIT.SPADES
         }
     };
@@ -223,9 +223,9 @@ test("StateMapper builds immutable response, message, Home, and detailed Game pa
     assert.equal(Object.hasOwn(data, "turnOrder"), false);
     assert.equal(data.match.state, Constants.ROOM_STATE.ACTIVE);
     assert.equal(data.match.turnOrder.ownerKey, "alice");
-    assert.equal(data.match.turnOrder.ownerKey, data.match.turnOrder.actors[0].key);
-    assert.equal(data.match.turnOrder.actors[0].collection.items.length, 1);
-    assert.equal(data.match.turnOrder.actors[0].collection.penalty, 5);
+    assert.equal(data.match.turnOrder.ownerKey, data.match.turnOrder.players[0].key);
+    assert.equal(data.match.turnOrder.players[0].collection.items.length, 1);
+    assert.equal(data.match.turnOrder.players[0].collection.penalty, 5);
     assert.equal(data.match.collections.play.items.length, 2);
     assert.deepEqual(data.match.collections.play.items[1], { suit: Constants.CARD.SUIT.SPADES, rotation: 0 });
     assert.equal(data.match.collections.draw.itemCount, 2);
@@ -234,7 +234,7 @@ test("StateMapper builds immutable response, message, Home, and detailed Game pa
 test("StateMapper supplies safe defaults for incomplete game state", () => {
     const state = {
         name: "Empty",
-        actorLimit: 2,
+        playerLimit: 2,
         createdAt: null,
         lastActiveAt: null,
         viewers: 3,
@@ -249,9 +249,9 @@ test("StateMapper supplies safe defaults for incomplete game state", () => {
     const room = { toJSON: () => state };
     const data = StateMapper.toRoomData(room, null);
 
-    assert.equal(data.match.turnOrder.actorCount, 0);
+    assert.equal(data.match.turnOrder.playerCount, 0);
     assert.equal(data.viewers, 3);
-    assert.deepEqual(data.match.turnOrder.actors, []);
+    assert.deepEqual(data.match.turnOrder.players, []);
     assert.deepEqual(data.match.collections.play.items, []);
     assert.equal(Object.hasOwn(data, "winners"), false);
     assert.equal(data.match.collections.draw.itemCount, 0);
@@ -266,12 +266,12 @@ test("RequestThrottle isolates scopes and supports reset, pruning, and validatio
 
     guard.reset("connection:tab");
     guard.enforceConnection({ tabId: "tab" }, "sync", 1000);
-    guard.enforceActorThrottle("actor-tab", "move", 0);
+    guard.enforcePlayerThrottle("player-tab", "move", 0);
     guard.enforceRoomThrottle("room-key", "start", 0);
     guard.prune(0);
     guard.resetAll();
 
-    assert.throws(() => guard.enforceActorThrottle("", "move", 1), /cannot be empty/);
+    assert.throws(() => guard.enforcePlayerThrottle("", "move", 1), /cannot be empty/);
     assert.throws(() => guard.enforceRoomThrottle("room", "move", -1), /non-negative integer/);
 });
 

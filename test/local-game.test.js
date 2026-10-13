@@ -35,16 +35,16 @@ for (const mode of ["direct", "hosted"]) {
         const host = new Host(mode, 0, false);
         t.after(() => host.shutdown());
         const owner = createConnection(host, "owner");
-        await owner.request(Constants.COMMANDS.CREATE, { roomName: "Discard Flow", actorName: "Alice", actorLimit: 2 });
+        await owner.request(Constants.COMMANDS.CREATE, { roomName: "Discard Flow", playerName: "Alice", playerLimit: 2 });
         const drawn = latestGame(await owner.request(Constants.COMMANDS.DRAW));
-        const card = drawn.match.turnOrder.actors.find((actor) => actor.name === "Alice").collection.items[0];
+        const card = drawn.match.turnOrder.players.find((player) => player.name === "Alice").collection.items[0];
         const discarded = latestGame(await owner.request(Constants.COMMANDS.DISCARD, { card }));
         assert.equal(discarded.match.collections.play.items.length, 1);
 
         const rejected = await owner.request("return", { card });
         assert.match(rejected.findLast((response) => response.message)?.message.message ?? "", /Unknown command/);
         const current = latestGame(await owner.request(Constants.COMMANDS.LIST)) ?? discarded;
-        assert.equal(current.match.turnOrder.actors.find((actor) => actor.name === "Alice").collection.items.length, 0);
+        assert.equal(current.match.turnOrder.players.find((player) => player.name === "Alice").collection.items.length, 0);
         assert.deepEqual(current.match.collections.play.items[0], card);
     });
 }
@@ -65,7 +65,7 @@ function readJavaScriptSources(directory) {
     return sources;
 }
 
-test("Host seeds configured bot actors and leaves every remaining seat open", async () => {
+test("Host seeds configured bot players and leaves every remaining seat open", async () => {
     const host = new Host("direct", 0, false);
     const connection = createConnection(host);
     const home = (await connection.request(Constants.COMMANDS.LIST)).findLast(
@@ -75,13 +75,13 @@ test("Host seeds configured bot actors and leaves every remaining seat open", as
     assert.deepEqual(
         home.rooms.map((room) => ({
             name: room.name,
-            actorLimit: room.actorLimit,
-            actorCount: room.match.turnOrder.actorCount
+            playerLimit: room.playerLimit,
+            playerCount: room.match.turnOrder.playerCount
         })),
-        Constants.DEFAULT_ROOMS.map(({ roomName, actorLimit, botCount }) => ({
+        Constants.DEFAULT_ROOMS.map(({ roomName, playerLimit, botCount }) => ({
             name: roomName,
-            actorLimit: actorLimit,
-            actorCount: botCount
+            playerLimit: playerLimit,
+            playerCount: botCount
         }))
     );
     assert.equal(home.connectionMode, "direct");
@@ -95,15 +95,15 @@ test("a custom local game fills its open seats with bots immediately", async () 
     const connection = createConnection(host);
     const responses = await connection.request(Constants.COMMANDS.CREATE, {
         roomName: "Local Game",
-        actorName: "Daniel",
-        actorLimit: 4
+        playerName: "Daniel",
+        playerLimit: 4
     });
     const game = latestGame(responses);
 
-    assert.equal(game.match.turnOrder.actorCount, 4);
-    assert.equal(game.localActorName, "Daniel");
+    assert.equal(game.match.turnOrder.playerCount, 4);
+    assert.equal(game.localPlayerName, "Daniel");
     assert.deepEqual(
-        game.match.turnOrder.actors.map((actor) => actor.name),
+        game.match.turnOrder.players.map((player) => player.name),
         ["Daniel", ...Constants.DIRECT_OPPONENT_NAMES]
     );
     await connection.connection.close();
@@ -118,17 +118,17 @@ test("the shared Host rejects every join while a room is playing", async () => {
 
     await owner.request(Constants.COMMANDS.CREATE, {
         roomName: "Network Game",
-        actorName: "Daniel",
-        actorLimit: 3
+        playerName: "Daniel",
+        playerLimit: 3
     });
     await guest.request(Constants.COMMANDS.JOIN, {
         roomName: "Network Game",
-        actorName: "Casey"
+        playerName: "Casey"
     });
     await owner.request(Constants.COMMANDS.START);
     const rejected = await lateGuest.request(Constants.COMMANDS.JOIN, {
         roomName: "Network Game",
-        actorName: "Jordan"
+        playerName: "Jordan"
     });
 
     assert.match(rejected.findLast((response) => response.message)?.message?.message ?? "", /in progress/i);
@@ -146,7 +146,7 @@ test("Host returns one connection and rejects another connection claiming its ta
 
     assert.equal(owner.connection instanceof HostConnection, true);
     await owner.request(Constants.COMMANDS.CREATE, {
-        roomName: "Owned Room", actorName: "Alice", actorLimit: 2
+        roomName: "Owned Room", playerName: "Alice", playerLimit: 2
     });
     const rejected = await other.request(Constants.COMMANDS.VIEW, { roomName: "Owned Room" });
 
@@ -160,19 +160,19 @@ test("Host returns one connection and rejects another connection claiming its ta
     await other.connection.close();
 });
 
-test("an actor can leave a hosted room while it is playing", async () => {
+test("a player can leave a hosted room while it is playing", async () => {
     const host = new Host("hosted", 0, false);
     const owner = createConnection(host, "owner");
     const guest = createConnection(host, "guest");
 
     await owner.request(Constants.COMMANDS.CREATE, {
         roomName: "Active Room",
-        actorName: "Daniel",
-        actorLimit: 3
+        playerName: "Daniel",
+        playerLimit: 3
     });
     await guest.request(Constants.COMMANDS.JOIN, {
         roomName: "Active Room",
-        actorName: "Casey"
+        playerName: "Casey"
     });
     await owner.request(Constants.COMMANDS.START);
 
@@ -183,7 +183,7 @@ test("an actor can leave a hosted room while it is playing", async () => {
     const activeRoom = home.data.rooms.find((room) => room.name === "Active Room");
 
     assert.ok(activeRoom);
-    assert.equal(activeRoom.match.turnOrder.actorCount, 1);
+    assert.equal(activeRoom.match.turnOrder.playerCount, 1);
     await owner.connection.close();
     await guest.connection.close();
     await host.shutdown();
@@ -195,8 +195,8 @@ test("Host retains a custom room in memory after its creator leaves", async () =
 
     await connection.request(Constants.COMMANDS.CREATE, {
         roomName: "Saved Game",
-        actorName: "Daniel",
-        actorLimit: 3
+        playerName: "Daniel",
+        playerLimit: 3
     });
     const home = (await connection.request(Constants.COMMANDS.LEAVE)).findLast(
         (response) => response.view === Constants.VIEWS.HOME
@@ -368,24 +368,24 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.doesNotMatch(homeTemplate, /id="(?:request-mode-control|list-panel)" hidden/);
     assert.match(homeTemplate, /<tbody id="list-table-body">[\s\S]*?class="empty-row"/);
     assert.doesNotMatch(homeMarkup, /id="room-faq"/);
-    assert.match(gameHtml, /data-has-local-actor="false"/);
+    assert.match(gameHtml, /data-has-local-player="false"/);
     assert.doesNotMatch(gameHtml, /pick-2-shared-root/);
     assert.doesNotMatch(homeTemplate, /id="connection-view"/);
     assert.match(readFileSync(new URL("../connection.html", import.meta.url), "utf8"), /id="connection-view"/);
-    assert.match(gameHtml, /data-has-local-actor="false"[^>]+data-connection-mode="direct"[^>]+data-match-state="waiting"/);
-    assert.match(gameHtml, /data-actor-state="ready"/);
+    assert.match(gameHtml, /data-has-local-player="false"[^>]+data-connection-mode="direct"[^>]+data-match-state="waiting"/);
+    assert.match(gameHtml, /data-player-state="ready"/);
     assert.match(
         gameHtml,
-        /id="actor-summary"[\s\S]*?<span data-actor-name="" id="actor-status"><\/span>[\s\S]*?<span data-item-count="0"><\/span>/
+        /id="player-summary"[\s\S]*?<span data-player-name="" id="player-status"><\/span>[\s\S]*?<span data-item-count="0"><\/span>/
     );
-    assert.match(gameHtml, /id="actor-hand"/);
+    assert.match(gameHtml, /id="player-hand"/);
     assert.match(gameHtml, /id="table-play-area"[\s\S]*?data-is-drag-over="false"/);
     assert.match(
         gameHtml,
-        /id="actor-hand"[\s\S]*?<span class="playing-card-area"><\/span>/
+        /id="player-hand"[\s\S]*?<span class="playing-card-area"><\/span>/
     );
     assert.doesNotMatch(gameHtml, /<span class="playing-card-area" data-is-drag-over="false"><\/span>/);
-    assert.doesNotMatch(gameHtml, /id="actor-region"/);
+    assert.doesNotMatch(gameHtml, /id="player-region"/);
     assert.match(gameHtml, /<details id="room-faq" class="faq" aria-labelledby="faq-title">/);
     assert.doesNotMatch(gameHtml, /<details id="room-faq" open>/);
     assert.match(gameHtml, /<b id="faq-title">FAQ<\/b>/);
@@ -457,8 +457,8 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
 
 test("the finished dialog opens once per finish and clears for a new game", () => {
     const controller = readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8");
-    const actorController = readFileSync(
-        new URL("../ui/controllers/LocalActorController.js", import.meta.url),
+    const playerController = readFileSync(
+        new URL("../ui/controllers/LocalPlayerController.js", import.meta.url),
         "utf8"
     );
     const resultsController = readFileSync(new URL("../ui/controllers/ResultsController.js", import.meta.url), "utf8");
@@ -473,7 +473,7 @@ test("the finished dialog opens once per finish and clears for a new game", () =
     );
     assert.match(
         resultsController,
-        /hide\(\)\s*\{[\s\S]*?#actors = \[\];[\s\S]*?#statsBody\.replaceChildren\(\);[\s\S]*?#selectedActorItems\.replaceChildren\(\);[\s\S]*?super\.hide\(\)/
+        /hide\(\)\s*\{[\s\S]*?#players = \[\];[\s\S]*?#statsBody\.replaceChildren\(\);[\s\S]*?#selectedPlayerItems\.replaceChildren\(\);[\s\S]*?super\.hide\(\)/
     );
     assert.match(
         controller,
@@ -593,39 +593,39 @@ test("the shared game preserves touch-friendly card presentation", () => {
         readFileSync(new URL("../ui/styles/room.css", import.meta.url), "utf8");
     const gameCss = readFileSync(new URL("../ui/styles/room.css", import.meta.url), "utf8");
     const homeCss = readFileSync(new URL("../ui/styles/home.css", import.meta.url), "utf8");
-    const controller = readFileSync(new URL("../ui/controllers/LocalActorController.js", import.meta.url), "utf8");
-    assert.match(controller, /"#actor-hand > \.playing-card-area", HTMLSpanElement/);
-    assert.match(controller, /this\.root, "\[data-actor-name\]", HTMLSpanElement/);
+    const controller = readFileSync(new URL("../ui/controllers/LocalPlayerController.js", import.meta.url), "utf8");
+    assert.match(controller, /"#player-hand > \.playing-card-area", HTMLSpanElement/);
+    assert.match(controller, /this\.root, "\[data-player-name\]", HTMLSpanElement/);
     assert.match(controller, /this\.root, "\[data-item-count\]", HTMLSpanElement/);
     assert.match(controller, /this\.root, "\[data-draw-allowance\]", HTMLSpanElement/);
     assert.match(controller, /querySelector\("\[data-idle-seconds\]"\)/);
-    assert.doesNotMatch(controller, /"#actor-status"|"#draw-button > span"|"#actor-idle-warning > em"/);
+    assert.doesNotMatch(controller, /"#player-status"|"#draw-button > span"|"#player-idle-warning > em"/);
 
     assert.doesNotMatch(html, /id="card-size-range"/);
     assert.match(cardCss, /--card-height:\s*max\(100cqh, var\(--card-height-min\)\)/);
     assert.match(cardCss, /\.playing-card-drag-handle\s*\{[\s\S]*?width:\s*100%/);
     assert.match(gameCss, /@keyframes turn-owner-border-strobe/);
     assert.match(homeCss, /\.toggle-switch > label:has\(input:checked\) > span/);
-    assert.match(controller, /this\.#playRegion\.dataset\.hasLocalActor = "true"/);
-    assert.match(controller, /this\.#playRegion\.dataset\.hasLocalActor = "false"/);
-    assert.match(controller, /this\.#actorStatus\.dataset\.actorName = actor\.name \?\? ""/);
-    assert.match(controller, /this\.#actorStatus\.dataset\.actorName = ""/);
-    assert.doesNotMatch(html + controller + gameCss, /data-is-actor-view|isActorView/);
-    assert.match(html, /id="actors-list"[\s\S]*?id="table-play-area"[\s\S]*?id="local-actor-region"/);
-    assert.match(html, /<ul id="actors-list" aria-label="Other actors"><\/ul>/);
-    assert.doesNotMatch(html, /id="actors-list"[^>]*role=/);
+    assert.match(controller, /this\.#playRegion\.dataset\.hasLocalPlayer = "true"/);
+    assert.match(controller, /this\.#playRegion\.dataset\.hasLocalPlayer = "false"/);
+    assert.match(controller, /this\.#playerStatus\.dataset\.playerName = player\.name \?\? ""/);
+    assert.match(controller, /this\.#playerStatus\.dataset\.playerName = ""/);
+    assert.doesNotMatch(html + controller + gameCss, /data-is-player-view|isPlayerView/);
+    assert.match(html, /id="players-list"[\s\S]*?id="table-play-area"[\s\S]*?id="local-player-region"/);
+    assert.match(html, /<ul id="players-list" aria-label="Other players"><\/ul>/);
+    assert.doesNotMatch(html, /id="players-list"[^>]*role=/);
     assert.match(
-        readFileSync(new URL("../ui/templates/actor.html", import.meta.url), "utf8"),
-        /<li[^>]* data-actor-name=/
+        readFileSync(new URL("../ui/templates/player.html", import.meta.url), "utf8"),
+        /<li[^>]* data-player-name=/
     );
     assert.doesNotMatch(
-        readFileSync(new URL("../ui/templates/actor.html", import.meta.url), "utf8"),
+        readFileSync(new URL("../ui/templates/player.html", import.meta.url), "utf8"),
         /role="listitem"/
     );
-    assert.match(gameCss, /\[data-has-local-actor="false"\]\s*\{[\s\S]*?--play-area-rows:/);
-    assert.match(gameCss, /\[data-has-local-actor="false"\] > #local-actor-region,[\s\S]*?\{\s*display:\s*none/);
-    assert.doesNotMatch(gameCss, /\[data-has-local-actor="false"\][^{]*#table-play-area[^{]*\{[^}]*--card-height/);
-    assert.match(gameCss, /#game-region\[data-connection-mode="direct"\] > #local-actor-region #actor-idle-warning/);
+    assert.match(gameCss, /\[data-has-local-player="false"\]\s*\{[\s\S]*?--play-area-rows:/);
+    assert.match(gameCss, /\[data-has-local-player="false"\] > #local-player-region,[\s\S]*?\{\s*display:\s*none/);
+    assert.doesNotMatch(gameCss, /\[data-has-local-player="false"\][^{]*#table-play-area[^{]*\{[^}]*--card-height/);
+    assert.match(gameCss, /#game-region\[data-connection-mode="direct"\] > #local-player-region #player-idle-warning/);
     assert.match(
         readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8"),
         /playRegion\.dataset\.connectionMode = room\.connectionMode/
@@ -634,5 +634,5 @@ test("the shared game preserves touch-friendly card presentation", () => {
         readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8"),
         /idleWarning\.hidden/
     );
-    assert.doesNotMatch(controller, /#local-actor|isTurnBound/);
+    assert.doesNotMatch(controller, /#local-player|isTurnBound/);
 });
