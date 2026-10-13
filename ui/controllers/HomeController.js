@@ -282,7 +282,7 @@ export class HomeController extends ViewController {
     /** Renders connection state and mode switching on one control. */
     #renderConnectionStatus() {
         const isHosted = this.#hostedModeInput.checked;
-        const modeLabel = isHosted ? "Hosted" : "Direct";
+        const modeLabel = isHosted ? "Live" : "Local";
         const connectionState = this.#connectionStatus.dataset.status ?? "connecting";
 
         const statusLabel =

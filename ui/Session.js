@@ -185,7 +185,7 @@ export class Session {
         if (generation !== this.#generation || socket !== this.#socket || !this.#isOpen) return;
         this.#cancelReconnect();
         this.#reconnectAttempts = 0;
-        this.#handleStatus("connected", "Hosted");
+        this.#handleStatus("connected", "Live");
         this.#handleOpen();
     }
 
@@ -278,7 +278,7 @@ export class Session {
     /** @param {number} generation - Local connection generation. */
     #notifyLocalOpen(generation) {
         if (this.#isOpen && generation === this.#generation) {
-            this.#handleStatus("connected", "Direct");
+            this.#handleStatus("connected", "Local");
             this.#handleOpen();
         }
     }
@@ -411,10 +411,10 @@ export class SessionState {
     }
 
     /**
-     * @returns {"direct"|"hosted"} Selected mode, defaulting to Direct.
+     * @returns {"direct"|"hosted"} Selected mode, otherwise Hosted when configured or Direct.
      */
     static getMode() {
-        return this.getModePreference() ?? "direct";
+        return this.getModePreference() ?? (this.getConfiguredServerOrigin() === null ? "direct" : "hosted");
     }
 
     /**
@@ -500,10 +500,7 @@ export class SessionState {
      * @returns {string|null} Trimmed configured server origin, when supplied.
      */
     static getConfiguredServerOrigin() {
-        const origin = globalThis.document
-            ?.querySelector('meta[name="game-server-origin"]')
-            ?.getAttribute("content")
-            ?.trim();
+        const origin = Constants.GAME_SERVER_ORIGIN.trim();
 
         return origin || null;
     }
@@ -520,7 +517,7 @@ export class SessionState {
             throw new Error("Server origin is not configured.");
         }
 
-        const url = new URL(origin, globalThis.location?.href);
+        const url = new URL(origin);
         const protocols = {
             "http:": "ws:",
             "https:": "wss:",
@@ -545,47 +542,21 @@ export class SessionState {
     }
 
     /**
-     * @returns {string|null} WebSocket URL for the host serving this page.
-     */
-    static getCurrentHostUrl() {
-        const origin = globalThis.location?.origin;
-
-        if (!origin || origin === "null") {
-            return null;
-        }
-
-        return this.resolveHostedUrl(origin);
-    }
-
-    /**
-     * @returns {string} Last verified, configured, or current-host WebSocket URL.
-     * @throws {Error} When no Hosted endpoint can be resolved.
+     * @returns {string} WebSocket URL derived exclusively from the configured server origin.
+     * @throws {Error} When no Hosted server is configured.
      */
     static getHostedUrl() {
-        const savedUrl = globalThis.sessionStorage?.getItem(this.#HOSTED_URL_KEY)?.trim();
-
-        if (savedUrl) {
-            return savedUrl;
-        }
-
-        const configuredOrigin = this.getConfiguredServerOrigin();
-
-        if (configuredOrigin !== null) {
-            return this.resolveHostedUrl(configuredOrigin);
-        }
-
-        const currentHostUrl = this.getCurrentHostUrl();
-
-        if (currentHostUrl === null) {
-            throw new Error("Hosted endpoint is not available.");
-        }
-
-        return currentHostUrl;
+        return this.resolveHostedUrl(this.getConfiguredServerOrigin());
     }
 
     /** @returns {string|null} Hosted URL previously verified on the Connection page. */
     static getVerifiedHostedUrl() {
-        return globalThis.sessionStorage?.getItem(this.#HOSTED_URL_KEY)?.trim() || null;
+        const savedUrl = globalThis.sessionStorage?.getItem(this.#HOSTED_URL_KEY)?.trim();
+        try {
+            return savedUrl === this.getHostedUrl() ? savedUrl : null;
+        } catch (_error) {
+            return null;
+        }
     }
 }
 
@@ -670,7 +641,7 @@ export class ConnectionSession extends Session {
     /** @type {number} Total endpoint probes on this page. */
     #probeCount = 0;
 
-    /** Initializes page controls and probes configured hosts. */
+    /** Initializes page controls and probes the configured host. */
     async start() {
         const {ConnectionController} = await import("./controllers/ConnectionController.js");
         this.#controller = new ConnectionController();
@@ -679,7 +650,7 @@ export class ConnectionSession extends Session {
         window.addEventListener("pagehide", this.#cancel.bind(this), {once: true});
 
         const isAutomatic = new URLSearchParams(location.search).get("auto") === "1";
-        const available = await this.#probeHosts(null);
+        const available = await this.#probeHosts();
         if (isAutomatic && available === false) {
             SessionState.setMode("direct");
             location.replace(this.#homeUrl("direct"));
@@ -687,19 +658,8 @@ export class ConnectionSession extends Session {
     }
 
     /** @param {string} origin - User-entered host address. */
-    #submit(origin) {
-        if (origin === "") {
-            void this.#probeHosts(null);
-            return;
-        }
-        try {
-            void this.#probeHosts(SessionState.resolveHostedUrl(origin));
-        } catch (error) {
-            this.#cancel();
-            this.#controller.render(Constants.CONNECTION_STATUS.ERROR, {
-                endpoint: origin, failure: error instanceof Error ? error.message : String(error)
-            });
-        }
+    #submit(_origin) {
+        void this.#probeHosts();
     }
 
     /** Invalidates the current probe without navigating. */
@@ -710,10 +670,9 @@ export class ConnectionSession extends Session {
     }
 
     /**
-     * @param {string|null} preferredUrl - Explicit endpoint or configured/same-origin candidates.
      * @returns {Promise<boolean|null>} Availability, or null when superseded.
      */
-    async #probeHosts(preferredUrl) {
+    async #probeHosts() {
         this.#cancel();
         const generation = this.#generation;
         let configurationError = "";
@@ -726,15 +685,7 @@ export class ConnectionSession extends Session {
                 configurationError = error instanceof Error ? error.message : String(error);
             }
         }
-        let currentHostUrl = null;
-        try {
-            currentHostUrl = SessionState.getCurrentHostUrl();
-        } catch (_error) {
-        }
-
-        const candidates = preferredUrl === null
-            ? [...new Set([configuredUrl, currentHostUrl].filter(Boolean))]
-            : [preferredUrl];
+        const candidates = configuredUrl === null ? [] : [configuredUrl];
         if (candidates.length === 0) {
             this.#controller.render(Constants.CONNECTION_STATUS.UNCONFIGURED, {failure: configurationError});
             return false;
@@ -805,12 +756,12 @@ export class HomeSession extends Session {
 
         if (this.#notice !== null) this.#controller.handleNotification(this.#notice);
 
-        if (this.#preferredMode !== "hosted") {
+        if (SessionState.getMode() !== "hosted") {
             this.#connect("direct");
-        } else if (this.#preferredMode === "hosted" && SessionState.getVerifiedHostedUrl() !== null) {
+        } else if (SessionState.getVerifiedHostedUrl() !== null) {
             this.#connect("hosted");
         } else {
-            this.#openConnectionPage(false);
+            this.#openConnectionPage(this.#preferredMode === null);
         }
     }
 

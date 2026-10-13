@@ -6,7 +6,6 @@
         <title>Connect to a Pick 2 Host</title>
         <meta name="description" content="Connect to a hosted Pick 2 game." />
         <meta name="robots" content="noindex, nofollow" />
-        <meta name="game-server-origin" content="" />
         <link rel="stylesheet" href="./ui/styles/base.css" />
         <link rel="stylesheet" href="./ui/styles/connection.css" />
     </head>
@@ -25,21 +24,21 @@
             </header>
             <section id="connection-view" data-status="connecting" aria-labelledby="connection-title">
                 <header class="connection-panel-header">
-                    <span class="section-kicker">Hosted mode</span>
+                    <span class="section-kicker">Live mode</span>
                     <h2 id="connection-title"></h2>
                     <p id="connection-message" aria-live="polite"></p>
                 </header>
                 <form id="connection-form">
-                    <label for="connection-origin">Hosted address</label>
+                    <label for="connection-origin">Live address</label>
                     <div class="connection-field">
-                        <input id="connection-origin" type="url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://play.example.com" aria-describedby="connection-help" />
+                        <input id="connection-origin" type="url" readonly inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://play.example.com" aria-describedby="connection-help" />
                     </div>
                     <p id="connection-help">
-                        <span>Provide the server origin or WebSocket URL. Pick 2 will resolve the WebSocket endpoint.</span>
+                        <span>The Live server address is configured by the game.</span>
                     </p>
                     <div class="connection-actions">
                         <button id="connection-connect-button" type="submit" disabled>Connecting…</button>
-                        <a id="connection-direct-link" href="./index.html?mode=direct">Use Direct mode</a>
+                        <a id="connection-direct-link" href="./index.html?mode=direct">Use Local mode</a>
                     </div>
                 </form>
                 <dl id="connection-diagnostics" aria-label="Connection diagnostics">

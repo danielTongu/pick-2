@@ -1,6 +1,9 @@
 /** Canonical immutable vocabulary, limits, card definitions, and timing shared across Pick 2. */
 export class Constants {
 
+    /** @type {string} Hosted server origin; empty selects Direct mode. */
+    static GAME_SERVER_ORIGIN = "";
+
     /** @type {number} Room wait for player activity, empty-room closure, and the next Knockout match. */
     static ROOM_WAIT_MS = 30 * 1000;
 

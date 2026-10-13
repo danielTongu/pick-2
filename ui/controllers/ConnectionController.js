@@ -100,7 +100,7 @@ export class ConnectionController extends ViewController {
         this.root.dataset.timeoutMs = String(Constants.CONNECTION_PROBE_TIMEOUT_MS);
         this.root.dataset.failure = failure ? "true" : "false";
         this.#connectionStatus.dataset.status = status;
-        this.#connectionStatus.setAttribute("aria-label", `Hosted connection: ${statusLabel}`);
+        this.#connectionStatus.setAttribute("aria-label", `Live connection: ${statusLabel}`);
         this.#statusLabelOutput.textContent = statusLabel;
         this.#messageOutput.dataset.detail = failure;
         this.#endpointOutput.textContent = endpoint || "Not selected";

@@ -41,11 +41,11 @@
 }
 
 #connection-view[data-status="connected"] #connection-title::before {
-    content: "Hosted connection available";
+    content: "Live connection available";
 }
 
 #connection-view[data-status="error"] #connection-title::before {
-    content: "Hosted connection unavailable";
+    content: "Live connection unavailable";
 }
 
 #connection-view[data-status="unconfigured"] #connection-title::before {
@@ -72,7 +72,7 @@
 }
 
 #connection-view[data-status="connecting"] #connection-message::before {
-    content: "Checking configured and same-origin WebSocket endpoints.";
+    content: "Connecting to the game server.";
 }
 
 #connection-view[data-status="connected"] #connection-message::before {
@@ -84,7 +84,7 @@
 }
 
 #connection-view[data-status="unconfigured"] #connection-message::before {
-    content: "Enter a server origin or WebSocket URL to use Hosted mode.";
+    content: "Live mode is not configured. Use Local mode to play.";
 }
 
 #connection-form {

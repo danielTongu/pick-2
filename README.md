@@ -21,7 +21,9 @@ npm start
 Open [http://localhost:8080](http://localhost:8080). Use `npm run dev` for watch mode.
 
 For static hosting, serve the repository root. `index.html` is Pick 2 Home and `room.html` is the active Room. Direct
-play is always available; Home enables Hosted mode when its configured WebSocket host is reachable.
+play is always available. Set `Constants.GAME_SERVER_ORIGIN` in `core/Constants.js` to the Hosted server HTTPS URL
+to try Hosted mode automatically, with Direct as the fallback. Leave it empty for Direct mode. The page address is
+never used as a Hosted endpoint.
 
 In a Room with at least two Players, Start asks whether to start a **Knockout**. No plays one match; Yes starts successive matches. A Knockout match with at least three Players qualifies everyone except those tied
 for the highest hand penalty for the next match. The finished order remains visible until that next match starts after a short delay, or a qualified human Player presses Start sooner. Eliminated Players leave the order at that start.

@@ -98,7 +98,7 @@ async function startRoomSession(basePath, mode, validIntent, command = Constants
         async initialize() {}
     }
     const context = {
-        Constants,
+        Constants: { ...Constants, GAME_SERVER_ORIGIN: "https://server.test" },
         URL,
         URLSearchParams,
         document: { body: { dataset: { page: "room" } }, querySelector() { return null; } },

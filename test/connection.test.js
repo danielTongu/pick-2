@@ -5,18 +5,18 @@ import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
 import test from "node:test";
 
+import { Constants } from "../core/Constants.js";
 import { SessionState } from "../ui/Session.js";
 
 /** Installs the browser values used by SessionState and restores them afterward. */
 function useBrowserState(serverOrigin, callback) {
+    const originalOrigin = Constants.GAME_SERVER_ORIGIN;
+    Constants.GAME_SERVER_ORIGIN = serverOrigin;
     const originals = new Map();
     const storage = new Map();
     const values = {
         document: {
             body: { dataset: { game: "pick2" } },
-            querySelector(selector) {
-                return selector === 'meta[name="game-server-origin"]' ? { getAttribute: () => serverOrigin } : null;
-            }
         },
         location: {
             href: "https://example.test/pick-2/network/",
@@ -38,6 +38,7 @@ function useBrowserState(serverOrigin, callback) {
     try {
         return callback();
     } finally {
+        Constants.GAME_SERVER_ORIGIN = originalOrigin;
         for (const [key, descriptor] of originals) {
             if (descriptor === undefined) {
                 delete globalThis[key];
@@ -48,13 +49,12 @@ function useBrowserState(serverOrigin, callback) {
     }
 }
 
-test("SessionState normalizes configured and current Hosted hosts", () => {
+test("SessionState resolves only the configured Hosted host", () => {
     useBrowserState("", () => {
         assert.equal(SessionState.getModePreference(), null);
         assert.equal(SessionState.getMode(), "direct");
         assert.equal(SessionState.getConfiguredServerOrigin(), null);
-        assert.equal(SessionState.getCurrentHostUrl(), "wss://example.test/");
-        assert.equal(SessionState.getHostedUrl(), "wss://example.test/");
+        assert.throws(() => SessionState.getHostedUrl(), /not configured/);
     });
 
     const cases = new Map([
@@ -66,6 +66,7 @@ test("SessionState normalizes configured and current Hosted hosts", () => {
 
     for (const [origin, expectedUrl] of cases) {
         useBrowserState(`  ${origin}  `, () => {
+            assert.equal(SessionState.getMode(), "hosted");
             assert.equal(SessionState.getConfiguredServerOrigin(), origin.trim());
             assert.equal(SessionState.getHostedUrl(), expectedUrl);
         });
@@ -79,10 +80,26 @@ test("SessionState normalizes configured and current Hosted hosts", () => {
     });
 });
 
+test("SessionState uses Direct for blank configuration and preserves explicit mode choices", () => {
+    useBrowserState("   ", () => {
+        assert.equal(SessionState.getMode(), "direct");
+    });
+    useBrowserState("https://server.test", () => {
+        SessionState.setMode("direct");
+        assert.equal(SessionState.getMode(), "direct");
+        globalThis.location.search = "?mode=hosted";
+        assert.equal(SessionState.getMode(), "hosted");
+    });
+});
+
 test("SessionState stores and clears a verified Hosted host", () => {
     useBrowserState("https://server.test", () => {
         SessionState.setHostedUrl("wss://direct.test/");
-        assert.equal(SessionState.getHostedUrl(), "wss://direct.test/");
+        assert.equal(SessionState.getHostedUrl(), "wss://server.test/");
+        assert.equal(SessionState.getVerifiedHostedUrl(), null);
+        SessionState.setHostedUrl("wss://server.test/");
+        assert.equal(SessionState.getVerifiedHostedUrl(), "wss://server.test/");
+        assert.throws(() => SessionState.resolveHostedUrl("/socket"), /Invalid URL/);
         SessionState.clearHostedUrl();
         assert.equal(SessionState.getHostedUrl(), "wss://server.test/");
     });
@@ -113,7 +130,7 @@ test("the standalone Connection page verifies Hosted servers", () => {
     assert.match(view, /location\.replace\(this\.#homeUrl\("hosted"\)\)/);
     assert.match(view, /isAutomatic && available === false/);
     assert.match(view, /new URL\("\.\/connection\.html", location\.href\)/);
-    assert.match(view, /SessionState\.getCurrentHostUrl\(\)/);
+    assert.doesNotMatch(view, /getCurrentHostUrl/);
     assert.match(view, /new WebSocket\(this\.#endpoint\)/);
     assert.match(view, /Constants\.CONNECTION_PROBE_TIMEOUT_MS/);
     assert.match(controller, /this\.root\.dataset\.elapsedMs/);
@@ -168,8 +185,7 @@ test("Connection page navigates on success and only automatically falls back aft
                 setMode(mode) { state.mode = mode; },
                 setHostedUrl(url) { state.hostedUrl = url; },
                 getConfiguredServerOrigin() { return "ws://server.test/"; },
-                resolveHostedUrl(url) { return url; },
-                getCurrentHostUrl() { return null; }
+                resolveHostedUrl(url) { return url; }
             },
             location: { search, replace(url) { state.redirects.push(url); } },
             window: { addEventListener(_name, handler) { if (outcome === null) queueMicrotask(handler); } }

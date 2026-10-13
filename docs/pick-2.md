@@ -199,7 +199,9 @@ Unless a subsection says otherwise, “send,” “publish,” and “render” 
 
 #### Home and Room admission
 
-`HomeSession` reads the preferred mode from `SessionState`. The standalone `ConnectionSession` discovers
+`HomeSession` respects an explicit URL or tab mode choice. Otherwise, a nonempty `Constants.GAME_SERVER_ORIGIN` starts an
+automatic Hosted connection attempt to that configured server; a failed attempt falls back to Direct. An empty or
+whitespace-only origin starts Direct immediately. The standalone `ConnectionSession` discovers
 and verifies its endpoint; `ConnectionController` renders the endpoint, attempt, probe duration, timeout, and failure
 diagnostics. A successful WebSocket probe establishes availability, not game admission. When the client opens,
 `HomeController` sends `list`, stores the advertised capabilities, and
