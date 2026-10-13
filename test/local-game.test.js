@@ -341,14 +341,14 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     const network = readFileSync(new URL("../server.js", import.meta.url), "utf8");
     const homeCss = readFileSync(new URL("../ui/styles/home.css", import.meta.url), "utf8");
 
-    assert.match(homeHtml, /<body data-game="pick2" data-page="home">/);
+    assert.match(homeHtml, /<body data-connection-status="connecting" data-game="pick2" data-page="home">/);
     assert.doesNotMatch(homeHtml, /pick-2-shared-root/);
     assert.match(homeHtml, /<main class="site-shell">/);
     assert.match(homeTemplate, /id="registration-form"/);
     assert.match(homeTemplate, /id="list-table-body"/);
     const homeDecoration = readFileSync(new URL("../ui/controllers/HomeController.js", import.meta.url), "utf8");
     const sharedHeaderPattern =
-        /<header id="app-header">\s*<h1>\s*<a id="app-home-link"[\s\S]*?<span class="brand-mark"[\s\S]*?<span class="brand-copy"[^>]*>[\s\S]*?<\/h1>\s*<aside\s+[^>]*data-status="connecting"/;
+        /<header id="app-header">\s*<h1>\s*<a id="app-home-link"[\s\S]*?<span class="brand-mark"[\s\S]*?<span class="brand-copy"[^>]*>[\s\S]*?<\/h1>\s*<aside\s+[^>]*/;
 
     assert.match(homeTemplate, sharedHeaderPattern);
     assert.match(gameHtml, sharedHeaderPattern);
@@ -356,8 +356,8 @@ test("Direct and Hosted modes share one Home page and one Room page", () => {
     assert.equal(homeTemplate.match(/id="app-footer"/g)?.length, 1);
     assert.equal(gameHtml.match(/id="app-header"/g)?.length, 1);
     assert.equal(gameHtml.match(/id="app-footer"/g)?.length, 1);
-    assert.match(homeTemplate, /<aside[^>]+class="toggle-switch"[^>]+data-status="connecting"/);
-    assert.match(homeTemplate, /<aside[^>]+data-status="connecting"[^>]*>\s*<label>\s*<input id="direct-mode-input"/);
+    assert.match(homeTemplate, /<aside[^>]+class="toggle-switch"/);
+    assert.match(homeTemplate, /<aside[^>]+class="toggle-switch"[^>]*>\s*<label>\s*<input id="direct-mode-input"/);
     assert.match(homeTemplate, /id="direct-mode-input"[^>]+value="direct"/);
     assert.match(homeTemplate, /id="hosted-mode-input"[^>]+value="hosted"/);
     assert.doesNotMatch(homeTemplate, /id="connection-status-indicator"/);

@@ -2,7 +2,7 @@
 export class Constants {
 
     /** @type {string} Hosted server origin; empty selects Direct mode. */
-    static GAME_SERVER_ORIGIN = "";
+    static GAME_SERVER_ORIGIN = "http://localhost:8080";
 
     /** @type {number} Room wait for player activity, empty-room closure, and the next Knockout match. */
     static ROOM_WAIT_MS = 30 * 1000;

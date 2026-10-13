@@ -1,6 +1,6 @@
 /* ---------- CONNECTION STATUS ---------- */
 
-#app-header > aside[data-status] {
+#app-header > aside {
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: center;
@@ -12,23 +12,27 @@
     color: var(--gray);
 }
 
-#app-header > aside[data-status]::before {
+#app-header > aside::before {
     content: "";
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: var(--green);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 15%, transparent);
+    background: var(--connection-accent);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--connection-accent) 15%, transparent);
 }
 
-#app-header > aside[data-status][data-status="connecting"]::before {
-    background: var(--orange);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--orange) 15%, transparent);
+body[data-connection-status="connecting"] #app-header > aside::before,
+body[data-connection-status="reconnecting"] #app-header > aside::before {
+    animation: status-ripple 1.6s ease-out infinite;
 }
 
-#app-header > aside[data-status][data-status="error"]::before {
-    background: var(--red);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--red) 15%, transparent);
+@keyframes status-ripple {
+    from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 55%, transparent); }
+    to { box-shadow: 0 0 0 12px transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #app-header > aside::before { animation: none !important; }
 }
 
 /* ---------- ROOM HEADER AND CONTROLS ---------- */

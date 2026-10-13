@@ -21,7 +21,7 @@ function linkTarget(html, relationship) {
 
 test("the root page is the playable Pick 2 Home", () => {
     const html = readFileSync(new URL("index.html", root), "utf8");
-    assert.match(html, /<body data-game="pick2" data-page="home">/);
+    assert.match(html, /<body data-connection-status="connecting" data-game="pick2" data-page="home">/);
     assert.match(html, /<main class="site-shell">/);
     assert.match(html, /src="main.js"/);
     assert.doesNotMatch(html, /game-tile|Coming soon|Poker|Yahtzee|Dice Games/);

@@ -200,7 +200,8 @@ Unless a subsection says otherwise, “send,” “publish,” and “render” 
 #### Home and Room admission
 
 `HomeSession` respects an explicit URL or tab mode choice. Otherwise, a nonempty `Constants.GAME_SERVER_ORIGIN` starts an
-automatic Hosted connection attempt to that configured server; a failed attempt falls back to Direct. An empty or
+automatic Live connection check to that configured server. A failed check opens the connection page with retry and
+Local mode options. An empty or
 whitespace-only origin starts Direct immediately. The standalone `ConnectionSession` discovers
 and verifies its endpoint; `ConnectionController` renders the endpoint, attempt, probe duration, timeout, and failure
 diagnostics. A successful WebSocket probe establishes availability, not game admission. When the client opens,
@@ -604,3 +605,8 @@ The collapsed Home guide, About Pick 2 & rooms, sits immediately above `home-dir
 - Uncaught exceptions and unhandled promise rejections are logged and trigger server shutdown because Host
   state may be unsafe.
 - The application is proprietary; see the README copyright and license notice.
+
+Live transport loss keeps Home or Room open during up to five reconnection attempts (1, 2, 4, 8, and 16 seconds).
+Successful reconnection follows normal Home publication or Room admission. Exhausted retries close the session,
+clear admission intent and verified endpoint state, and open the connection page. That page waits for manual
+Retry Live or Local selection instead of restarting retries or automatically switching modes.

@@ -6,7 +6,7 @@ import { runInNewContext } from "node:vm";
 import test from "node:test";
 
 import { Constants } from "../core/Constants.js";
-import { SessionState } from "../ui/Session.js";
+import { Session, SessionState } from "../ui/Session.js";
 
 /** Installs the browser values used by SessionState and restores them afterward. */
 function useBrowserState(serverOrigin, callback) {
@@ -116,11 +116,13 @@ test("the standalone Connection page verifies Hosted servers", () => {
     );
 
     assert.doesNotMatch(homeHtml, /id="connection-view"/);
-    assert.match(homeHtml, /href="\.\/connection\.html">Connection settings/);
-    assert.match(connectionHtml, /<body data-game="pick2" data-page="connection">/);
+    assert.doesNotMatch(homeHtml, /Connection settings/);
+    assert.match(connectionHtml, /<body data-connection-status="connecting" data-game="pick2" data-page="connection">/);
     assert.match(connectionHtml, /id="connection-view"/);
     assert.match(connectionHtml, /id="connection-form"/);
-    assert.match(connectionHtml, /id="connection-origin"[^>]*type="url"/);
+    assert.match(connectionHtml, /<output id="connection-origin">/);
+    assert.match(connectionHtml, /<details id="connection-details">/);
+    assert.doesNotMatch(connectionHtml, /class="connection-status"|type="url"/);
     assert.match(connectionHtml, /id="connection-connect-button" type="submit"/);
     assert.match(connectionHtml, /id="connection-direct-link" href="\.\/index\.html\?mode=direct"/);
     assert.match(connectionHtml, /class="connection-actions">[\s\S]*?id="connection-connect-button"[\s\S]*?id="connection-direct-link"[\s\S]*?<\/div>[\s\S]*?<\/form>/);
@@ -128,7 +130,7 @@ test("the standalone Connection page verifies Hosted servers", () => {
     assert.match(main, /new ConnectionSession\(homeUrl\)\.start\(\)/);
     assert.match(view, /SessionState\.setHostedUrl\(endpoint\)/);
     assert.match(view, /location\.replace\(this\.#homeUrl\("hosted"\)\)/);
-    assert.match(view, /isAutomatic && available === false/);
+    assert.match(view, /url\.searchParams\.set\("failed", "1"\)/);
     assert.match(view, /new URL\("\.\/connection\.html", location\.href\)/);
     assert.doesNotMatch(view, /getCurrentHostUrl/);
     assert.match(view, /new WebSocket\(this\.#endpoint\)/);
@@ -139,13 +141,13 @@ test("the standalone Connection page verifies Hosted servers", () => {
     assert.match(connectionHtml, /id="connection-duration"/);
     assert.match(view, /#scheduleReconnect\(generation\)/);
     assert.match(styles, /#connection-title\s*\{[\s\S]*?color:\s*var\(--connection-accent\)/);
-    assert.match(styles, /#connection-view\[data-status="error"\]/);
+    assert.match(styles, /body\[data-connection-status="error"\] \[data-connection-state~="error"\]/);
     assert.match(styles, /grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 180px\), 1fr\)\)/);
     assert.match(styles, /@media \(max-width: 520px\)/);
     assert.doesNotMatch(styles, /#connection-view\[data-status="connecting"\],\s*#connection-indicator/);
 });
 
-test("Connection page navigates on success and only automatically falls back after a real failure", async () => {
+test("Connection page returns Home on success and stays available after failure", async () => {
     const viewSource = readFileSync(new URL("../ui/Session.js", import.meta.url), "utf8");
     const source = viewSource.slice(
         viewSource.indexOf("/** One bounded browser WebSocket availability probe. */"),
@@ -184,6 +186,7 @@ test("Connection page navigates on success and only automatically falls back aft
             SessionState: {
                 setMode(mode) { state.mode = mode; },
                 setHostedUrl(url) { state.hostedUrl = url; },
+                getHostedUrl() { return "ws://server.test/"; },
                 getConfiguredServerOrigin() { return "ws://server.test/"; },
                 resolveHostedUrl(url) { return url; }
             },
@@ -206,9 +209,14 @@ test("Connection page navigates on success and only automatically falls back aft
     assert.equal(typeof success.renders.at(-1).metrics.elapsedMs, "number");
 
     const failed = await run(false, "?auto=1");
-    assert.equal(failed.mode, "direct");
-    assert.deepEqual(failed.redirects, ["https://example.test/index.html?mode=direct"]);
+    assert.equal(failed.mode, null);
+    assert.deepEqual(failed.redirects, []);
     assert.equal(failed.renders.at(-1).metrics.failure, "WebSocket handshake failed.");
+
+    const exhausted = await run(true, "?failed=1");
+    assert.deepEqual(exhausted.redirects, []);
+    assert.equal(exhausted.renders.at(-1).status, "error");
+    assert.match(exhausted.renders.at(-1).metrics.failure, /reconnection attempts failed/);
 
     const timedOut = await run("timeout", "");
     assert.match(timedOut.renders.at(-1).metrics.failure, /Timed out after 5 ms/);
@@ -245,7 +253,7 @@ test("ConnectionController renders diagnostics as text and data attributes", () 
     });`, context);
 
     const root = elements.get("#connection-view");
-    assert.equal(root.dataset.status, "error");
+    assert.equal(elements.get("body").dataset.connectionStatus, "error");
     assert.equal(root.dataset.endpoint, "wss://example.test/");
     assert.equal(root.dataset.attempt, "3");
     assert.equal(root.dataset.candidate, "2");
@@ -254,4 +262,60 @@ test("ConnectionController renders diagnostics as text and data attributes", () 
     assert.equal(elements.get("#connection-attempt").textContent, "#3 · candidate 2 of 2");
     assert.equal(elements.get("#connection-duration").textContent, "42 ms");
     assert.equal(elements.get("#connection-failure").textContent, "WebSocket handshake failed.");
+    runInNewContext(`new ConnectionController().render("unconfigured");`, context);
+    assert.equal(elements.get("#hosted-mode-input").checked, true);
+    assert.equal(elements.get("#direct-mode-input").checked, false);
+    assert.equal(elements.get("#connection-connect-button").disabled, true);
+    assert.equal(elements.get("#connection-connect-button").textContent, "Retry Live");
+    assert.equal(elements.get("#connection-endpoint").textContent, "Not configured");
+});
+
+
+test("Live stays on the current page for five retries before opening manual recovery", () => {
+    useBrowserState("http://localhost:8080", () => {
+        const originals = new Map();
+        const sockets = [];
+        const timers = [];
+        const redirects = [];
+        const statuses = [];
+        class FakeWebSocket {
+            constructor() { this.handlers = new Map(); sockets.push(this); }
+            addEventListener(name, handler) { this.handlers.set(name, handler); }
+            close() {}
+        }
+        const replacements = {
+            WebSocket: FakeWebSocket,
+            setTimeout(callback, delay) { timers.push({callback, delay}); return timers.length; },
+            clearTimeout() {}
+        };
+        for (const [key, value] of Object.entries(replacements)) {
+            originals.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
+            Object.defineProperty(globalThis, key, {configurable: true, writable: true, value});
+        }
+        globalThis.location.replace = url => redirects.push(url);
+        try {
+            const session = new Session(new URL("https://example.test/index.html"));
+            session.connect("ws://localhost:8080/", {
+                handleConnectionStatus(status) { statuses.push(status); }
+            });
+            sockets[0].handlers.get("open")();
+            for (let attempt = 0; attempt < 5; attempt += 1) {
+                sockets.at(-1).handlers.get("close")();
+                assert.equal(redirects.length, 0);
+                assert.equal(statuses.at(-1), "reconnecting");
+                assert.equal(timers[attempt].delay, 1000 * 2 ** attempt);
+                timers[attempt].callback();
+            }
+            sockets.at(-1).handlers.get("close")();
+            assert.equal(sockets.length, 6);
+            assert.deepEqual(redirects, ["https://example.test/pick-2/network/connection.html?failed=1"]);
+            assert.equal(SessionState.getIntent(), null);
+            assert.equal(SessionState.getVerifiedHostedUrl(), null);
+        } finally {
+            for (const [key, descriptor] of originals) {
+                if (descriptor === undefined) delete globalThis[key];
+                else Object.defineProperty(globalThis, key, descriptor);
+            }
+        }
+    });
 });

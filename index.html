@@ -41,7 +41,7 @@
             }
         </script>
     </head>
-    <body data-game="pick2" data-page="home">
+    <body data-connection-status="connecting" data-game="pick2" data-page="home">
         <main class="site-shell">
             <header id="app-header">
                 <h1>
@@ -50,7 +50,7 @@
                         <span class="brand-copy">Pick 2<small>Match cards. Make moves.</small></span>
                     </a>
                 </h1>
-                <aside class="toggle-switch" data-status="connecting" aria-label="Connection mode. Local connecting.">
+                <aside class="toggle-switch" aria-label="Connection mode. Local connecting.">
                     <label>
                         <input id="direct-mode-input" name="connection-mode" type="radio" value="direct" checked />
                         <span>Local</span>
@@ -230,7 +230,6 @@
                     <div>Match cards. Make moves.</div>
                 </aside>
                 <nav id="app-footer-navigation" aria-label="Footer navigation">
-                    <a href="./connection.html">Connection settings</a>
                     <a href="#app-header">Back to top ↑</a>
                 </nav>
                 <aside id="app-footer-note">

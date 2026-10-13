@@ -223,7 +223,16 @@ export class Session {
 
     /** @param {number} generation - Connection generation. */
     #scheduleReconnect(generation) {
-        if (!this.#isOpen || this.#reconnectAttempts >= 5 || this.#reconnectTimer !== null) return;
+        if (!this.#isOpen || this.#reconnectTimer !== null) return;
+        if (this.#reconnectAttempts >= 5) {
+            this.disconnect();
+            SessionState.clearHostedUrl();
+            SessionState.clearIntent();
+            const url = new URL("./connection.html", location.href);
+            url.searchParams.set("failed", "1");
+            location.replace(url.href);
+            return;
+        }
         const delay = Math.min(1000 * 2 ** this.#reconnectAttempts, 30_000);
         this.#reconnectAttempts += 1;
         this.#handleStatus("reconnecting", "Reconnecting…");
@@ -645,19 +654,36 @@ export class ConnectionSession extends Session {
     async start() {
         const {ConnectionController} = await import("./controllers/ConnectionController.js");
         this.#controller = new ConnectionController();
-        this.#controller.initialize(this.#submit.bind(this));
+        this.#controller.initialize(this.#submit.bind(this), this.#selectMode.bind(this));
         this.#controller.renderYear();
         window.addEventListener("pagehide", this.#cancel.bind(this), {once: true});
 
-        const isAutomatic = new URLSearchParams(location.search).get("auto") === "1";
-        const available = await this.#probeHosts();
-        if (isAutomatic && available === false) {
+        if (new URLSearchParams(location.search).get("failed") === "1") {
+            let endpoint = "";
+            try {
+                endpoint = SessionState.getHostedUrl();
+            } catch (_error) {
+            }
+            this.#controller.render(endpoint ? Constants.CONNECTION_STATUS.ERROR : Constants.CONNECTION_STATUS.UNCONFIGURED, {
+                endpoint, failure: "Live reconnection attempts failed. Retry Live or play Local."
+            });
+            return;
+        }
+        await this.#probeHosts();
+    }
+
+    /** @param {string} mode - Local play or a Live retry selected by the toggle. */
+    #selectMode(mode) {
+        if (mode === "direct") {
+            this.#cancel();
             SessionState.setMode("direct");
             location.replace(this.#homeUrl("direct"));
+        } else {
+            void this.#probeHosts();
         }
     }
 
-    /** @param {string} origin - User-entered host address. */
+    /** @param {string} origin - Unused read-only server address. */
     #submit(_origin) {
         void this.#probeHosts();
     }
@@ -730,10 +756,8 @@ export class HomeSession extends Session {
      */
     #controller = null;
 
-    /**
-     * @type {"direct"|"hosted"|null} Persisted or URL-selected startup mode.
-     */
-    #preferredMode = SessionState.getModePreference();
+    /** @type {number} Invalidates connection checks when the selected mode changes. */
+    #connectionGeneration = 0;
 
     /**
      * @type {Record<string, *>|null} One-time notification restored after navigation.
@@ -758,10 +782,8 @@ export class HomeSession extends Session {
 
         if (SessionState.getMode() !== "hosted") {
             this.#connect("direct");
-        } else if (SessionState.getVerifiedHostedUrl() !== null) {
-            this.#connect("hosted");
         } else {
-            this.#openConnectionPage(this.#preferredMode === null);
+            await this.#tryLive();
         }
     }
 
@@ -780,6 +802,7 @@ export class HomeSession extends Session {
      * @param {"direct"|"hosted"} requestedMode - Transport mode to open.
      */
     #connect(requestedMode) {
+        this.#connectionGeneration += 1;
         this.mode = requestedMode === "hosted" ? "hosted" : "direct";
         SessionState.setMode(this.mode);
         this.#controller.selectMode(this.mode);
@@ -790,6 +813,25 @@ export class HomeSession extends Session {
             : new Host("direct", "fill", false);
         this.connect(target, this.#controller);
         this.#updateModeUrl(this.mode);
+    }
+
+    /** Checks the configured Live server and shows recovery options only after failure. */
+    async #tryLive() {
+        const generation = ++this.#connectionGeneration;
+        this.disconnect();
+        this.#controller.selectMode("hosted");
+        try {
+            const endpoint = SessionState.getHostedUrl();
+            const outcome = await new WebSocketProbe(endpoint).check();
+            if (generation !== this.#connectionGeneration) return;
+            if (outcome.available) {
+                SessionState.setHostedUrl(endpoint);
+                this.#connect("hosted");
+                return;
+            }
+        } catch (_error) {
+        }
+        if (generation === this.#connectionGeneration) this.#openConnectionPage(false);
     }
 
     /**
@@ -808,7 +850,7 @@ export class HomeSession extends Session {
      */
     #handleMode(mode) {
         if (mode === "hosted") {
-            this.#openConnectionPage(false);
+            void this.#tryLive();
         } else {
             SessionState.clearHostedUrl();
             this.#connect("direct");

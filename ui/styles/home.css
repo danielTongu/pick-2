@@ -50,7 +50,7 @@
 }
 
 .toggle-switch > label:has(input:checked) > span {
-    background: var(--light-green);
+    background: var(--connection-accent);
     color: var(--black);
     box-shadow: 0 5px 18px color-mix(in srgb, var(--black) 28%, transparent);
 }
@@ -63,6 +63,24 @@
 .toggle-switch > label:has(input:disabled) {
     opacity: 0.36;
     cursor: not-allowed;
+}
+
+
+
+body[data-connection-status="connecting"] .toggle-switch > label:has(input:checked) > span,
+body[data-connection-status="reconnecting"] .toggle-switch > label:has(input:checked) > span {
+    animation: mode-ripple 1.6s ease-out infinite;
+}
+
+@keyframes mode-ripple {
+    from { box-shadow: 0 0 0 0 color-mix(in srgb, var(--gold) 55%, transparent); }
+    to { box-shadow: 0 0 0 12px transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .toggle-switch > label > span {
+        animation: none !important;
+    }
 }
 
 /* ----- HOME HERO ----- */

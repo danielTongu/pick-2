@@ -156,8 +156,7 @@ export class RoomController extends ViewController {
      * @param {string} label - Status display label.
      */
     handleConnectionStatus(status, label) {
-        const root = DomUtils.require("#app-header > aside[data-status]", HTMLElement);
-        root.dataset.status = status;
+        DomUtils.require("body", HTMLElement).dataset.connectionStatus = status;
         DomUtils.require("#connection-status-label", HTMLElement).textContent = label;
     }
 

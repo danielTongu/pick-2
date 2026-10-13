@@ -15,8 +15,8 @@ export class ConnectionController extends ViewController {
     /** @type {HTMLElement} Status message and failure detail. */
     #messageOutput;
 
-    /** @type {HTMLInputElement} Editable host address. */
-    #originInput;
+    /** @type {HTMLElement} Configured Live server label. */
+    #originOutput;
 
     /** @type {HTMLButtonElement} Host probe command. */
     #connectButton;
@@ -38,16 +38,16 @@ export class ConnectionController extends ViewController {
     /** @type {HTMLElement} Failure diagnostic value. */
     #failureOutput;
 
-    /** @type {(function(string): void)|null} Host address submit handler. */
+    /** @type {(function(): void)|null} Retry command handler. */
     #onSubmit = null;
 
     /** Resolves the Connection page controls and diagnostic outputs. */
     constructor() {
         super("#connection-view");
-        this.#connectionStatus = DomUtils.require("#app-header > aside[data-status]", HTMLElement);
+        this.#connectionStatus = DomUtils.require("#app-header > aside", HTMLElement);
         this.#statusLabelOutput = DomUtils.require("#connection-status-label", HTMLElement);
         this.#messageOutput = DomUtils.require("#connection-message", HTMLElement);
-        this.#originInput = DomUtils.require("#connection-origin", HTMLInputElement);
+        this.#originOutput = DomUtils.require("#connection-origin", HTMLElement);
         this.#connectButton = DomUtils.require("#connection-connect-button", HTMLButtonElement);
         this.#form = DomUtils.require("#connection-form", HTMLFormElement);
         this.#endpointOutput = DomUtils.require("#connection-endpoint", HTMLElement);
@@ -58,18 +58,21 @@ export class ConnectionController extends ViewController {
     }
 
     /**
-     * Binds host address submission.
-     * @param {function(string): void} onSubmit - Receives the entered address.
+     * Binds retry and mode selection.
+     * @param {function(): void} onSubmit - Retries the configured server.
+     * @param {function(string): void} onMode - Receives the selected mode.
      */
-    initialize(onSubmit) {
+    initialize(onSubmit, onMode) {
         this.#onSubmit = onSubmit;
         this.#form.addEventListener("submit", this.#handleSubmit.bind(this));
+        DomUtils.require("#direct-mode-input", HTMLInputElement).addEventListener("change", function selectLocal() { onMode("direct"); });
+        DomUtils.require("#hosted-mode-input", HTMLInputElement).addEventListener("change", function selectLive() { onMode("hosted"); });
     }
 
-    /** @param {SubmitEvent} event - Host address form submission. */
+    /** @param {SubmitEvent} event - Retry form submission. */
     #handleSubmit(event) {
         event.preventDefault();
-        this.#onSubmit(this.#originInput.value.trim());
+        this.#onSubmit();
     }
 
     /**
@@ -79,9 +82,9 @@ export class ConnectionController extends ViewController {
      */
     render(status, metrics = {}) {
         const statusLabel = {
-            [Constants.CONNECTION_STATUS.CONNECTING]: "Checking host…",
-            [Constants.CONNECTION_STATUS.CONNECTED]: "Host available",
-            [Constants.CONNECTION_STATUS.ERROR]: "Connection error",
+            [Constants.CONNECTION_STATUS.CONNECTING]: "Connecting…",
+            [Constants.CONNECTION_STATUS.CONNECTED]: "Connected",
+            [Constants.CONNECTION_STATUS.ERROR]: "Unavailable",
             [Constants.CONNECTION_STATUS.UNCONFIGURED]: "Not configured"
         }[status] ?? status;
         const endpoint = metrics.endpoint ?? "";
@@ -91,7 +94,6 @@ export class ConnectionController extends ViewController {
         const candidate = metrics.candidate ?? 0;
         const candidateCount = metrics.candidateCount ?? 0;
 
-        this.root.dataset.status = status;
         this.root.dataset.endpoint = endpoint;
         this.root.dataset.attempt = String(attempt);
         this.root.dataset.candidate = String(candidate);
@@ -99,20 +101,22 @@ export class ConnectionController extends ViewController {
         this.root.dataset.elapsedMs = elapsedMs === null ? "" : String(elapsedMs);
         this.root.dataset.timeoutMs = String(Constants.CONNECTION_PROBE_TIMEOUT_MS);
         this.root.dataset.failure = failure ? "true" : "false";
-        this.#connectionStatus.dataset.status = status;
-        this.#connectionStatus.setAttribute("aria-label", `Live connection: ${statusLabel}`);
+        DomUtils.require("body", HTMLElement).dataset.connectionStatus = status;
+        this.#connectionStatus.setAttribute("aria-label", `Connection mode. Live ${statusLabel}.`);
         this.#statusLabelOutput.textContent = statusLabel;
         this.#messageOutput.dataset.detail = failure;
-        this.#endpointOutput.textContent = endpoint || "Not selected";
+        this.#endpointOutput.textContent = endpoint || "Not configured";
         this.#attemptOutput.textContent = attempt === 0 ? "—" :
             `#${attempt}${candidateCount > 1 ? ` · candidate ${candidate} of ${candidateCount}` : ""}`;
         this.#durationOutput.textContent = elapsedMs === null ? "—" : `${elapsedMs} ms`;
         this.#timeoutOutput.textContent = `${Constants.CONNECTION_PROBE_TIMEOUT_MS} ms`;
         this.#failureOutput.textContent = failure || "None";
-        if (endpoint && status === Constants.CONNECTION_STATUS.CONNECTING) this.#originInput.value = endpoint;
+        this.#originOutput.textContent = endpoint || "Not configured";
+        DomUtils.require("#hosted-mode-input", HTMLInputElement).checked = true;
+        DomUtils.require("#direct-mode-input", HTMLInputElement).checked = false;
 
         const isPending = status === Constants.CONNECTION_STATUS.CONNECTING;
-        this.#connectButton.disabled = isPending;
-        this.#connectButton.textContent = isPending ? "Connecting…" : "Connect to host";
+        this.#connectButton.disabled = isPending || status === Constants.CONNECTION_STATUS.UNCONFIGURED;
+        this.#connectButton.textContent = isPending ? "Connecting…" : "Retry Live";
     }
 }

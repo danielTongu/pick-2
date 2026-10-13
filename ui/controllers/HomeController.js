@@ -120,7 +120,7 @@ export class HomeController extends ViewController {
         this.#playerNameInput = DomUtils.require("#player-name-input", HTMLInputElement);
         this.#roomNameInput = DomUtils.require("#room-name-input", HTMLInputElement);
         this.#playerLimitInput = DomUtils.require("#player-limit-input", HTMLInputElement);
-        this.#connectionStatus = DomUtils.require("#app-header > aside[data-status]", HTMLElement);
+        this.#connectionStatus = DomUtils.require("#app-header > aside", HTMLElement);
         this.#directModeInput = DomUtils.require("#direct-mode-input", HTMLInputElement);
         this.#hostedModeInput = DomUtils.require("#hosted-mode-input", HTMLInputElement);
     }
@@ -199,7 +199,7 @@ export class HomeController extends ViewController {
         const isHosted = mode === "hosted";
         this.#directModeInput.checked = !isHosted;
         this.#hostedModeInput.checked = isHosted;
-        this.#connectionStatus.dataset.status = "connecting";
+        DomUtils.require("body", HTMLElement).dataset.connectionStatus = "connecting";
         this.#roomTableBody.replaceChildren();
         this.#renderEmptyRoomMessage();
         this.#renderConnectionStatus();
@@ -235,7 +235,7 @@ export class HomeController extends ViewController {
      * @param {string} status
      */
     handleConnectionStatus(status) {
-        this.#connectionStatus.dataset.status = status;
+        DomUtils.require("body", HTMLElement).dataset.connectionStatus = status;
         this.#renderConnectionStatus();
     }
 
@@ -283,11 +283,12 @@ export class HomeController extends ViewController {
     #renderConnectionStatus() {
         const isHosted = this.#hostedModeInput.checked;
         const modeLabel = isHosted ? "Live" : "Local";
-        const connectionState = this.#connectionStatus.dataset.status ?? "connecting";
+        const connectionState = DomUtils.require("body", HTMLElement).dataset.connectionStatus ?? "connecting";
 
         const statusLabel =
             {
                 connecting: "connecting",
+                reconnecting: "reconnecting",
                 connected: "connected",
                 disconnected: "disconnected",
                 error: "connection error"

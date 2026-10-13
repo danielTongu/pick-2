@@ -276,3 +276,11 @@ a {
         transition-duration: 0.01ms !important;
     }
 }
+
+/* One page-level connection state, editable without JavaScript. */
+body[data-connection-status] { --connection-accent: var(--green); }
+body[data-connection-status="connecting"],
+body[data-connection-status="reconnecting"] { --connection-accent: var(--gold); }
+body[data-connection-status="disconnected"],
+body[data-connection-status="error"],
+body[data-connection-status="unconfigured"] { --connection-accent: var(--red); }

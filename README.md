@@ -22,7 +22,7 @@ Open [http://localhost:8080](http://localhost:8080). Use `npm run dev` for watch
 
 For static hosting, serve the repository root. `index.html` is Pick 2 Home and `room.html` is the active Room. Direct
 play is always available. Set `Constants.GAME_SERVER_ORIGIN` in `core/Constants.js` to the Hosted server HTTPS URL
-to try Hosted mode automatically, with Direct as the fallback. Leave it empty for Direct mode. The page address is
+to try Live mode automatically. A failed connection opens retry and Local mode options. Leave it empty for Local mode. The page address is
 never used as a Hosted endpoint.
 
 In a Room with at least two Players, Start asks whether to start a **Knockout**. No plays one match; Yes starts successive matches. A Knockout match with at least three Players qualifies everyone except those tied

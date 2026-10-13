@@ -13,7 +13,7 @@
         <link rel="stylesheet" href="./ui/styles/dialogs.css" />
         <link rel="stylesheet" href="./ui/styles/playing-card.css" />
     </head>
-    <body data-game="pick2" data-page="room">
+    <body data-connection-status="connecting" data-game="pick2" data-page="room">
         <main class="site-shell">
             <header id="app-header">
                 <h1>
@@ -22,7 +22,7 @@
                         <span class="brand-copy">Pick 2<small>Match cards. Make moves.</small></span>
                     </a>
                 </h1>
-                <aside data-status="connecting" aria-live="polite">
+                <aside aria-live="polite">
                     <span id="connection-status-label">Starting…</span>
                 </aside>
             </header>
