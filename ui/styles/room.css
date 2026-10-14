@@ -97,7 +97,7 @@
     display: grid;
     grid-template-rows: var(--play-area-rows);
     grid-auto-rows: 0;
-    gap: 1rem;
+    gap: 5px;
 
     min-height: max(calc(var(--card-height-min) * 4), 40vw);
 
@@ -319,11 +319,12 @@ ul#players-list > li > div::after {
     display: grid;
     place-items: center;
     outline: 1px dashed var(--cyan);
+    outline-offset: -7px;
     transition: outline-offset 0.25s ease;
 }
 
 #table-play-area > .playing-card-area[data-is-drag-over="true"] {
-    outline-offset: -10px;
+    outline-offset: -13px;
 }
 
 #table-play-area > .playing-card-area:empty::after {
