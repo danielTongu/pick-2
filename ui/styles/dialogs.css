@@ -218,8 +218,8 @@
     white-space: pre-line;
 }
 
-#alert-message:empty::before {
-    content: "message not provided";
+#alert-message:empty {
+    display: none;
 }
 
 /* ========================================

@@ -209,13 +209,11 @@ export class RoomController extends ViewController {
         try {
             await navigator.clipboard.writeText(url.href);
             this.handleNotification({
-                status: Constants.STATUS.INFO,
-                ...Constants.NOTIFICATIONS.INVITE_COPIED
+                ...Constants.ACTION_NOTIFICATIONS.INVITE_COPIED
             });
         } catch (_error) {
             this.handleNotification({
-                status: Constants.STATUS.ERROR,
-                ...Constants.NOTIFICATIONS.COPY_FAILED
+                ...Constants.ACTION_NOTIFICATIONS.COPY_FAILED
             });
         }
     }

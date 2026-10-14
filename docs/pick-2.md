@@ -472,8 +472,20 @@ infrastructure defects MUST remain ordinary errors. The runtime sends a generic 
 preserving the original error for logging and diagnosis. Do not convert a development failure into `UserNotification`
 merely to avoid handling it.
 
-The notification title contains the first meaningful statement. The message body contains only the remaining detail,
-preventing duplicated opening text.
+`Constants.ACTION_NOTIFICATIONS` defines action responses; `Constants.AUTO_NOTIFICATIONS` defines automatic lifecycle
+notices and the runtime-error fallback.
+
+Player-initiated actions return `{ status, title, message }`. Status is `success`, `error`, `warning`, or `info`.
+The title identifies the action or its completed outcome (for example, `New Player` or `+ 2`); the message
+provides optional result detail and MAY be empty. Card additions use `+ <number>` as the title and `Card added`
+or `Cards added` as the message, with an emoji appended only when cards are drawn as an effect.
+Successful card plays use `Card played` as the title and `<value> <suit>` as the message, including plays that draw cards.
+Successful joins use `New Player` as the title and `Welcome, <player name> !!` as the message.
+Viewer admission uses `New Viewer` as the title and `Welcome viewer. See FAQ to learn more.` as the message.
+Empty message bodies are hidden. Failed actions keep an action title such as `Join room` or `Draw card`.
+Successful starts use the game-starting dialog without an additional success alert. Failed starts still send an error notification.
+Successful create, view, join, leave, draw, pass, discard, and declare commands notify only the initiating
+connection. Directory refreshes do not display success alerts. Automatic lifecycle notices retain their event titles.
 
 ## 11. UI, accessibility, and presentation contracts
 

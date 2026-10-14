@@ -571,7 +571,7 @@ test("page controllers depend on Session rather than runtime services", () => {
     assert.match(homeController, /for \(const input of \[this\.#directModeInput, this\.#hostedModeInput\]\)/);
     assert.match(homeController, /input\.value/);
     assert.match(homeController, /registrationMode === "join" && !isRoomListed/);
-    assert.match(homeController, /Constants\.NOTIFICATIONS\.ROOM_NOT_FOUND/);
+    assert.match(homeController, /Constants\.ACTION_NOTIFICATIONS\.ROOM_NOT_FOUND/);
     assert.match(gameController, /this\.room === null && !this\.#isLeaving/);
 });
 

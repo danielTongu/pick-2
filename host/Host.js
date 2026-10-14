@@ -520,9 +520,9 @@ export class Host {
                         room,
                         null,
                         StateMapper.toMessage(
-                            Constants.STATUS.WARNING,
-                            Constants.NOTIFICATIONS.MOVED_TO_VIEWING.title,
-                            Constants.NOTIFICATIONS.MOVED_TO_VIEWING.message
+                            Constants.AUTO_NOTIFICATIONS.MOVED_TO_VIEWING.status,
+                            Constants.AUTO_NOTIFICATIONS.MOVED_TO_VIEWING.title,
+                            Constants.AUTO_NOTIFICATIONS.MOVED_TO_VIEWING.message
                         )
                     );
 
@@ -643,9 +643,9 @@ export class Host {
                 this.#publishHomeState(
                     membership.connection,
                     homeState,
-                    StateMapper.toMessage(Constants.STATUS.WARNING,
-                        Constants.NOTIFICATIONS.ROOM_CLOSED.title,
-                        Constants.NOTIFICATIONS.ROOM_CLOSED.message)
+                    StateMapper.toMessage(Constants.AUTO_NOTIFICATIONS.ROOM_CLOSED.status,
+                        Constants.AUTO_NOTIFICATIONS.ROOM_CLOSED.title,
+                        Constants.AUTO_NOTIFICATIONS.ROOM_CLOSED.message)
                 );
             }
         }
@@ -664,8 +664,9 @@ export class Host {
             return;
         }
 
+        let request = null;
         try {
-            const request = HostRequest.parse(rawRequest);
+            request = HostRequest.parse(rawRequest);
             const context = new HostRequestContext(connection, request);
 
             this.#requestThrottle.enforceConnection(connection, context.request.command, 75);
@@ -684,6 +685,7 @@ export class Host {
                     break;
                 case Constants.COMMANDS.LEAVE:
                     await this.#leave(context);
+                    this.#publishActionSuccess(context);
                     break;
                 case Constants.COMMANDS.START:
                     await this.#start(context);
@@ -696,8 +698,8 @@ export class Host {
                 console.error("Host request failed:", error);
             }
             this.#publishNotification(connection, Constants.STATUS.ERROR,
-                Constants.NOTIFICATIONS.ERROR_TITLE,
-                error instanceof UserNotification ? error.message : "Host error occurred.");
+                Constants.ACTION_NOTIFICATIONS[`${request?.command?.toUpperCase()}_ERROR`]?.title ?? Constants.AUTO_NOTIFICATIONS.ERROR.title,
+                error instanceof UserNotification ? error.message : Constants.AUTO_NOTIFICATIONS.ERROR.message);
         }
     }
 
@@ -746,9 +748,14 @@ export class Host {
     // Command handlers and their shared requirements
     // -------------------------------------------------------------------------
 
+    /** Publishes the completed action to its initiating connection. */
+    #publishActionSuccess(context, message = null) {
+        const action = Constants.ACTION_NOTIFICATIONS[context.request.command.toUpperCase()];
+        this.#publishNotification(context.connection, action.status, action.title, message ?? action.message);
+    }
+
     /**
      * Publishes a message response.
-     *
      * @param {HostConnection|null|undefined} connection - Client connection.
      * @param {string} status - Message status.
      * @param {string} title - Message title.
@@ -808,9 +815,7 @@ export class Host {
             await this.#addBotPlayers(room, botCount, player.name);
             this.#registerMembership(tabId, connection, roomKey, player.name);
             this.#publishRoomState(connection, room, player.name);
-            this.#publishNotification(connection, Constants.STATUS.INFO,
-                `${Constants.NOTIFICATIONS.PLAYER_WELCOME.title}, ${player.name}!`,
-                Constants.NOTIFICATIONS.PLAYER_WELCOME.message);
+            this.#publishActionSuccess(context);
             this.#broadcastHomeState(this.#createHomeState());
         } catch (error) {
             this.#clearRoomCallbacks(room);
@@ -849,10 +854,10 @@ export class Host {
             room.view(tabId);
             this.#registerMembership(tabId, connection, roomKey, null);
             this.#publishRoomState(connection, room, null);
-            const welcome = Constants.NOTIFICATIONS.VIEWER_WELCOME;
-            this.#publishNotification(connection, Constants.STATUS.INFO, welcome.title, welcome.message);
+            this.#publishActionSuccess(context);
         } else {
             this.#publishRoomState(connection, room, this.#resolveMembershipPlayerName(room, context.membership));
+            this.#publishActionSuccess(context);
         }
     }
 
@@ -887,9 +892,7 @@ export class Host {
         if (currentMembership !== null && currentMembership.connection === connection && currentMembership.roomKey === roomKey) {
             currentMembership.join(player.name);
             this.#publishRoomState(connection, room, player.name);
-            this.#publishNotification(connection, Constants.STATUS.INFO,
-                `${Constants.NOTIFICATIONS.PLAYER_WELCOME.title}, ${player.name}!`,
-                Constants.NOTIFICATIONS.PLAYER_WELCOME.message);
+            this.#publishActionSuccess(context, Constants.ACTION_NOTIFICATIONS.JOIN.message.replace("{playerName}", player.name));
         }
     }
 
@@ -1057,10 +1060,10 @@ export class Host {
         await this.#advanceRoom(context.roomKey);
     }
 
-    /** Executes a seated player's card command and creates any draw notice. */
+    /** Executes a seated player's card command and returns its action result. */
     async executeMatchCommand(room, playerName, command, data) {
         let drawn = [];
-        let mocked = true;
+        let isDrawEffect = true;
 
         if (room.match.state === Constants.ROOM_STATE.FINISHED) {
             if (room.match instanceof Knockout) {
@@ -1078,15 +1081,29 @@ export class Host {
             drawn = result;
         }
         if (command === Constants.COMMANDS.DRAW) {
-            mocked = room.match.state === Constants.ROOM_STATE.ACTIVE && drawn.length > 1;
+            isDrawEffect = room.match.state === Constants.ROOM_STATE.ACTIVE && drawn.length > 1;
         }
 
-        if (drawn.length === 0) return null;
-        const emoji = mocked ? `\n\n${Constants.EMOJIS.silly.random}` : "";
+        const action = Constants.ACTION_NOTIFICATIONS[command.toUpperCase()];
+        if (command === Constants.COMMANDS.DISCARD) {
+            return {
+                status: action.status,
+                title: action.title,
+                message: action.message.replace("{value}", data.card.value).replace("{suit}", data.card.suit)
+            };
+        }
+        if (drawn.length > 0) {
+            return {
+                status: Constants.ACTION_NOTIFICATIONS.CARDS_ADDED.status,
+                title: Constants.ACTION_NOTIFICATIONS.CARDS_ADDED.title.replace("{number}", drawn.length),
+                message: Constants.ACTION_NOTIFICATIONS.CARDS_ADDED.message.replace("{cards}", drawn.length === 1 ? "Card" : "Cards")
+                    + (isDrawEffect ? ` ${Constants.EMOJIS.silly.random}` : "")
+            };
+        }
         return {
-            status: Constants.STATUS.INFO,
-            title: Constants.NOTIFICATIONS.CARDS_DRAWN_TITLE,
-            message: `+ ${drawn.length} ${emoji}`
+            status: action.status,
+            title: action.title,
+            message: action.message
         };
     }
 

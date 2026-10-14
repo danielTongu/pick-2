@@ -25,7 +25,7 @@ export class Constants {
 
     /** @type {Readonly<Record<string, string>>} Connection and notification statuses. */
     static STATUS = Object.freeze({
-        CONNECTING: "connecting", CONNECTED: "connected", DISCONNECTED: "disconnected", UNCONFIGURED: "unconfigured", INFO: "info", WARNING: "warning", ERROR: "error"
+        CONNECTING: "connecting", CONNECTED: "connected", DISCONNECTED: "disconnected", UNCONFIGURED: "unconfigured", INFO: "info", WARNING: "warning", ERROR: "error", SUCCESS: "success"
     });
 
     /** @type {Readonly<Record<string, string>>} Room lifecycle states. */
@@ -121,34 +121,142 @@ export class Constants {
 
     // ---- Notifications ----
 
-    /** Canonical notification headings and messages shown by the game and room interfaces. */
-    static NOTIFICATIONS = Object.freeze({
-        VIEWER_WELCOME: Object.freeze({
-            title: "welcome in!",
-            message: "You’re viewing the room you selected.\nClick the JOIN button to participate."
+    /** Notifications caused by automatic room lifecycle events or runtime failures. */
+    static AUTO_NOTIFICATIONS = Object.freeze({
+        MOVED_TO_VIEWING: Object.freeze({
+            status: this.STATUS.WARNING,
+            title: "Moved to viewing",
+            message: "You were idle."
         }),
-        PLAYER_WELCOME: Object.freeze({
-            title: "welcome",
-            message: "You are now a player.\nSee FAQ for the game guide.\n\nGood luck!"
+        ROOM_CLOSED: Object.freeze({
+            status: this.STATUS.WARNING,
+            title: "Room closed",
+            message: "No players remain."
         }),
-        MOVED_TO_VIEWING: Object.freeze({ title: "Moved to viewing", message: "You were idle." }),
-        ROOM_CLOSED: Object.freeze({ title: "Room closed", message: "No players remain." }),
+        ERROR: Object.freeze({
+            status: this.STATUS.ERROR,
+            title: "Error",
+            message: "Host error occurred."
+        })
+    });
+
+    /** Notifications returned in response to player actions. */
+    static ACTION_NOTIFICATIONS = Object.freeze({
+        CREATE: Object.freeze({
+            status: this.STATUS.SUCCESS,
+            title: "Room created",
+            message: ""
+        }),
+        VIEW: Object.freeze({
+            status: this.STATUS.SUCCESS,
+            title: "Viewer Entered",
+            message: "Welcome viewer. See FAQ to learn more."
+        }),
+        JOIN: Object.freeze({
+            status: this.STATUS.SUCCESS,
+            title: "Player Joined",
+            message: "Welcome, {playerName} !!"
+        }),
+        LEAVE: Object.freeze({
+            status: this.STATUS.SUCCESS,
+            title: "Left room",
+            message: ""
+        }),
+        DRAW: Object.freeze({
+            status: this.STATUS.SUCCESS,
+            title: "Card added",
+            message: ""
+        }),
+        PASS: Object.freeze({
+            status: this.STATUS.SUCCESS,
+            title: "Turn passed",
+            message: ""
+        }),
+        DISCARD: Object.freeze({
+            status: this.STATUS.SUCCESS,
+            title: "Card played",
+            message: "{value}-{suit}"
+        }),
+        DECLARE: Object.freeze({
+            status: this.STATUS.SUCCESS,
+            title: "Suit declared",
+            message: ""
+        }),
+        CREATE_ERROR: Object.freeze({
+            status: this.STATUS.ERROR,
+            title: "Create room",
+            message: ""
+        }),
+        VIEW_ERROR: Object.freeze({
+            status: this.STATUS.ERROR,
+            title: "View Room",
+            message: ""
+        }),
+        JOIN_ERROR: Object.freeze({
+            status: this.STATUS.ERROR,
+            title: "Join Room",
+            message: ""
+        }),
+        LEAVE_ERROR: Object.freeze({
+            status: this.STATUS.ERROR,
+            title: "Leave Room",
+            message: ""
+        }),
+        START_ERROR: Object.freeze({
+            status: this.STATUS.ERROR,
+            title: "Start Match",
+            message: ""
+        }),
+        DRAW_ERROR: Object.freeze({
+            status: this.STATUS.ERROR,
+            title: "Draw Card",
+            message: ""
+        }),
+        PASS_ERROR: Object.freeze({
+            status: this.STATUS.ERROR,
+            title: "Pass Turn",
+            message: ""
+        }),
+        DISCARD_ERROR: Object.freeze({
+            status: this.STATUS.ERROR,
+            title: "Play Card",
+            message: ""
+        }),
+        DECLARE_ERROR: Object.freeze({
+            status: this.STATUS.ERROR,
+            title: "Declare Suit",
+            message: ""
+        }),
+        CARDS_ADDED: Object.freeze({
+            status: this.STATUS.SUCCESS,
+            title: "+ {number}",
+            message: "{cards} added"
+        }),
         INVITE_COPIED: Object.freeze({
-            title: "Invite copied",
+            status: this.STATUS.INFO,
+            title: "Invite Copied",
             message: "Paste the room link wherever you want to share it."
         }),
         COPY_FAILED: Object.freeze({
-            title: "Copy failed",
+            status: this.STATUS.ERROR,
+            title: "Copy Failed",
             message: "Copy the address from your browser instead."
         }),
-        ROOM_NOT_FOUND: Object.freeze({ title: "Room not found", message: "Check the room name and try again." }),
+        ROOM_NOT_FOUND: Object.freeze({
+            status: this.STATUS.WARNING,
+            title: "Room Not Found",
+            message: "Check the room name and try again."
+        }),
         ROOM_ALREADY_EXISTS: Object.freeze({
-            title: "Room already exists",
+            status: this.STATUS.WARNING,
+            title: "Room Already Exists",
             message: "Choose another name or join the existing room."
         }),
-        CARDS_DRAWN_TITLE: "Cards drawn",
-        INVALID_NAME_TITLE: "Invalid name",
-        ERROR_TITLE: "Error"
+        INVALID_NAME: Object.freeze({
+            status: this.STATUS.WARNING,
+            title: "Invalid Name",
+            message: ""
+        })
     });
 
     /** Emoji groups used by room messages. */

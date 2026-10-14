@@ -3,18 +3,16 @@
 import { DomUtils } from "../utilities/DomUtils.js";
 import { ViewController } from "./ViewController.js";
 
-/**
- * Controls the singleton alert overlay.
- */
+/** Controls the singleton alert overlay. */
 export class AlertController extends ViewController {
-    /**
-     * @type {HTMLElement} Required UI element owned by this controller.
-     */
+
+    /** @type {DOMStringMap} Root attributes that determine the alert status. */
+    #status;
+
+    /** @type {HTMLElement} Required UI element owned by this controller. */
     #title;
 
-    /**
-     * @type {HTMLElement} Required UI element owned by this controller.
-     */
+    /** @type {HTMLElement} Required UI element owned by this controller. */
     #message;
 
     /**
@@ -25,6 +23,7 @@ export class AlertController extends ViewController {
      */
     constructor(selector) {
         super(selector);
+        this.#status = this.root.dataset;
         this.#title = DomUtils.requireChild(this.root, "#alert-title", HTMLElement);
         this.#message = DomUtils.requireChild(this.root, "#alert-message", HTMLElement);
         this.bindDismissButton("#alert-ok-button");
@@ -37,7 +36,7 @@ export class AlertController extends ViewController {
      * @throws {Error} When required markup, callback, or input data violates the controller contract.
      */
     show(message) {
-        this.root.dataset.status = message.status;
+        this.#status.status = message.status;
         this.#title.textContent = message.title;
         this.#message.textContent = message.message;
 

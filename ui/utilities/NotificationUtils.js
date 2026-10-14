@@ -36,7 +36,7 @@ export class NotificationUtils {
     static normalizeStatus(status) {
         let normalizedStatus = Constants.STATUS.INFO;
 
-        if (status === Constants.STATUS.WARNING || status === Constants.STATUS.ERROR) {
+        if (status === Constants.STATUS.WARNING || status === Constants.STATUS.ERROR || status === Constants.STATUS.SUCCESS) {
             normalizedStatus = status;
         }
 
@@ -56,6 +56,8 @@ export class NotificationUtils {
             title = "Warning";
         } else if (status === Constants.STATUS.ERROR) {
             title = "Error";
+        } else if (status === Constants.STATUS.SUCCESS) {
+            title = "Success";
         }
 
         return title;

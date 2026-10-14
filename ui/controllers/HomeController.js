@@ -317,8 +317,7 @@ export class HomeController extends ViewController {
             );
         } catch (error) {
             this.handleNotification({
-                status: Constants.STATUS.WARNING,
-                title: Constants.NOTIFICATIONS.INVALID_NAME_TITLE,
+                ...Constants.ACTION_NOTIFICATIONS.INVALID_NAME,
                 message: error.message
             });
             return;
@@ -331,16 +330,14 @@ export class HomeController extends ViewController {
 
         if (registrationMode === "join" && !isRoomListed) {
             this.handleNotification({
-                status: Constants.STATUS.WARNING,
-                ...Constants.NOTIFICATIONS.ROOM_NOT_FOUND
+                ...Constants.ACTION_NOTIFICATIONS.ROOM_NOT_FOUND
             });
             return;
         }
 
         if (registrationMode === "create" && isRoomListed) {
             this.handleNotification({
-                status: Constants.STATUS.WARNING,
-                ...Constants.NOTIFICATIONS.ROOM_ALREADY_EXISTS
+                ...Constants.ACTION_NOTIFICATIONS.ROOM_ALREADY_EXISTS
             });
             return;
         }
