@@ -60,6 +60,10 @@ pick-2/
 └── docs/                   Design and maintenance documentation
 ```
 
+Hosted sockets use an explicit browser-origin allowlist, connection and message limits, and heartbeat cleanup.
+For another frontend domain, set `WS_ALLOWED_ORIGINS`; configure trusted proxy IPs explicitly when needed.
+See [connection protection](docs/connection-protection.md) for defaults, configuration, and recipient-specific hand privacy.
+
 The Home and Room controllers use the browser `Session` as their client API. In direct mode, the browser runs both `Session` and `Host`, with
 in-process delivery handled by `Session`. Hosted setup has its own Connection page; afterward, `Session` reaches the server-side `Host` through
 WebSocket and the Node server. Both return the same

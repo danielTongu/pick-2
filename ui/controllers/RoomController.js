@@ -475,7 +475,7 @@ export class RoomController extends ViewController {
 
         for (const player of players) {
             if (player.name !== localName) {
-                const data = { ...player, itemCount: player.collection.items.length,
+                const data = { ...player, itemCount: player.collection.itemCount ?? player.collection.items.length,
                     pieceName: "card" };
                 const row = rows.get(player.key) ?? PlayerUtils.create(data);
                 if (rows.has(player.key)) PlayerUtils.updateElement(row, data);

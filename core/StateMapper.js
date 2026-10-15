@@ -1,3 +1,5 @@
+import { Constants } from "./Constants.js";
+
 "use strict";
 
 /** Maps Pick2 state into immutable transport objects. */
@@ -84,7 +86,7 @@ export class StateMapper {
             ...StateMapper.toRoomInfo(state),
             match: Object.freeze({
                 state: state.match.state,
-                turnOrder: StateMapper.#toTurnOrder(state.match),
+                turnOrder: StateMapper.#toTurnOrder(state.match, playerName),
                 collections: Object.freeze({
                     play: Object.freeze({ items: StateMapper.#toPlayedCards(state.match) }),
                     draw: Object.freeze({
@@ -120,11 +122,12 @@ export class StateMapper {
 
      * Maps ordered players and the public turn cursor without leaking domain internals.
      * @param {Object} state - Serialized Room state.
+     * @param {string|null} playerName - Recipient whose own hand may be exposed.
      * @returns {Object} Public turn order.
      */
-    static #toTurnOrder(state) {
+    static #toTurnOrder(state, playerName) {
         return Object.freeze({
-            players: StateMapper.#toPlayers(state),
+            players: StateMapper.#toPlayers(state, playerName),
             playerCount: state.turnOrder?.playerCount ?? 0,
             ownerKey: state.turnOrder?.ownerKey ?? null,
             direction: state.turnOrder?.direction ?? 1
@@ -133,20 +136,23 @@ export class StateMapper {
 
     /**
 
-     * Maps player identity, public state, collection data, and draw allowance.
+     * Maps public player state and counts, exposing cards and penalty only to their owner until the match finishes.
      * @param {Object} state - Serialized Room state.
-     * @returns {Object[]} Public Player records.
+     * @param {string|null} playerName - Recipient whose own hand may be exposed.
+     * @returns {Object[]} Recipient-specific Player records.
      */
-    static #toPlayers(state) {
+    static #toPlayers(state, playerName) {
         const players = Array.isArray(state.turnOrder?.players) ? state.turnOrder.players : [];
         return players.map(function mapPlayer(player) {
             const collection = player.collection ?? {};
+            const canSeeHand = player.name === playerName || state.state === Constants.ROOM_STATE.FINISHED;
             return Object.freeze({
                 key: player.key,
                 name: player.name,
                 collection: Object.freeze({
-                    items: StateMapper.#toCards(collection.items),
-                    penalty: collection.penalty
+                    items: canSeeHand ? StateMapper.#toCards(collection.items) : [],
+                    itemCount: StateMapper.collectionCount(collection.items),
+                    penalty: canSeeHand ? collection.penalty : null
                 }),
                 drawAllowance: player.drawAllowance,
                 state: player.state

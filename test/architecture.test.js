@@ -50,6 +50,7 @@ test("all application imports resolve from the Pick2 root", () => {
     const files = [
         ...sources(new URL("core/", root)),
         ...sources(new URL("host/", root)),
+        ...sources(new URL("server/", root)),
         ...sources(new URL("ui/", root)),
         new URL("main.js", root),
         new URL("server.js", root)
@@ -67,6 +68,7 @@ test("application classes, fields, methods, and functions have adjacent JSDoc", 
     const files = [
         ...sources(new URL("core/", root)),
         ...sources(new URL("host/", root)),
+        ...sources(new URL("server/", root)),
         ...sources(new URL("ui/", root)),
         new URL("main.js", root),
         new URL("server.js", root)
@@ -97,7 +99,9 @@ test("browser and Node runtime import graphs stay separate", () => {
     assert.match(view, /from "\.\.\/host\/Host\.js"/);
     assert.match(hostedServer, /from "\.\/host\/Host\.js"/);
     assert.match(hostedServer, /from "node:/);
-    assert.match(hostedServer, /from "ws"/);
+    assert.match(hostedServer, /WebSocketGateway/);
+    const gateway = readFileSync(new URL("../server/WebSocketGateway.js", import.meta.url), "utf8");
+    assert.match(gateway, /from "ws"/);
     assert.doesNotMatch(hostedServer, /class HostedServer/);
     assert.match(hostedServer, /function startServer\(port\)/);
     assert.match(hostedServer, /async function stopServer\(\)/);
@@ -110,6 +114,7 @@ test("application source uses explicit, named control flow", () => {
         readFileSync(new URL("../main.js", import.meta.url), "utf8"),
         sourceContents(new URL("../core/", import.meta.url)).join("\n"),
         sourceContents(new URL("../host/", import.meta.url)).join("\n"),
+        sourceContents(new URL("../server/", import.meta.url)).join("\n"),
         sourceContents(new URL("../ui/", import.meta.url)).join("\n")
     ].join("\n");
 

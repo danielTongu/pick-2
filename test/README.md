@@ -8,6 +8,7 @@ The scripts discover only `*.test.js`; helper modules are not counted as tests.
 | `core/` | Card rules, collections, validation, serialization, mapping, Room and Knockout rules | `npm run test:core` |
 | `bots/` | Strategy decisions and bot execution | `npm run test:bots` |
 | `host/` | Requests, connections, actions, notifications, throttling and lifecycle integration | `npm run test:host` |
+| `server/` | Real WebSocket protection, wire privacy, and server lifecycle | `npm run test:server` |
 | `ui/` | Sessions, controller behavior, custom elements, page contracts, metadata and styles | `npm run test:ui` |
 | `architecture.test.js` | Import boundaries, JSDoc and source conventions | `node --test test/architecture.test.js` |
 
@@ -35,3 +36,5 @@ The duplicate landing metadata test was consolidated into navigation's stronger 
 The start-notification integration scenario uses a two-human custom room, avoiding randomized bot delays. Hosts register cleanup before assertions, so failures do not leave their lifecycle work running.
 
 Coverage still has room to improve in DOM-heavy list/template utilities and controller interactions. Static page-contract checks verify shipped markup but do not execute those paths. Browser layout checks at mobile and desktop sizes remain separate.
+
+`server/` tests open temporary localhost sockets and start a short-lived server process. They require local socket permission, including when run through `npm test`; no external service is contacted.

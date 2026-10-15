@@ -106,7 +106,7 @@ other layers request an operation or consume a snapshot rather than maintaining 
 | `HostRequest` / `HostRequestContext` | Validated command data and resolved references for one request only. |
 | `Session` / `SessionState` | Client transport, reconnect resources, tab identity, sort preference, and persisted navigation state. `RoomSession` owns admission intent and reconnect admission history. |
 | UI controllers | DOM references, latest display snapshots, selection, dialog transitions, and presentation timers. Results retain the displayed snapshot so later roster changes do not alter the result. |
-| `server.js` | HTTP/WebSocket servers, socket adaptation, process maintenance, and shutdown resources. |
+| `server.js` / `WebSocketGateway` | HTTP/process lifecycle and bounded WebSocket admission, socket adaptation, heartbeats, and cleanup. |
 
 Room viewer identities and transport memberships serve distinct purposes: core counts room viewers without depending
 on connections; the registry authenticates and routes those viewers. Host coordinates both during join, leave, and
@@ -118,7 +118,7 @@ Changes belong to the layer that owns the concern:
 
 - browser connection and reconnection behavior belongs in `ui/Session.js`;
 - Hosted connection selection and probing belong in `ConnectionSession` in `ui/Session.js`;
-- HTTP, WebSocket-server, and process-facing behavior belongs in `server.js`;
+- HTTP and process lifecycle belongs in `server.js`; bounded WebSocket admission and socket adaptation belongs in `server/WebSocketGateway.js`;
 - connection and membership indexing belongs in `host/ConnectionRegistry.js`;
 - authentication, command coordination, publication, and room cleanup belong in `Host.js`;
 - card and match rules belong in `core/`;
@@ -481,7 +481,10 @@ only the draw count.
 
 The browser-safe turn order contains `players`, `playerCount`, `turnOwnerKey`, and `direction`. It MUST NOT contain
 `createdAt` or `lastActiveAt`. Each player DTO has one stable foundation with `key`, `name`, `state`, and `collection`;
-Pick 2 adds only required fields such as `drawAllowance`.
+Pick 2 adds only required fields such as `drawAllowance`. During waiting and active play, only the recipient's
+own hand contains cards and a penalty; other collections have an empty `items` array, public `itemCount`, and null
+`penalty`. Spectators receive no private hands. Completed-match snapshots reveal hands for results, and the next
+match hides them again. Bot strategy uses authoritative server-side state rather than these redacted snapshots.
 
 `Player`, `TurnOrder`, and `Collection` retain the responsibilities defined in [Product vocabulary](#2-product-vocabulary);
 their browser-safe forms MUST preserve those boundaries rather than introducing a second DTO model.
@@ -602,6 +605,7 @@ belong at the lowest stable layer:
 - `test/bots/`: card and suit decisions plus BotPlayer execution against controlled scenarios;
 - `test/host/`: command dispatch, memberships, notifications, throttling, and Knockout lifecycle integration;
 - `test/ui/`: sessions, controllers, custom elements, static page contracts, accessibility hooks, styles, and metadata;
+- `test/server/`: real WebSocket admission, connection protection, heartbeat cleanup, wire privacy, and server startup/shutdown;
 - `test/architecture.test.js`: import boundaries, documentation, and application source conventions;
 - `test/helpers/`: shared room, host, immediate-bot, and static HTML fixtures; excluded from test discovery.
 
@@ -664,3 +668,5 @@ Live transport loss keeps Home or Room open during up to five reconnection attem
 Successful reconnection follows normal Home publication or Room admission. Exhausted retries close the session,
 clear admission intent and verified endpoint state, and open the connection page. That page waits for manual
 Retry Live or Local selection instead of restarting retries or automatically switching modes.
+
+Hosted admission policy, resource limits, proxy trust, and hand privacy are detailed in [connection protection](connection-protection.md).

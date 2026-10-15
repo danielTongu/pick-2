@@ -5,7 +5,7 @@ import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 import {fileURLToPath} from "node:url";
-import WebSocket, {WebSocketServer} from "ws";
+import { WebSocketGateway } from "./server/WebSocketGateway.js";
 import {Host} from "./host/Host.js";
 
 const SHUTDOWN_TIMEOUT_MS = 10_000;
@@ -16,8 +16,8 @@ let host = null;
 /** @type {import("node:http").Server|null} HTTP asset and upgrade server. */
 let httpServer = null;
 
-/** @type {WebSocketServer|null} WebSocket request server. */
-let webSocketServer = null;
+/** @type {WebSocketGateway|null} Protected WebSocket admission and transport. */
+let webSocketGateway = null;
 
 /** @type {NodeJS.Timeout|null} Host maintenance interval. */
 let maintenanceInterval = null;
@@ -61,56 +61,10 @@ function createApp() {
     return app;
 }
 
-/**
- * @param {WebSocket} socket - Destination socket.
- * @param {Object} response - Canonical Host response.
- */
-function publish(socket, response) {
-    if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(response));
-}
-
-/**
- * @param {WebSocket} socket - Socket to close.
- * @param {number} [code] - Close code.
- * @param {string} [reason] - Close reason.
- */
-function terminate(socket, code, reason) {
-    if (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING) {
-        socket.close(code, reason);
-    }
-}
-
-/**
- * @param {import("./host/HostConnection.js").HostConnection} connection - Host connection.
- * @param {WebSocket.RawData} message - Inbound frame.
- */
-function receive(connection, message) {
-    let request = null;
-    try {
-        request = JSON.parse(String(message));
-    } catch (_error) {
-    }
-    void connection.receive(request);
-}
-
-/** Absorbs socket errors because close events own connection cleanup. */
-function ignoreSocketError() {
-}
-
-/** @param {WebSocket} socket - Accepted WebSocket connection. */
-function connect(socket) {
-    const connection = host.accept(publish.bind(null, socket), terminate.bind(null, socket));
-    socket.on("message", receive.bind(null, connection));
-    socket.on("close", connection.close.bind(connection));
-    socket.on("error", ignoreSocketError);
-}
-
 /** Prunes Host throttles and pings open WebSocket clients. */
 function maintain() {
     host.maintain();
-    for (const socket of webSocketServer.clients) {
-        if (socket.readyState === WebSocket.OPEN) socket.ping();
-    }
+    webSocketGateway.maintain();
 }
 
 /** Stops the maintenance interval. */
@@ -142,23 +96,67 @@ function reportStarted(port) {
 }
 
 /**
+ * Reads a positive integer resource limit, rejecting invalid deployment configuration.
+ * @param {string} name - Environment variable.
+ * @param {number} fallback - Default bound.
+ * @returns {number} Validated bound.
+ */
+function readLimit(name, fallback) {
+    const raw = process.env[name];
+    if (raw === undefined) return fallback;
+    const value = Number(raw);
+    if (!Number.isSafeInteger(value) || value < 1) throw new Error(`Invalid ${name}: expected a positive integer.`);
+    return value;
+}
+
+/**
+ * Parses a comma-separated origin or proxy allowlist.
+ * @param {string} value - Deployment setting.
+ * @returns {string[]} Nonempty trimmed entries.
+ */
+function parseList(value) {
+    return value.split(",").map(function trimEntry(entry) { return entry.trim(); }).filter(Boolean);
+}
+
+/**
+ * Constructs explicit browser-origin, proxy-trust, and resource policies for hosted play.
+ * @param {number} port - Local listening port.
+ * @returns {Object} Gateway policy.
+ */
+function createGatewayPolicy(port) {
+    const defaults = ["https://danieltongu.github.io", `http://localhost:${port}`, `http://127.0.0.1:${port}`, `http://[::1]:${port}`, ...getLanUrls(port)];
+    return {
+        allowedOrigins: process.env.WS_ALLOWED_ORIGINS === undefined ? defaults : parseList(process.env.WS_ALLOWED_ORIGINS),
+        trustedProxyIps: parseList(process.env.WS_TRUSTED_PROXY_IPS ?? ""),
+        limits: {
+            maxConnections: readLimit("WS_MAX_CONNECTIONS", WebSocketGateway.MAX_CONNECTIONS),
+            maxConnectionsPerIp: readLimit("WS_MAX_CONNECTIONS_PER_IP", WebSocketGateway.MAX_CONNECTIONS_PER_IP),
+            maxPayloadBytes: readLimit("WS_MAX_PAYLOAD_BYTES", WebSocketGateway.MAX_PAYLOAD_BYTES),
+            maxBufferedBytes: readLimit("WS_MAX_BUFFERED_BYTES", WebSocketGateway.MAX_BUFFERED_BYTES),
+            maxUpgradesPerIp: readLimit("WS_MAX_UPGRADES_PER_IP", WebSocketGateway.MAX_UPGRADES_PER_IP),
+            maxMessagesPerWindow: readLimit("WS_MAX_MESSAGES_PER_WINDOW", WebSocketGateway.MAX_MESSAGES_PER_WINDOW)
+        }
+    };
+}
+
+/**
  * Starts the Node HTTP/WebSocket server and shared Host.
  * @param {number|string} port - HTTP/WebSocket listening port.
  */
 function startServer(port) {
     const resolvedPort = resolvePort(port);
     host = new Host("hosted", 0, true);
-    httpServer = http.createServer(createApp());
-    webSocketServer = new WebSocketServer({server: httpServer});
-    webSocketServer.on("connection", connect);
+    httpServer = http.createServer({ headersTimeout: 10_000, requestTimeout: 15_000 }, createApp());
+    httpServer.maxHeadersCount = 50;
+    webSocketGateway = new WebSocketGateway(httpServer, host, createGatewayPolicy(resolvedPort));
     httpServer.on("close", stopMaintenance);
-    maintenanceInterval = globalThis.setInterval(maintain, 30_000);
+    maintenanceInterval = globalThis.setInterval(maintain, WebSocketGateway.HEARTBEAT_INTERVAL_MS);
     maintenanceInterval.unref?.();
     httpServer.listen(resolvedPort, "0.0.0.0", reportStarted.bind(null, resolvedPort));
 }
 
 /**
- * @param {import("node:http").Server|WebSocketServer} server - Server to close.
+ * @param {import("node:http").Server} server - Server to close.
  * @returns {Promise<void>}
  */
 function closeServer(server) {
@@ -173,16 +171,12 @@ function closeServer(server) {
 /** @returns {Promise<void>} Completion of HTTP, WebSocket, and Host cleanup. */
 async function stopServer() {
     stopMaintenance();
-    for (const socket of webSocketServer?.clients ?? []) socket.terminate();
+    await webSocketGateway?.close();
     await host?.shutdown();
-    await Promise.all([
-        ...(webSocketServer === null ? [] : [closeServer(webSocketServer)]),
-        ...(httpServer === null ? [] : [closeServer(httpServer)])
-    ]);
-    webSocketServer?.removeAllListeners();
+    if (httpServer !== null) await closeServer(httpServer);
     httpServer?.removeAllListeners();
     host = null;
-    webSocketServer = null;
+    webSocketGateway = null;
     httpServer = null;
 }
 
@@ -231,7 +225,7 @@ async function performShutdown(exitCode, reason) {
     process.exitCode = exitCode;
 
     try {
-        if (host !== null || httpServer !== null || webSocketServer !== null) {
+        if (host !== null || httpServer !== null || webSocketGateway !== null) {
             await Promise.race([stopServer(), createShutdownTimeout()]);
         }
 
