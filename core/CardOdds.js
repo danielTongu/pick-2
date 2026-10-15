@@ -2,7 +2,6 @@
 
 /** Estimates hidden-hand outcomes using unseen public-deck cards and visible hand counts. */
 export class CardOdds {
-
     /**
      * Estimates whether a projected opponent has at least one legal response.
      *
@@ -51,6 +50,7 @@ export class CardOdds {
 
         return probability;
     }
+
     /**
      * Calculates the chance that a random hand from unseen cards reaches a penalty.
      *
@@ -112,5 +112,4 @@ export class CardOdds {
 
         return probability;
     }
-
 }

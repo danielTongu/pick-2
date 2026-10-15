@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import { Constants } from "../core/Constants.js";
+
+import { readFileSync } from "node:fs";
+import { Constants } from "../../core/Constants.js";
 
 test("room button actions check current membership, turn, pending action, and restart permission", () => {
-    const source = readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../../ui/controllers/RoomController.js", import.meta.url), "utf8");
     const start = source.indexOf("    #canSubmitPlayerCommand(command) {");
     const end = source.indexOf("    /** Submits the Knockout choice", start);
     const method = source.slice(start, end).replace("#canSubmitPlayerCommand", "canSubmitPlayerCommand");
@@ -48,4 +49,26 @@ test("room button actions check current membership, turn, pending action, and re
     for (const command of ["draw", "pass", "start"]) assert.equal(allowed(command), false);
     controller.room = null;
     assert.equal(allowed("start"), false);
+});
+
+test("Room leave ignores repeat submissions and allows retry after a rejected request", () => {
+    const source = readFileSync(new URL("../../ui/controllers/RoomController.js", import.meta.url), "utf8");
+    const start = source.indexOf("    #leave(event) {");
+    const end = source.indexOf("\n    }", start) + "\n    }".length;
+    const method = source.slice(start, end).replace("#leave(event)", "leave(event)");
+    const Controller = new Function("Constants", `return class {
+        #isLeaving = false;
+        #homeHandler;
+        constructor(view, home) { this.view = view; this.#homeHandler = home; }
+        ${method}
+    }`)(Constants);
+    let requests = 0;
+    let navigations = 0;
+    const controller = new Controller({ request() { return ++requests > 1; } }, () => navigations++);
+    const event = { preventDefault() {} };
+    controller.leave(event);
+    controller.leave(event);
+    controller.leave(event);
+    assert.equal(requests, 2);
+    assert.equal(navigations, 1);
 });

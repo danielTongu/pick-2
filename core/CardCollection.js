@@ -7,6 +7,8 @@ import { Card } from "./Card.js";
 
 /** Stores normalized cards for a deck, hand, or play pile. */
 export class CardCollection extends Serializable {
+    // ---- Construction and queries ----
+
     /**
 
      * Creates card storage and normalizes every initial card.
@@ -17,22 +19,6 @@ export class CardCollection extends Serializable {
         ValidationUtils.array(cards, "CardCollection cards");
         this.items = [];
         this.addMany(cards);
-    }
-
-    /**
-     * @returns {number} Number of cards currently held.
-     */
-    get size() {
-        return this.items.length;
-    }
-
-    /**
-     * @returns {number} Sum of finite card ranks owed as a penalty.
-     */
-    get penalty() {
-        return this.items.reduce(function totalPenalty(total, item) {
-            return total + (Number.isFinite(item.rank) ? item.rank : 0);
-        }, 0);
     }
 
     /**
@@ -55,6 +41,27 @@ export class CardCollection extends Serializable {
 
         const deck = new CardCollection(cards);
         return isShuffled ? deck.shuffle() : deck;
+    }
+
+    /**
+     * @returns {number} Number of cards currently held.
+     */
+    get size() {
+        return this.items.length;
+    }
+
+    /**
+     * @returns {number} Sum of finite card ranks owed as a penalty.
+     */
+    get penalty() {
+        return this.items.reduce(function totalPenalty(total, item) {
+            return total + (Number.isFinite(item.rank) ? item.rank : 0);
+        }, 0);
+    }
+
+    /** Returns the last item without removing it. */
+    peek() {
+        return this.items[this.items.length - 1] ?? null;
     }
 
     /**
@@ -101,6 +108,8 @@ export class CardCollection extends Serializable {
         return selected;
     }
 
+    // ---- Mutation and ordering ----
+
     /**
 
      * Appends one normalized item and returns it.
@@ -131,11 +140,6 @@ export class CardCollection extends Serializable {
     /** Removes and returns the last item, or null when empty. */
     take() {
         return this.items.pop() ?? null;
-    }
-
-    /** Returns the last item without removing it. */
-    peek() {
-        return this.items[this.items.length - 1] ?? null;
     }
 
     /**
@@ -186,6 +190,9 @@ export class CardCollection extends Serializable {
         return this;
     }
 
+    // ---- Iteration and serialization ----
+
+    /** Iterates cards in their current collection order. */
     *[Symbol.iterator]() {
         yield* this.items;
     }
@@ -199,6 +206,8 @@ export class CardCollection extends Serializable {
             penalty: this.penalty
         };
     }
+
+    // ---- Identity and sorting helpers ----
 
     /**
 

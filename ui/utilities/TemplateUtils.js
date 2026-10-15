@@ -7,6 +7,7 @@ import { DomUtils } from "./DomUtils.js";
  * Base class for HTML template-backed UI fragments.
  */
 export class TemplateUtils {
+
     /**
      * @type {HTMLTemplateElement|null} Lazily loaded and validated component template.
      */
@@ -42,15 +43,15 @@ export class TemplateUtils {
      * Loads a template from a fragment-relative HTML file.
      *
      * @param {string} templateId - Template element id.
-     * @param {string} componentUrl - Owning module URL used to resolve the fragment.
+     * @param {string|undefined} componentUrl - Owning module URL; defaults to this utility module.
      * @param {string} templateFile - Fragment-relative template file.
      * @returns {Promise<HTMLTemplateElement>} Loaded template.
      */
     static async loadTemplate(templateId, componentUrl, templateFile) {
         const normalizedTemplateId = ValidationUtils.requiredString(templateId, "Template id");
         const normalizedTemplateFile = ValidationUtils.requiredString(templateFile, "Template file");
-        ValidationUtils.optionalString(componentUrl, import.meta.url);
-        const htmlUrl = new URL(`../templates/${normalizedTemplateFile}`, componentUrl).href;
+        const normalizedComponentUrl = ValidationUtils.optionalString(componentUrl, import.meta.url);
+        const htmlUrl = new URL(`../templates/${normalizedTemplateFile}`, normalizedComponentUrl).href;
         const response = await fetch(htmlUrl);
 
         if (!response.ok) {
@@ -70,6 +71,7 @@ export class TemplateUtils {
 
         return template;
     }
+
     /**
      * Creates a fragment element.
      *
@@ -128,5 +130,4 @@ export class TemplateUtils {
 
         return element;
     }
-
 }

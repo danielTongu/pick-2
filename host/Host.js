@@ -16,110 +16,7 @@ import {ConnectionRegistry} from "./ConnectionRegistry.js";
 import {HostRequest} from "./HostRequest.js";
 import {HostRequestContext} from "./HostRequestContext.js";
 
-/** Lightweight in-memory request throttle shared by direct and hosted Host. */
-export class RequestThrottle {
-    /**
-     * @type {Map<string, number>} Most recent accepted request timestamp for each scoped key.
-     */
-    #lastRequestAtByKey = new Map();
-
-    /**
-     * Enforces throttle for a connected connection.
-     *
-     * @param {import("./HostConnection.js").HostConnection} connection - Host connection.
-     * @param {string} eventType - Event type.
-     * @param {number} windowMs - Minimum interval.
-     */
-    enforceConnection(connection, eventType, windowMs) {
-        const tabId =
-            typeof connection?.tabId === "string" && connection.tabId.trim() ? connection.tabId.trim() : (connection?.id ?? "anonymous");
-
-        this.#enforce(`connection:${tabId}:${eventType}`, windowMs);
-    }
-
-    /**
-     * Enforces throttle for a player.
-     *
-     * @param {string} tabId - Browser tab id.
-     * @param {string} eventType - Event type.
-     * @param {number} windowMs - Minimum interval.
-     */
-    enforcePlayerThrottle(tabId, eventType, windowMs) {
-        this.#enforce(`player:${ValidationUtils.requiredString(tabId, "tabId")}:${eventType}`, windowMs);
-    }
-
-    /**
-     * Enforces throttle for a room.
-     *
-     * @param {string} roomKey - Normalized room key.
-     * @param {string} eventType - Event type.
-     * @param {number} windowMs - Minimum interval.
-     */
-    enforceRoomThrottle(roomKey, eventType, windowMs) {
-        this.#enforce(`room:${ValidationUtils.requiredString(roomKey, "roomKey")}:${eventType}`, windowMs);
-    }
-
-    /**
-     * Enforces throttle for a key.
-     *
-     * @param {string} key - Throttle key.
-     * @param {number} windowMs - Minimum interval.
-     * @throws {UserNotification} When another request for the scoped key was accepted too recently.
-     */
-    #enforce(key, windowMs) {
-        const normalizedKey = ValidationUtils.requiredString(key, "Throttle key");
-        const normalizedWindow = ValidationUtils.nonNegativeInteger(windowMs, "Throttle window");
-
-        const now = Date.now();
-        const previous = this.#lastRequestAtByKey.get(normalizedKey) ?? 0;
-
-        if (now - previous < normalizedWindow) {
-            throw new UserNotification("Too many requests. Please slow down.");
-        }
-
-        this.#lastRequestAtByKey.set(normalizedKey, now);
-    }
-
-    /**
-     * Removes matching throttle keys.
-     *
-     * @param {string} prefix - Key prefix.
-     */
-    reset(prefix) {
-        const text = ValidationUtils.requiredString(prefix, "Throttle reset prefix");
-
-        for (const key of this.#lastRequestAtByKey.keys()) {
-            if (key === text || key.startsWith(`${text}:`)) {
-                this.#lastRequestAtByKey.delete(key);
-            }
-        }
-    }
-
-    /**
-     * Removes throttle entries older than the specified age.
-     *
-     * @param {number} maxAgeMs - Maximum age in milliseconds.
-     */
-    prune(maxAgeMs) {
-        const age = ValidationUtils.nonNegativeInteger(maxAgeMs, "Maximum age");
-
-        const cutoff = Date.now() - age;
-
-        for (const [key, timestamp] of this.#lastRequestAtByKey.entries()) {
-            if (timestamp < cutoff) {
-                this.#lastRequestAtByKey.delete(key);
-            }
-        }
-    }
-
-    /**
-     * Removes every throttle record.
-     */
-    resetAll() {
-        this.#lastRequestAtByKey.clear();
-    }
-}
-
+import { RequestThrottle } from "./RequestThrottle.js";
 
 /**
  * Transport-neutral host for Pick 2 rooms.
@@ -128,6 +25,20 @@ export class RequestThrottle {
  * orchestration; each Room owns players and match rules.
  */
 export class Host {
+
+    /** @type {number} Maximum registered rooms per Host, including default rooms. */
+    static MAX_ROOMS = 1000;
+
+    /** Default rooms available in Direct and Hosted registries.*/
+    static DEFAULT_ROOMS = Object.freeze([
+        Object.freeze({ roomName: "Default-R0", playerLimit: 4, botCount: 3 }),
+        Object.freeze({ roomName: "Default-R1", playerLimit: 4, botCount: 2 }),
+        Object.freeze({ roomName: "Default-R2", playerLimit: 4, botCount: 1 })
+    ]);
+
+    /** Ordered display names for Direct bot opponents.*/
+    static DIRECT_OPPONENT_NAMES = Object.freeze(["CM", "XC", "VI"]);
+
     /** Per-command player and room throttles for card actions. */
     static COMMAND_LIMITS = Object.freeze({
         draw: Object.freeze({player: 400, room: 100}),
@@ -135,9 +46,6 @@ export class Host {
         pass: Object.freeze({player: 250, room: 100}),
         declare: Object.freeze({player: 250, room: 100})
     });
-    // -------------------------------------------------------------------------
-    // State
-    // -------------------------------------------------------------------------
 
     /**
      * @type {Map<string, Room>} Registered rooms keyed by normalized room identity.
@@ -178,6 +86,8 @@ export class Host {
      */
     #ready;
 
+    // ---- Construction and public lifecycle ----
+
     /**
      * Creates a room Host.
      *
@@ -189,6 +99,127 @@ export class Host {
         this.#profile = Host.#normalizeProfile(mode, customBots, trackIdle);
         this.#ready = this.#initializeRooms();
     }
+
+    /**
+     * Accepts one transport-neutral connection.
+     *
+     * @param {function(Object): void} send - Transport response callback.
+     * @param {function(number=, string=): void} disconnect - Transport disconnect callback.
+     * @returns {import("./HostConnection.js").HostConnection} Host-side connection.
+     */
+    accept(send, disconnect) {
+        const connection = this.#connections.createConnection(send, disconnect, this.#receive.bind(this), this.#disconnect.bind(this));
+
+        this.#connections.subscribeHome(connection);
+        void this.#ready.then(function publishInitialHome() {
+            this.#publishHomeState(connection, this.#createHomeState());
+        }.bind(this));
+
+        return connection;
+    }
+
+    /** Constructs the Room used by this Host. */
+    createRoom(name, playerLimit) {
+        return new Room(name, playerLimit);
+    }
+
+    /** Removes expired rate-limit entries. */
+    maintain() {
+        this.#requestThrottle.prune(5 * 60 * 1000);
+    }
+
+    /**
+     * Stops the host and releases all resources.
+     *
+     * @returns {Promise<void>} Resolves when shutdown completes.
+     */
+    async shutdown() {
+        await this.#ready;
+
+        this.#roomLifecycle.clear();
+        this.#knockoutStarts.clear();
+        this.#botReturns.clear();
+
+        for (const room of this.#roomsByKey.values()) {
+            this.#clearRoomCallbacks(room);
+            Host.#stopIdleMonitoring(room);
+        }
+
+        for (const connection of this.#connections.homeConnections()) {
+            connection.markClosed();
+            connection.terminate(1001, "Host stopped");
+        }
+
+        for (const membership of this.#connections.allRoomMemberships()) {
+            if (membership.connection.isOpen) {
+                membership.connection.markClosed();
+                membership.connection.terminate(1001, "Host stopped");
+            }
+        }
+
+        this.#roomsByKey.clear();
+        this.#connections.clear();
+        this.#requestThrottle.resetAll();
+    }
+
+    // ---- Public match execution ----
+
+    /** Executes a seated player's card command and returns its action result. */
+    async executeMatchCommand(room, playerName, command, data) {
+        let drawn = [];
+        let isDrawEffect = true;
+
+        if (room.match.state === Constants.ROOM_STATE.FINISHED) {
+            if (room.match instanceof Knockout) {
+                throw new UserNotification(room.match.isKnockoutComplete
+                    ? "The knockout has finished." : "Wait for the next knockout match.");
+            }
+            await room.resumeWaiting();
+        }
+
+        const result = await room.perform(command, playerName, data);
+        if (command === Constants.COMMANDS.DRAW || command === Constants.COMMANDS.PASS || command === Constants.COMMANDS.DISCARD) {
+            drawn = result;
+        }
+        if (command === Constants.COMMANDS.DRAW) {
+            isDrawEffect = room.match.state === Constants.ROOM_STATE.ACTIVE && drawn.length > 1;
+        }
+
+        const action = Constants.ACTION_NOTIFICATIONS[command.toUpperCase()];
+        if (command === Constants.COMMANDS.DISCARD) {
+            return {
+                status: action.status,
+                title: action.title,
+                message: action.message.replace("{value}", data.card.value).replace("{suit}", data.card.suit)
+            };
+        }
+        if (drawn.length > 0) {
+            return {
+                status: Constants.ACTION_NOTIFICATIONS.CARDS_ADDED.status,
+                title: Constants.ACTION_NOTIFICATIONS.CARDS_ADDED.title.replace("{number}", drawn.length),
+                message: Constants.ACTION_NOTIFICATIONS.CARDS_ADDED.message.replace("{cards}", drawn.length === 1 ? "Card" : "Cards")
+                    + (isDrawEffect ? ` ${Constants.EMOJIS.silly.random}` : "")
+            };
+        }
+        return {
+            status: action.status,
+            title: action.title,
+            message: action.message
+        };
+    }
+
+    /** Runs the current automated owner, if one can act. */
+    async runAutomatedTurn(room) {
+        const turnOwner = room.match.turnOrder.owner;
+        if (!(turnOwner instanceof BotPlayer) || room.match.state !== Constants.ROOM_STATE.ACTIVE) return;
+        if (room.match.pending?.command === Constants.COMMANDS.DECLARE) {
+            await turnOwner.chooseSuit(room);
+            return;
+        }
+        await turnOwner.takeTurn(room);
+    }
+
+    // ---- Room initialization and registration ----
 
     /**
      * @param {string} mode - Runtime mode.
@@ -214,50 +245,9 @@ export class Host {
         });
     }
 
-    /**
-     * @param {Room} room - Room whose Players should no longer be monitored.
-     */
-    static #stopIdleMonitoring(room) {
-        for (const player of room.match.turnOrder.players.values()) {
-            player.stopIdleMonitoring();
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Room registry and state publication
-    // -------------------------------------------------------------------------
-
-    /**
-     * Accepts one transport-neutral connection.
-     *
-     * @param {function(Object): void} send - Transport response callback.
-     * @param {function(number=, string=): void} disconnect - Transport disconnect callback.
-     * @returns {import("./HostConnection.js").HostConnection} Host-side connection.
-     */
-    accept(send, disconnect) {
-        const connection = this.#connections.createConnection(send, disconnect, this.#receive.bind(this), this.#disconnect.bind(this));
-
-        this.#connections.subscribeHome(connection);
-        void this.#ready.then(function publishInitialHome() {
-            this.#publishHomeState(connection, this.#createHomeState());
-        }.bind(this));
-
-        return connection;
-    }
-
-    /**
-     * Stops the Host and releases all resources.
-     *
-     * @returns {Promise<void>} Resolves when shutdown completes.
-     */
-    /** Removes expired rate-limit entries. */
-    maintain() {
-        this.#requestThrottle.prune(5 * 60 * 1000);
-    }
-
     /** Creates configured Rooms and their initial bot players. */
     async #initializeRooms() {
-        for (const roomConfig of Constants.DEFAULT_ROOMS) {
+        for (const roomConfig of Host.DEFAULT_ROOMS) {
             const roomKey = Player.normalizeKey(roomConfig.roomName);
             const room = this.#registerRoom(roomConfig.roomName, roomConfig.playerLimit, roomKey);
 
@@ -276,7 +266,7 @@ export class Host {
         let index = 0;
 
         while (index < count && !room.isFull()) {
-            const baseName = Constants.DIRECT_OPPONENT_NAMES[index] ?? `Bot ${index + 1}`;
+            const baseName = Host.DIRECT_OPPONENT_NAMES[index] ?? `Bot ${index + 1}`;
             const botName = humanName !== null && Player.normalizeKey(baseName) === Player.normalizeKey(humanName)
                 ? `${baseName} Bot` : baseName;
             if (!room.hasPlayer(botName)) {
@@ -296,6 +286,9 @@ export class Host {
      * @returns {Room} Registered room.
      */
     #registerRoom(roomName, playerLimit, roomKey) {
+        if (this.#roomsByKey.size >= this.constructor.MAX_ROOMS) {
+            throw new UserNotification(`Room limit reached (${this.constructor.MAX_ROOMS}). Join an existing room or try again later.`);
+        }
         const room = this.createRoom(roomName, playerLimit);
 
         room.onAnyChange = this.#handleRoomChange.bind(this, roomKey, room);
@@ -303,11 +296,6 @@ export class Host {
 
         this.#roomsByKey.set(roomKey, room);
         return room;
-    }
-
-    /** Constructs the Room used by this Host. */
-    createRoom(name, playerLimit) {
-        return new Room(name, playerLimit);
     }
 
     /**
@@ -335,321 +323,15 @@ export class Host {
     }
 
     /**
-     * Returns a registered room or raises an actionable missing-room failure.
-     *
-     * @param {string} roomKey - Normalized room lookup key.
-     * @returns {Room} Room instance.
-     * @throws {UserNotification} When the requested room is unavailable.
+     * @param {Room} room - Room whose Players should no longer be monitored.
      */
-    #requireRoomByKey(roomKey) {
-        const room = this.#roomsByKey.get(roomKey) ?? null;
-
-        if (room === null) {
-            throw new UserNotification("Room not found.");
-        }
-
-        return room;
-    }
-
-    /**
-     * Broadcasts current Room state to every connected membership.
-     *
-     * @param {string} roomKey - Normalized room lookup key.
-     */
-    #broadcastRoomState(roomKey) {
-        const room = this.#roomsByKey.get(roomKey) ?? null;
-
-        if (room !== null) {
-            for (const membership of this.#connections.inRoom(roomKey)) {
-                if (membership.connection.isOpen) {
-                    this.#publishRoomState(membership.connection, room, this.#resolveMembershipPlayerName(room, membership));
-                }
-            }
-
+    static #stopIdleMonitoring(room) {
+        for (const player of room.match.turnOrder.players.values()) {
+            player.stopIdleMonitoring();
         }
     }
 
-    /**
-     * Resolves a membership's player name against current room membership.
-     *
-     * @param {Room} room - Room instance.
-     * @param {import("./RoomMembership.js").RoomMembership} membership - Room membership.
-     * @returns {string|null} Valid player name or null.
-     */
-    #resolveMembershipPlayerName(room, membership) {
-        let playerName = null;
-
-        if (membership.playerName !== null && room.hasPlayer(membership.playerName)) {
-            playerName = membership.playerName;
-        }
-
-        return playerName;
-    }
-
-    /**
-     * Sends active Room state to one membership.
-     *
-     * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
-     * @param {Room} room - Room instance.
-     * @param {string|null} playerName - Room player name.
-     * @param {Object|null} message - Optional notification sent with the state.
-     */
-    #publishRoomState(connection, room, playerName, message = null) {
-        this.#publish(
-            connection,
-            StateMapper.toResponse(
-                Constants.VIEWS.ROOM,
-                message,
-                Object.freeze({
-                    ...StateMapper.toRoomData(room, playerName),
-                    ...this.#getConnectionData(),
-                    isBusy: false
-                })
-            )
-        );
-    }
-
-    /**
-     * Broadcasts the current Home data.
-     *
-     * @param {{rooms:Object[]}} homeState - Home data.
-     */
-    #broadcastHomeState(homeState) {
-        for (const connection of this.#connections.homeConnections()) {
-            if (connection.isOpen) {
-                this.#publish(connection, StateMapper.toResponse(Constants.VIEWS.HOME, null, homeState));
-            } else {
-                this.#connections.unsubscribeHome(connection);
-            }
-        }
-    }
-
-    /**
-     * Creates the Home data.
-     *
-     * @returns {{rooms:Object[]}} Home data.
-     */
-    #createHomeState() {
-        return Object.freeze({
-            ...StateMapper.toHomeData(this.#roomsByKey.values()),
-            ...this.#getConnectionData()
-        });
-    }
-
-    /**
-     * @returns {Object} Shared connection metadata.
-     */
-    #getConnectionData() {
-        return Object.freeze({
-            connectionMode: this.#profile.mode,
-            capabilities: this.#profile.capabilities
-        });
-    }
-
-    /**
-     * Sends a normal transition to Home.
-     *
-     * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
-     * @param {{rooms:Object[]}} homeState - Home data.
-     * @param {Object|null} message - Optional notification sent with Home state.
-     */
-    #publishHomeState(connection, homeState, message = null) {
-        this.#connections.subscribeHome(connection);
-        this.#publish(connection, StateMapper.toResponse(Constants.VIEWS.HOME, message, homeState));
-    }
-
-    // -------------------------------------------------------------------------
-    // Room memberships and membership transitions
-    // -------------------------------------------------------------------------
-
-    /**
-     * Registers a membership with a room.
-     *
-     * @param {string} tabId - Tab ID.
-     * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
-     * @param {string} roomKey - Normalized room lookup key.
-     * @param {string|null} playerName - Player name.
-     */
-    #registerMembership(tabId, connection, roomKey, playerName) {
-        const existingMembership = this.#connections.get(tabId);
-
-        if (existingMembership !== null && existingMembership.connection !== connection) {
-            existingMembership.connection.terminate(1008, "Room replaced");
-            void this.#disconnect(existingMembership.connection);
-        }
-
-        this.#connections.register(tabId, connection, roomKey, playerName);
-    }
-
-    /**
-     * Unregisters a membership from a room.
-     *
-     * This does not mutate Room membership or move the socket to the room.
-     *
-     * @param {string} tabId - Tab ID.
-     * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
-     */
-    #unregisterMembership(tabId, connection) {
-        this.#connections.unregister(tabId, connection);
-
-        this.#requestThrottle.reset(`player:${tabId}`);
-        this.#requestThrottle.reset(`connection:${tabId}`);
-
-    }
-
-    /**
-     * Moves an idle player back to viewing state.
-     *
-     * @param {string} roomKey - Normalized room lookup key.
-     * @param {string} playerName - Idle player name.
-     * @returns {Promise<void>}
-     */
-    async #moveIdlePlayerToView(roomKey, playerName) {
-        const room = this.#roomsByKey.get(roomKey) ?? null;
-        const membership = this.#connections.findPlayer(roomKey, playerName);
-
-        if (room !== null && membership !== null) {
-            const removedPlayer = await room.movePlayerToView(playerName, membership.tabId);
-
-            if (removedPlayer !== null) {
-                if (this.#connections.isCurrent(membership)) {
-                    membership.view();
-
-                    this.#publishRoomState(
-                        membership.connection,
-                        room,
-                        null,
-                        StateMapper.toMessage(
-                            Constants.AUTO_NOTIFICATIONS.MOVED_TO_VIEWING.status,
-                            Constants.AUTO_NOTIFICATIONS.MOVED_TO_VIEWING.title,
-                            Constants.AUTO_NOTIFICATIONS.MOVED_TO_VIEWING.message
-                        )
-                    );
-
-                    this.#scheduleRoomClosureIfEmpty(roomKey);
-                    await this.#advanceRoom(roomKey);
-                } else {
-                    room.leaveViewer(membership.tabId);
-                    await this.#continueOrCloseRoom(roomKey);
-                }
-            }
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Room closure and match continuation
-    // -------------------------------------------------------------------------
-
-    /**
-     * Removes one occupant without waiting for subsequent automated turns.
-     *
-     * @param {import("./RoomMembership.js").RoomMembership} membership - Room membership.
-     * @param {Room} room - Room instance.
-     * @returns {Promise<void>}
-     */
-    async #removeMembership(membership, room) {
-        const playerName = membership.playerName;
-
-        this.#unregisterMembership(membership.tabId, membership.connection);
-
-        if (playerName !== null) {
-            await room.removePlayer(playerName);
-        } else {
-            room.leaveViewer(membership.tabId);
-        }
-
-    }
-
-    /**
-     * Continues the room or closes the room if no players remain.
-     *
-     * @param {string} roomKey - Normalized room lookup key.
-     * @returns {Promise<void>}
-     */
-    async #continueOrCloseRoom(roomKey) {
-        await this.#afterRoomAction(roomKey);
-        this.#closeRoomIfNoPlayersRemain(roomKey);
-        if (!this.#roomsByKey.has(roomKey)) return;
-        await this.#advanceRoom(roomKey);
-    }
-
-    /**
-     * Closes a room when no players remain.
-     *
-     * @param {string} roomKey - Normalized room lookup key.
-     */
-    #closeRoomIfNoPlayersRemain(roomKey) {
-        if (this.#isRoomEmpty(roomKey) && !this.#roomLifecycle.hasPending(roomKey)) {
-            this.#closeRoom(roomKey);
-        }
-    }
-
-    /**
-     * Schedules a second empty-room check after the idle-player notification
-     * grace period when the room is currently empty.
-     *
-     * @param {string} roomKey - Normalized room lookup key.
-     */
-    #scheduleRoomClosureIfEmpty(roomKey) {
-        if (this.#isRoomEmpty(roomKey)) {
-            this.#roomLifecycle.schedule(roomKey, Constants.ROOM_WAIT_MS, this.#closeRoomIfNoPlayersRemain.bind(this));
-        }
-    }
-
-    /**
-     * Checks whether a registered room currently has no players.
-     *
-     * @param {string} roomKey - Normalized room lookup key.
-     * @returns {boolean} True when the room exists and has no players.
-     */
-    #isRoomEmpty(roomKey) {
-        const room = this.#roomsByKey.get(roomKey) ?? null;
-
-        return room !== null && room.isEmpty();
-    }
-
-    // -------------------------------------------------------------------------
-    // Request routing
-    // -------------------------------------------------------------------------
-
-    /**
-     * Closes a room and returns every viewer to the Room.
-     *
-     * @param {string} roomKey - Normalized room lookup key.
-     */
-    #closeRoom(roomKey) {
-        const room = this.#roomsByKey.get(roomKey) ?? null;
-
-        if (room !== null) {
-            this.#roomLifecycle.cancel(roomKey);
-            this.#knockoutStarts.cancel(roomKey);
-            this.#botReturns.cancel(roomKey);
-
-            const viewingMemberships = this.#connections.inRoom(roomKey);
-
-            this.#clearRoomCallbacks(room);
-            this.#roomsByKey.delete(roomKey);
-            this.#requestThrottle.reset(`room:${roomKey}`);
-
-            for (const membership of viewingMemberships) {
-                this.#unregisterMembership(membership.tabId, membership.connection);
-            }
-
-            const homeState = this.#createHomeState();
-
-            this.#broadcastHomeState(homeState);
-
-            for (const membership of viewingMemberships) {
-                this.#publishHomeState(
-                    membership.connection,
-                    homeState,
-                    StateMapper.toMessage(Constants.AUTO_NOTIFICATIONS.ROOM_CLOSED.status,
-                        Constants.AUTO_NOTIFICATIONS.ROOM_CLOSED.title,
-                        Constants.AUTO_NOTIFICATIONS.ROOM_CLOSED.message)
-                );
-            }
-        }
-    }
+    // ---- Request and connection dispatch ----
 
     /**
      * Processes one request from a connected connection.
@@ -732,41 +414,7 @@ export class Host {
         }
     }
 
-    /**
-     * Publishes one structured response.
-     *
-     * @param {HostConnection|null|undefined} connection - Client connection.
-     * @param {Object} response - Response data.
-     */
-    #publish(connection, response) {
-        if (connection?.isOpen) {
-            connection.publish(response);
-        }
-    }
-
-    // -------------------------------------------------------------------------
-    // Command handlers and their shared requirements
-    // -------------------------------------------------------------------------
-
-    /** Publishes the completed action to its initiating connection. */
-    #publishActionSuccess(context, message = null) {
-        const action = Constants.ACTION_NOTIFICATIONS[context.request.command.toUpperCase()];
-        this.#publishNotification(context.connection, action.status, action.title, message ?? action.message);
-    }
-
-    /**
-     * Publishes a message response.
-     * @param {HostConnection|null|undefined} connection - Client connection.
-     * @param {string} status - Message status.
-     * @param {string} title - Message title.
-     * @param {string} message - Message text.
-     */
-    #publishNotification(connection, status, title, message) {
-        this.#publish(
-            connection,
-            StateMapper.toResponse(null, StateMapper.toMessage(status, title, message), null)
-        );
-    }
+    // ---- Room commands ----
 
     /**
      * Publishes the current Home directory to a connection that is not in a room.
@@ -822,18 +470,6 @@ export class Host {
             this.#roomsByKey.delete(roomKey);
             throw error;
         }
-    }
-
-    /**
-     * Normalizes a requested player limit, falling back to the configured maximum.
-     *
-     * @param {*} value - Untrusted player-limit value from a command payload.
-     * @returns {number} Requested integer player limit or the configured default.
-     */
-    #normalizePlayerLimit(value) {
-        const parsedPlayerLimit = Number(value || Constants.ROOM_PLAYER_LIMIT);
-
-        return Number.isInteger(parsedPlayerLimit) ? parsedPlayerLimit : Constants.ROOM_PLAYER_LIMIT;
     }
 
     /**
@@ -897,48 +533,6 @@ export class Host {
     }
 
     /**
-     * Resolves the shared context for viewing or joining a room.
-     *
-     * @param {HostRequestContext} context - Command being resolved.
-     * @param {number} throttleMs - Player throttle window.
-     */
-    #requireRoomContext(context, throttleMs) {
-        context.identifyTab();
-        this.#requireDataRoom(context);
-        context.attachMembership(this.#connections.get(context.tabId));
-
-        this.#requestThrottle.enforcePlayerThrottle(context.tabId, context.request.command, throttleMs);
-
-        if (context.membership !== null && context.membership.connection !== context.connection) {
-            throw new UserNotification("Your connection expired. Rejoin the room.");
-        }
-    }
-
-    /**
-     * Normalizes command room identity and resolves the registered room.
-     *
-     * @param {HostRequestContext} context - Command being resolved.
-     */
-    #requireDataRoom(context) {
-        const roomName = ValidationUtils.requiredString(context.request.data.roomName, "Room name");
-        const roomKey = Player.normalizeKey(roomName);
-
-        context.attachRoom(roomKey, this.#requireRoomByKey(roomKey));
-    }
-
-    /**
-     * Rejects a player display name already seated in the target room.
-     *
-     * @param {Room} room - Target room.
-     * @param {string} playerName - Requested player display name.
-     */
-    #assertPlayerNameAvailable(room, playerName) {
-        if (room.hasPlayer(playerName)) {
-            throw new UserNotification(`Player already exists: ${playerName}`);
-        }
-    }
-
-    /**
      * @param {HostRequestContext} context - Validated leave command.
      * @returns {Promise<void>}
      */
@@ -953,71 +547,6 @@ export class Host {
             this.#unregisterMembership(context.tabId, context.connection);
         }
         this.#publishHomeState(context.connection, this.#createHomeState());
-    }
-
-    /**
-     * Authenticates a tab-scoped membership against the requesting transport connection.
-     *
-     * @param {HostRequestContext} context - Command being authenticated.
-     * @throws {UserNotification} When the requested room or authenticated membership context is unavailable.
-     */
-    #requireClient(context) {
-        context.identifyTab();
-        context.attachMembership(this.#connections.get(context.tabId));
-
-        if (context.membership === null || context.membership.connection !== context.connection) {
-            throw new UserNotification("Your connection expired. Rejoin the room.");
-        }
-    }
-
-    /**
-     * Authenticates a room membership and applies its tab-scoped command throttle.
-     *
-     * @param {HostRequestContext} context - Command being authenticated.
-     * @param {number} throttleMs - Player throttle window.
-     */
-    #requireThrottledClient(context, throttleMs) {
-        this.#requireClient(context);
-        this.#requestThrottle.enforcePlayerThrottle(context.tabId, context.request.command, throttleMs);
-    }
-
-    /**
-     * Resolves an authenticated seated player and its current room.
-     *
-     * @param {HostRequestContext} context - Command being authenticated.
-     * @throws {UserNotification} When the requested room or authenticated membership context is unavailable.
-     */
-    #requirePlayerRoom(context) {
-        this.#requireClient(context);
-        if (context.membership.playerName === null) {
-            throw new UserNotification("Join the room before making a move.");
-        }
-
-        const room = this.#requireRoomByKey(context.membership.roomKey);
-
-        if (!room.hasPlayer(context.membership.playerName)) {
-            throw new UserNotification("Your player connection expired. Rejoin the room.");
-        }
-
-        context.attachRoom(context.membership.roomKey, room);
-    }
-
-    /**
-     * Resolves an authenticated player context and applies player- and room-scoped throttles.
-     *
-     * @param {HostRequestContext} context - Command being authenticated.
-     * @param {number} playerThrottleMs - Player throttle window.
-     * @param {number|null} [roomThrottleMs=null] - Optional room throttle window.
-     */
-    #requireThrottledPlayerRoom(context, playerThrottleMs, roomThrottleMs) {
-        this.#requirePlayerRoom(context);
-
-        this.#requestThrottle.enforcePlayerThrottle(context.tabId, context.request.command, playerThrottleMs);
-
-        if (roomThrottleMs !== null) {
-            this.#requestThrottle.enforceRoomThrottle(context.roomKey, context.request.command, roomThrottleMs);
-        }
-
     }
 
     /**
@@ -1060,62 +589,476 @@ export class Host {
         await this.#advanceRoom(context.roomKey);
     }
 
-    /** Executes a seated player's card command and returns its action result. */
-    async executeMatchCommand(room, playerName, command, data) {
-        let drawn = [];
-        let isDrawEffect = true;
+    // ---- Authentication and command validation ----
 
-        if (room.match.state === Constants.ROOM_STATE.FINISHED) {
-            if (room.match instanceof Knockout) {
-                throw new UserNotification(room.match.isKnockoutComplete
-                    ? "The knockout has finished." : "Wait for the next knockout match.");
-            }
-            await room.resumeWaiting();
-        }
+    /**
+     * Authenticates a tab-scoped membership against the requesting transport connection.
+     *
+     * @param {HostRequestContext} context - Command being authenticated.
+     * @throws {UserNotification} When the requested room or authenticated membership context is unavailable.
+     */
+    #requireClient(context) {
+        context.identifyTab();
+        context.attachMembership(this.#connections.get(context.tabId));
 
-        const payload = command === Constants.COMMANDS.DECLARE
-            ? {...data, suit: Constants.normalizeStandardSuit(ValidationUtils.requiredString(data.suit, "Suit"))}
-            : data;
-        const result = await room.perform(command, playerName, payload);
-        if (command === Constants.COMMANDS.DRAW || command === Constants.COMMANDS.PASS || command === Constants.COMMANDS.DISCARD) {
-            drawn = result;
+        if (context.membership === null || context.membership.connection !== context.connection) {
+            throw new UserNotification("Your connection expired. Rejoin the room.");
         }
-        if (command === Constants.COMMANDS.DRAW) {
-            isDrawEffect = room.match.state === Constants.ROOM_STATE.ACTIVE && drawn.length > 1;
-        }
-
-        const action = Constants.ACTION_NOTIFICATIONS[command.toUpperCase()];
-        if (command === Constants.COMMANDS.DISCARD) {
-            return {
-                status: action.status,
-                title: action.title,
-                message: action.message.replace("{value}", data.card.value).replace("{suit}", data.card.suit)
-            };
-        }
-        if (drawn.length > 0) {
-            return {
-                status: Constants.ACTION_NOTIFICATIONS.CARDS_ADDED.status,
-                title: Constants.ACTION_NOTIFICATIONS.CARDS_ADDED.title.replace("{number}", drawn.length),
-                message: Constants.ACTION_NOTIFICATIONS.CARDS_ADDED.message.replace("{cards}", drawn.length === 1 ? "Card" : "Cards")
-                    + (isDrawEffect ? ` ${Constants.EMOJIS.silly.random}` : "")
-            };
-        }
-        return {
-            status: action.status,
-            title: action.title,
-            message: action.message
-        };
     }
 
-    /** Runs the current automated owner, if one can act. */
-    async runAutomatedTurn(room) {
-        const turnOwner = room.match.turnOrder.owner;
-        if (!(turnOwner instanceof BotPlayer) || room.match.state !== Constants.ROOM_STATE.ACTIVE) return;
-        if (room.match.pending?.command === Constants.COMMANDS.DECLARE) {
-            await turnOwner.chooseSuit(room);
-            return;
+    /**
+     * Authenticates a room membership and applies its tab-scoped command throttle.
+     *
+     * @param {HostRequestContext} context - Command being authenticated.
+     * @param {number} throttleMs - Player throttle window.
+     */
+    #requireThrottledClient(context, throttleMs) {
+        this.#requireClient(context);
+        this.#requestThrottle.enforcePlayerThrottle(context.tabId, context.request.command, throttleMs);
+    }
+
+    /**
+     * Resolves the shared context for viewing or joining a room.
+     *
+     * @param {HostRequestContext} context - Command being resolved.
+     * @param {number} throttleMs - Player throttle window.
+     */
+    #requireRoomContext(context, throttleMs) {
+        context.identifyTab();
+        this.#requireDataRoom(context);
+        context.attachMembership(this.#connections.get(context.tabId));
+
+        this.#requestThrottle.enforcePlayerThrottle(context.tabId, context.request.command, throttleMs);
+
+        if (context.membership !== null && context.membership.connection !== context.connection) {
+            throw new UserNotification("Your connection expired. Rejoin the room.");
         }
-        await turnOwner.takeTurn(room);
+    }
+
+    /**
+     * Normalizes command room identity and resolves the registered room.
+     *
+     * @param {HostRequestContext} context - Command being resolved.
+     */
+    #requireDataRoom(context) {
+        const roomName = ValidationUtils.requiredString(context.request.data.roomName, "Room name");
+        const roomKey = Player.normalizeKey(roomName);
+
+        context.attachRoom(roomKey, this.#requireRoomByKey(roomKey));
+    }
+
+    /**
+     * Resolves an authenticated seated player and its current room.
+     *
+     * @param {HostRequestContext} context - Command being authenticated.
+     * @throws {UserNotification} When the requested room or authenticated membership context is unavailable.
+     */
+    #requirePlayerRoom(context) {
+        this.#requireClient(context);
+        if (context.membership.playerName === null) {
+            throw new UserNotification("Join the room before making a move.");
+        }
+
+        const room = this.#requireRoomByKey(context.membership.roomKey);
+
+        if (!room.hasPlayer(context.membership.playerName)) {
+            throw new UserNotification("Your player connection expired. Rejoin the room.");
+        }
+
+        context.attachRoom(context.membership.roomKey, room);
+    }
+
+    /**
+     * Resolves an authenticated player context and applies player- and room-scoped throttles.
+     *
+     * @param {HostRequestContext} context - Command being authenticated.
+     * @param {number} playerThrottleMs - Player throttle window.
+     * @param {number|null} [roomThrottleMs=null] - Optional room throttle window.
+     */
+    #requireThrottledPlayerRoom(context, playerThrottleMs, roomThrottleMs) {
+        this.#requirePlayerRoom(context);
+
+        this.#requestThrottle.enforcePlayerThrottle(context.tabId, context.request.command, playerThrottleMs);
+
+        if (roomThrottleMs !== null) {
+            this.#requestThrottle.enforceRoomThrottle(context.roomKey, context.request.command, roomThrottleMs);
+        }
+
+    }
+
+    /**
+     * Returns a registered room or raises an actionable missing-room failure.
+     *
+     * @param {string} roomKey - Normalized room lookup key.
+     * @returns {Room} Room instance.
+     * @throws {UserNotification} When the requested room is unavailable.
+     */
+    #requireRoomByKey(roomKey) {
+        const room = this.#roomsByKey.get(roomKey) ?? null;
+
+        if (room === null) {
+            throw new UserNotification("Room not found.");
+        }
+
+        return room;
+    }
+
+    /**
+     * Rejects a player display name already seated in the target room.
+     *
+     * @param {Room} room - Target room.
+     * @param {string} playerName - Requested player display name.
+     */
+    #assertPlayerNameAvailable(room, playerName) {
+        if (room.hasPlayer(playerName)) {
+            throw new UserNotification(`Player already exists: ${playerName}`);
+        }
+    }
+
+    /**
+     * Normalizes a requested player limit, falling back to the configured maximum.
+     *
+     * @param {*} value - Untrusted player-limit value from a command payload.
+     * @returns {number} Requested integer player limit or the configured default.
+     */
+    #normalizePlayerLimit(value) {
+        const parsedPlayerLimit = Number(value || Constants.ROOM_PLAYER_LIMIT);
+
+        return Number.isInteger(parsedPlayerLimit) ? parsedPlayerLimit : Constants.ROOM_PLAYER_LIMIT;
+    }
+
+    // ---- State and notification publication ----
+
+    /**
+     * Publishes one structured response.
+     *
+     * @param {HostConnection|null|undefined} connection - Client connection.
+     * @param {Object} response - Response data.
+     */
+    #publish(connection, response) {
+        if (connection?.isOpen) {
+            connection.publish(response);
+        }
+    }
+
+    /**
+     * Publishes a message response.
+     * @param {HostConnection|null|undefined} connection - Client connection.
+     * @param {string} status - Message status.
+     * @param {string} title - Message title.
+     * @param {string} message - Message text.
+     */
+    #publishNotification(connection, status, title, message) {
+        this.#publish(
+            connection,
+            StateMapper.toResponse(null, StateMapper.toMessage(status, title, message), null)
+        );
+    }
+
+    /** Publishes the completed action to its initiating connection. */
+    #publishActionSuccess(context, message = null) {
+        const action = Constants.ACTION_NOTIFICATIONS[context.request.command.toUpperCase()];
+        this.#publishNotification(context.connection, action.status, action.title, message ?? action.message);
+    }
+
+    /**
+     * Creates the Home data.
+     *
+     * @returns {{rooms:Object[]}} Home data.
+     */
+    #createHomeState() {
+        return Object.freeze({
+            ...StateMapper.toHomeData(this.#roomsByKey.values()),
+            ...this.#getConnectionData()
+        });
+    }
+
+    /**
+     * @returns {Object} Shared connection metadata.
+     */
+    #getConnectionData() {
+        return Object.freeze({
+            connectionMode: this.#profile.mode,
+            capabilities: this.#profile.capabilities
+        });
+    }
+
+    /**
+     * Sends a normal transition to Home.
+     *
+     * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
+     * @param {{rooms:Object[]}} homeState - Home data.
+     * @param {Object|null} message - Optional notification sent with Home state.
+     */
+    #publishHomeState(connection, homeState, message = null) {
+        this.#connections.subscribeHome(connection);
+        this.#publish(connection, StateMapper.toResponse(Constants.VIEWS.HOME, message, homeState));
+    }
+
+    /**
+     * Broadcasts the current Home data.
+     *
+     * @param {{rooms:Object[]}} homeState - Home data.
+     */
+    #broadcastHomeState(homeState) {
+        for (const connection of this.#connections.homeConnections()) {
+            if (connection.isOpen) {
+                this.#publish(connection, StateMapper.toResponse(Constants.VIEWS.HOME, null, homeState));
+            } else {
+                this.#connections.unsubscribeHome(connection);
+            }
+        }
+    }
+
+    /**
+     * Sends active Room state to one membership.
+     *
+     * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
+     * @param {Room} room - Room instance.
+     * @param {string|null} playerName - Room player name.
+     * @param {Object|null} message - Optional notification sent with the state.
+     */
+    #publishRoomState(connection, room, playerName, message = null) {
+        this.#publish(
+            connection,
+            StateMapper.toResponse(
+                Constants.VIEWS.ROOM,
+                message,
+                Object.freeze({
+                    ...StateMapper.toRoomData(room, playerName),
+                    ...this.#getConnectionData(),
+                    isBusy: false
+                })
+            )
+        );
+    }
+
+    /**
+     * Broadcasts current Room state to every connected membership.
+     *
+     * @param {string} roomKey - Normalized room lookup key.
+     */
+    #broadcastRoomState(roomKey) {
+        const room = this.#roomsByKey.get(roomKey) ?? null;
+
+        if (room !== null) {
+            for (const membership of this.#connections.inRoom(roomKey)) {
+                if (membership.connection.isOpen) {
+                    this.#publishRoomState(membership.connection, room, this.#resolveMembershipPlayerName(room, membership));
+                }
+            }
+
+        }
+    }
+
+    /**
+     * Resolves a membership's player name against current room membership.
+     *
+     * @param {Room} room - Room instance.
+     * @param {import("./RoomMembership.js").RoomMembership} membership - Room membership.
+     * @returns {string|null} Valid player name or null.
+     */
+    #resolveMembershipPlayerName(room, membership) {
+        let playerName = null;
+
+        if (membership.playerName !== null && room.hasPlayer(membership.playerName)) {
+            playerName = membership.playerName;
+        }
+
+        return playerName;
+    }
+
+    // ---- Membership and empty-room lifecycle ----
+
+    /**
+     * Registers a membership with a room.
+     *
+     * @param {string} tabId - Tab ID.
+     * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
+     * @param {string} roomKey - Normalized room lookup key.
+     * @param {string|null} playerName - Player name.
+     */
+    #registerMembership(tabId, connection, roomKey, playerName) {
+        const existingMembership = this.#connections.get(tabId);
+
+        if (existingMembership !== null && existingMembership.connection !== connection) {
+            existingMembership.connection.terminate(1008, "Room replaced");
+            void this.#disconnect(existingMembership.connection);
+        }
+
+        this.#connections.register(tabId, connection, roomKey, playerName);
+    }
+
+    /**
+     * Unregisters a membership from a room.
+     *
+     * This does not mutate Room membership or move the socket to the room.
+     *
+     * @param {string} tabId - Tab ID.
+     * @param {import("./HostConnection.js").HostConnection} connection - Connected transport connection.
+     */
+    #unregisterMembership(tabId, connection) {
+        this.#connections.unregister(tabId, connection);
+
+        this.#requestThrottle.reset(`player:${tabId}`);
+        this.#requestThrottle.reset(`connection:${tabId}`);
+
+    }
+
+    /**
+     * Removes one occupant without waiting for subsequent automated turns.
+     *
+     * @param {import("./RoomMembership.js").RoomMembership} membership - Room membership.
+     * @param {Room} room - Room instance.
+     * @returns {Promise<void>}
+     */
+    async #removeMembership(membership, room) {
+        const playerName = membership.playerName;
+
+        this.#unregisterMembership(membership.tabId, membership.connection);
+
+        if (playerName !== null) {
+            await room.removePlayer(playerName);
+        } else {
+            room.leaveViewer(membership.tabId);
+        }
+
+    }
+
+    /**
+     * Moves an idle player back to viewing state.
+     *
+     * @param {string} roomKey - Normalized room lookup key.
+     * @param {string} playerName - Idle player name.
+     * @returns {Promise<void>}
+     */
+    async #moveIdlePlayerToView(roomKey, playerName) {
+        const room = this.#roomsByKey.get(roomKey) ?? null;
+        const membership = this.#connections.findPlayer(roomKey, playerName);
+
+        if (room !== null && membership !== null) {
+            const removedPlayer = await room.movePlayerToView(playerName, membership.tabId);
+
+            if (removedPlayer !== null) {
+                if (this.#connections.isCurrent(membership)) {
+                    membership.view();
+
+                    this.#publishRoomState(
+                        membership.connection,
+                        room,
+                        null,
+                        StateMapper.toMessage(
+                            Constants.AUTO_NOTIFICATIONS.MOVED_TO_VIEWING.status,
+                            Constants.AUTO_NOTIFICATIONS.MOVED_TO_VIEWING.title,
+                            Constants.AUTO_NOTIFICATIONS.MOVED_TO_VIEWING.message
+                        )
+                    );
+
+                    this.#scheduleRoomClosureIfEmpty(roomKey);
+                    await this.#advanceRoom(roomKey);
+                } else {
+                    room.leaveViewer(membership.tabId);
+                    await this.#continueOrCloseRoom(roomKey);
+                }
+            }
+        }
+    }
+
+    /**
+     * Continues the room or closes the room if no players remain.
+     *
+     * @param {string} roomKey - Normalized room lookup key.
+     * @returns {Promise<void>}
+     */
+    async #continueOrCloseRoom(roomKey) {
+        await this.#afterRoomAction(roomKey);
+        this.#closeRoomIfNoPlayersRemain(roomKey);
+        if (!this.#roomsByKey.has(roomKey)) return;
+        await this.#advanceRoom(roomKey);
+    }
+
+    /**
+     * Closes a room when no players remain.
+     *
+     * @param {string} roomKey - Normalized room lookup key.
+     */
+    #closeRoomIfNoPlayersRemain(roomKey) {
+        if (this.#isRoomEmpty(roomKey) && !this.#roomLifecycle.hasPending(roomKey)) {
+            this.#closeRoom(roomKey);
+        }
+    }
+
+    /**
+     * Schedules a second empty-room check after the idle-player notification
+     * grace period when the room is currently empty.
+     *
+     * @param {string} roomKey - Normalized room lookup key.
+     */
+    #scheduleRoomClosureIfEmpty(roomKey) {
+        if (this.#isRoomEmpty(roomKey)) {
+            this.#roomLifecycle.schedule(roomKey, Constants.ROOM_WAIT_MS, this.#closeRoomIfNoPlayersRemain.bind(this));
+        }
+    }
+
+    /**
+     * Checks whether a registered room currently has no players.
+     *
+     * @param {string} roomKey - Normalized room lookup key.
+     * @returns {boolean} True when the room exists and has no players.
+     */
+    #isRoomEmpty(roomKey) {
+        const room = this.#roomsByKey.get(roomKey) ?? null;
+
+        return room !== null && room.isEmpty();
+    }
+
+    /**
+     * Closes a room and returns every viewer to the Room.
+     *
+     * @param {string} roomKey - Normalized room lookup key.
+     */
+    #closeRoom(roomKey) {
+        const room = this.#roomsByKey.get(roomKey) ?? null;
+
+        if (room !== null) {
+            this.#roomLifecycle.cancel(roomKey);
+            this.#knockoutStarts.cancel(roomKey);
+            this.#botReturns.cancel(roomKey);
+
+            const viewingMemberships = this.#connections.inRoom(roomKey);
+
+            this.#clearRoomCallbacks(room);
+            this.#roomsByKey.delete(roomKey);
+            this.#requestThrottle.reset(`room:${roomKey}`);
+
+            for (const membership of viewingMemberships) {
+                this.#unregisterMembership(membership.tabId, membership.connection);
+            }
+
+            const homeState = this.#createHomeState();
+
+            this.#broadcastHomeState(homeState);
+
+            for (const membership of viewingMemberships) {
+                this.#publishHomeState(
+                    membership.connection,
+                    homeState,
+                    StateMapper.toMessage(Constants.AUTO_NOTIFICATIONS.ROOM_CLOSED.status,
+                        Constants.AUTO_NOTIFICATIONS.ROOM_CLOSED.title,
+                        Constants.AUTO_NOTIFICATIONS.ROOM_CLOSED.message)
+                );
+            }
+        }
+    }
+
+    // ---- Automated turns and Knockout transitions ----
+
+    /** Starts one match, processes exclusions, and advances automated play. */
+    async #startMatchAndContinue(roomKey, room, knockout = null) {
+        const eliminated = await room.startMatch(knockout);
+        this.#knockoutStarts.cancel(roomKey);
+        await this.#settleEliminatedPlayers(roomKey, eliminated);
+        await this.#advanceRoom(roomKey);
     }
 
     /**
@@ -1155,7 +1098,7 @@ export class Host {
             } else if (room.match.isKnockoutComplete) {
                 this.#knockoutStarts.cancel(roomKey);
                 if (room.match.lostBotNames.length > 0 && !this.#botReturns.hasPending(roomKey)) {
-                    this.#botReturns.schedule(roomKey, Constants.COUNTDOWN_SECONDS * 1000, this.#restoreSidelinedBotsWhenDue.bind(this));
+                    this.#botReturns.schedule(roomKey, Constants.TRANSITION_DELAY_SECONDS * 1000, this.#restoreSidelinedBotsWhenDue.bind(this));
                 }
                 this.#scheduleRoomClosureIfEmpty(roomKey);
             }
@@ -1178,14 +1121,6 @@ export class Host {
                     StateMapper.toMessage(Constants.STATUS.INFO, "Knockout result", "You were eliminated from the knockout."));
             }
         }
-    }
-
-    /** Starts one match, processes exclusions, and advances automated play. */
-    async #startMatchAndContinue(roomKey, room, knockout = null) {
-        const eliminated = await room.startMatch(knockout);
-        this.#knockoutStarts.cancel(roomKey);
-        await this.#settleEliminatedPlayers(roomKey, eliminated);
-        await this.#advanceRoom(roomKey);
     }
 
     /** Starts a waiting Knockout match unless a human already started it. */
@@ -1212,41 +1147,5 @@ export class Host {
         void this.#returnSidelinedBots(roomKey).catch(function reportReturnFailure(error) {
             console.error("Sidelined bot return failed:", error);
         });
-    }
-
-    // -------------------------------------------------------------------------
-
-    /**
-     * Stops the host and releases all resources.
-     *
-     * @returns {Promise<void>} Resolves when shutdown completes.
-     */
-    async shutdown() {
-        await this.#ready;
-
-        this.#roomLifecycle.clear();
-        this.#knockoutStarts.clear();
-        this.#botReturns.clear();
-
-        for (const room of this.#roomsByKey.values()) {
-            this.#clearRoomCallbacks(room);
-            Host.#stopIdleMonitoring(room);
-        }
-
-        for (const connection of this.#connections.homeConnections()) {
-            connection.markClosed();
-            connection.terminate(1001, "Host stopped");
-        }
-
-        for (const membership of this.#connections.allRoomMemberships()) {
-            if (membership.connection.isOpen) {
-                membership.connection.markClosed();
-                membership.connection.terminate(1001, "Host stopped");
-            }
-        }
-
-        this.#roomsByKey.clear();
-        this.#connections.clear();
-        this.#requestThrottle.resetAll();
     }
 }

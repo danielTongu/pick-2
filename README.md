@@ -31,6 +31,10 @@ The final two play a regular match. Qualified humans remain subject to the idle 
 Bots return after the Knockout ends.
 
 The canonical public URL is `https://danieltongu.github.io/pick-2/`, and the root `sitemap.xml` contains that page.
+Each Host permits up to 1,000 concurrent rooms, including the default rooms. Configure the cap with
+`Host.MAX_ROOMS`. Closing a room frees a slot; joining and viewing existing rooms remain available at capacity.
+This limit is a registration policy, not a measured server-capacity guarantee.
+
 Home includes a collapsible About Pick 2 & rooms guide above the room directory. It covers connection modes, creating or joining rooms, and watching live rooms. The Room FAQ covers match setup, play, scoring, and Knockout. Both guides can be expanded without JavaScript.
 
 ## Commands
@@ -52,7 +56,7 @@ pick-2/
 ├── core/                   Cards, collections, players, turns, rules, hosting, bots, and mapping
 ├── host/                   Host coordination, connection state, and request handling
 ├── ui/                     Pages, cards, controllers, styles, templates, and artwork
-├── test/                   Pick 2, infrastructure, and navigation tests
+├── test/                   Core, bots, host, UI, and architecture tests
 └── docs/                   Design and maintenance documentation
 ```
 
@@ -76,3 +80,5 @@ This software is proprietary and is not free or open-source software. No permiss
 distribute, sublicense, or use it outside the terms provided by its owner.
 
 Home and Room can be previewed without JavaScript using their HTML state attributes. See [the UI preview guide](docs/ui-preview.md) for sample data and state controls.
+
+Test organization and focused commands are documented in the [test guide](test/README.md).

@@ -25,6 +25,8 @@ export class ConnectionRegistry {
      */
     #connectionSequence = 0;
 
+    // ---- Public API ----
+
     /**
      * @param {function(Object): void} send - Transport response callback.
      * @param {function(number=, string=): void} disconnect - Transport disconnect callback.

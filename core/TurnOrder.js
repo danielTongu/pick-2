@@ -8,6 +8,8 @@ import { Constants } from "./Constants.js";
 
 /** Owns ordered membership and the cursor for a match. */
 export class TurnOrder extends Serializable {
+    // ---- Public API ----
+
     /** Creates an empty, forward-moving turn order with no owner. */
     constructor() {
         super();
@@ -158,16 +160,7 @@ export class TurnOrder extends Serializable {
         }
     }
 
-    /** Aligns non-final player states with current turn ownership. */
-    #synchronizePlayerStates() {
-        for (const player of this.players.values()) {
-            if (player.state !== Constants.PLAYER_STATE.WON && player.state !== Constants.PLAYER_STATE.LOST &&
-                player.state !== Constants.PLAYER_STATE.QUALIFIED && player.state !== Constants.PLAYER_STATE.ELIMINATED) {
-                player.state = player.key === this.ownerKey ? Constants.PLAYER_STATE.ACTIVE : Constants.PLAYER_STATE.READY;
-            }
-        }
-    }
-
+    /** Iterates seated players in their stored circular order. */
     [Symbol.iterator]() {
         return this.players.values();
     }
@@ -182,5 +175,17 @@ export class TurnOrder extends Serializable {
             ownerKey: this.ownerKey,
             direction: this.direction
         };
+    }
+
+    // ---- Implementation ----
+
+    /** Aligns non-final player states with current turn ownership. */
+    #synchronizePlayerStates() {
+        for (const player of this.players.values()) {
+            if (player.state !== Constants.PLAYER_STATE.WON && player.state !== Constants.PLAYER_STATE.LOST &&
+                player.state !== Constants.PLAYER_STATE.QUALIFIED && player.state !== Constants.PLAYER_STATE.ELIMINATED) {
+                player.state = player.key === this.ownerKey ? Constants.PLAYER_STATE.ACTIVE : Constants.PLAYER_STATE.READY;
+            }
+        }
     }
 }

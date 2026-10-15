@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
+import test from "node:test";
+
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
-import test from "node:test";
-import { Constants } from "../core/Constants.js";
+import { Constants } from "../../core/Constants.js";
 
-const mainSource = readFileSync(new URL("../main.js", import.meta.url), "utf8")
+const mainSource = readFileSync(new URL("../../main.js", import.meta.url), "utf8")
     .replace(/^import .+;\n/gm, "");
 
 test("Home and Room remove every preview fixture before opening a real session", async () => {
@@ -35,7 +36,7 @@ test("Home and Room remove every preview fixture before opening a real session",
 });
 
 test("Room membership changes without duplicate permission attributes", () => {
-    const source = readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../../ui/controllers/RoomController.js", import.meta.url), "utf8");
     const start = source.indexOf("    renderMatchCommands(localPlayer) {");
     const end = source.indexOf("    /**", start);
     const Controller = new Function(`return class {${source.slice(start, end)}}`)();

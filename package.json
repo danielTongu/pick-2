@@ -9,8 +9,12 @@
     "scripts": {
         "start": "node server.js",
         "dev": "node --watch server.js",
-        "test": "node --test",
-        "test:coverage": "node --test --experimental-test-coverage"
+        "test": "node --test \"test/**/*.test.js\"",
+        "test:coverage": "node --test --experimental-test-coverage \"test/**/*.test.js\"",
+        "test:core": "node --test \"test/core/*.test.js\"",
+        "test:bots": "node --test \"test/bots/*.test.js\"",
+        "test:host": "node --test \"test/host/*.test.js\"",
+        "test:ui": "node --test \"test/ui/*.test.js\""
     },
     "dependencies": {
         "express": "^5.x",

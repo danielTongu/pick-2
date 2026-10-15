@@ -3,8 +3,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Card } from "../core/Card.js";
-import { Constants } from "../core/Constants.js";
+import { Card } from "../../core/Card.js";
+import { Constants } from "../../core/Constants.js";
 
 const { VALUE, SUIT } = Constants.CARD;
 
@@ -63,17 +63,6 @@ test("card-domain constants expose immutable canonical collections", () => {
     assert.equal(Object.isFrozen(Constants.CARD.STANDARD_VALUES), true);
 });
 
-test("default game configuration exposes three bot player-limit levels", () => {
-    assert.deepEqual(
-        Constants.DEFAULT_ROOMS.map((room) => room.botCount),
-        [3, 2, 1]
-    );
-    assert.equal(
-        Constants.DEFAULT_ROOMS.every((room) => Object.isFrozen(room)),
-        true
-    );
-    assert.equal(Object.isFrozen(Constants.DEFAULT_ROOMS), true);
-});
 
 test("the Game API uses one-word commands", () => {
     assert.deepEqual(Constants.COMMANDS, {
@@ -94,15 +83,6 @@ test("the Game API uses one-word commands", () => {
     );
 });
 
-test("direct opponent names are centralized and immutable", () => {
-    assert.equal(Object.isFrozen(Constants.DIRECT_OPPONENT_NAMES), true);
-    assert.equal(Constants.DIRECT_OPPONENT_NAMES.length, Constants.ROOM_PLAYER_LIMIT - 1);
-    assert.equal(
-        Constants.DIRECT_OPPONENT_NAMES.every((name) => typeof name === "string" && name.trim().length > 0),
-        true
-    );
-    assert.equal(new Set(Constants.DIRECT_OPPONENT_NAMES).size, Constants.DIRECT_OPPONENT_NAMES.length);
-});
 
 test("card-domain suit operations share canonical suit definitions", () => {
     assert.equal(Constants.isStandardSuit(SUIT.HEARTS), true);

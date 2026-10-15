@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import { Constants } from "../core/Constants.js";
-import { ValidationUtils } from "../core/ValidationUtils.js";
+
+import { readFileSync } from "node:fs";
+import { Constants } from "../../core/Constants.js";
+import { ValidationUtils } from "../../core/ValidationUtils.js";
 
 test("final knockout results open once despite later player roster updates", () => {
-    const source = readFileSync(new URL("../ui/controllers/RoomController.js", import.meta.url), "utf8");
+    const source = readFileSync(new URL("../../ui/controllers/RoomController.js", import.meta.url), "utf8");
     const start = source.indexOf("    render(room) {");
     const end = source.indexOf("    /**", start);
     const method = source.slice(start, end).replaceAll("#", "_");

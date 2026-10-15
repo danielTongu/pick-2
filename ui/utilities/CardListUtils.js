@@ -2,6 +2,22 @@ import { PlayingCard } from "../PlayingCard.js";
 
 /** Reconciles a card region without replacing cards that are still present. */
 export class CardListUtils {
+
+    /** Updates cards in display order, preserving matching elements and their focus. */
+    static update(container, cards, destination = null) {
+        const existing = this.#index(container);
+        const ordered = [];
+
+        for (const card of cards) {
+            const key = this.#key(card);
+            ordered.push(this.#match(card, destination, existing.get(key)));
+            existing.delete(key);
+        }
+
+        for (const element of existing.values()) element.remove();
+        this.#place(container, ordered);
+    }
+
     /** Returns the unique value-and-suit identity of a room card. */
     static #key(card) {
         return JSON.stringify([card.value ?? "", card.suit]);
@@ -40,20 +56,5 @@ export class CardListUtils {
             }
             next = element;
         }
-    }
-
-    /** Updates cards in display order, preserving matching elements and their focus. */
-    static update(container, cards, destination = null) {
-        const existing = this.#index(container);
-        const ordered = [];
-
-        for (const card of cards) {
-            const key = this.#key(card);
-            ordered.push(this.#match(card, destination, existing.get(key)));
-            existing.delete(key);
-        }
-
-        for (const element of existing.values()) element.remove();
-        this.#place(container, ordered);
     }
 }

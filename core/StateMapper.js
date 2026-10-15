@@ -2,6 +2,8 @@
 
 /** Maps Pick2 state into immutable transport objects. */
 export class StateMapper {
+    // ---- Transport envelopes ----
+
     /**
      * Builds the transport response envelope.
      * @param {string|null} view - Destination view.
@@ -24,6 +26,8 @@ export class StateMapper {
     static toMessage(status, title, message) {
         return Object.freeze({ status, title, message });
     }
+
+    // ---- Home and Room snapshots ----
 
     /**
 
@@ -68,29 +72,6 @@ export class StateMapper {
 
     /**
 
-     * Counts arrays, sets, maps, serialized collections, or numeric counts.
-     * @param {*} value - Collection or count.
-     * @returns {number} Public count.
-     */
-    static collectionCount(value) {
-        if (Number.isFinite(value)) return value;
-        if (Number.isInteger(value?.size)) return value.size;
-        return Array.isArray(value) ? value.length : 0;
-    }
-
-    /**
-
-     * Formats a timestamp as ISO text, or returns an empty string when invalid.
-     * @param {*} value - Date-compatible timestamp.
-     * @returns {string} ISO timestamp or empty text.
-     */
-    static formatDate(value) {
-        const date = new Date(value);
-        return Number.isNaN(date.getTime()) ? "" : date.toISOString();
-    }
-
-    /**
-
      * Maps a complete Room model to the immutable player-specific transport snapshot.
      * @param {import("./Room.js").Room} room - Authoritative Room.
      * @param {string|null} playerName - Recipient's seated Player name.
@@ -118,6 +99,8 @@ export class StateMapper {
             }),
         });
     }
+
+    // ---- Player and card snapshots ----
 
     /**
 
@@ -187,5 +170,30 @@ export class StateMapper {
                 rotation: card.rotation
             });
         });
+    }
+
+    // ---- Snapshot value normalization ----
+
+    /**
+
+     * Counts arrays, sets, maps, serialized collections, or numeric counts.
+     * @param {*} value - Collection or count.
+     * @returns {number} Public count.
+     */
+    static collectionCount(value) {
+        if (Number.isFinite(value)) return value;
+        if (Number.isInteger(value?.size)) return value.size;
+        return Array.isArray(value) ? value.length : 0;
+    }
+
+    /**
+
+     * Formats a timestamp as ISO text, or returns an empty string when invalid.
+     * @param {*} value - Date-compatible timestamp.
+     * @returns {string} ISO timestamp or empty text.
+     */
+    static formatDate(value) {
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? "" : date.toISOString();
     }
 }

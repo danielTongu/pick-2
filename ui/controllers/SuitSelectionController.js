@@ -23,6 +23,8 @@ export class SuitSelectionController extends ViewController {
      */
     #timeoutId = null;
 
+    // ---- Public API ----
+
     /**
      * Creates a suit-selection overlay controller.
      *
@@ -67,6 +69,8 @@ export class SuitSelectionController extends ViewController {
         this.#submitHandler = handler;
     }
 
+    // ---- Implementation ----
+
     /**
      * Binds overlay events.
      */
@@ -97,7 +101,7 @@ export class SuitSelectionController extends ViewController {
         this.#clearTimeout();
         super.hide();
 
-        this.#timeoutId = window.setTimeout(this.#restoreAfterTimeout.bind(this), Constants.COUNTDOWN_SECONDS * 1000);
+        this.#timeoutId = window.setTimeout(this.#restoreAfterTimeout.bind(this), Constants.TRANSITION_DELAY_SECONDS * 1000);
     }
 
     /** Restores the overlay after a temporary dismissal. */

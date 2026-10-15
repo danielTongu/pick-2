@@ -1,32 +1,35 @@
 "use strict";
 
 import assert from "node:assert/strict";
+import test from "node:test";
+
 import { existsSync, readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
-import test from "node:test";
-import { Card } from "../core/Card.js";
-import { Constants } from "../core/Constants.js";
+import { Card } from "../../core/Card.js";
+import { Constants } from "../../core/Constants.js";
 
-const root = new URL("../", import.meta.url);
+import { elements, elementById } from "../helpers/html.js";
+
+const root = new URL("../../", import.meta.url);
 
 function metadataContent(html, identityName, identityValue) {
-    return (
-        html.match(new RegExp(`<meta\\s+${identityName}="${identityValue}"\\s+content="([^"]+)"\\s*\\/>`))?.[1] ?? null
-    );
+    return elements(html, "meta").find(meta => meta[identityName] === identityValue)?.content ?? null;
 }
 
 function linkTarget(html, relationship) {
-    return html.match(new RegExp(`<link\\s+rel="${relationship}"\\s+href="([^"]+)"\\s*\\/>`))?.[1] ?? null;
+    return elements(html, "link").find(link => link.rel === relationship)?.href ?? null;
 }
 
 test("the root page is the playable Pick 2 Home", () => {
     const html = readFileSync(new URL("index.html", root), "utf8");
-    assert.match(html, /<aside data-connection-status="connecting" class="toggle-switch"/);
+    assert.ok(elements(html, "aside").some(aside => aside["data-connection-status"] === "connecting" && aside.class === "toggle-switch"));
     assert.match(html, /<main id="site-shell">/);
     assert.match(html, /src="main.js"/);
     assert.doesNotMatch(html, /game-tile|Coming soon|Poker|Yahtzee|Dice Games/);
-    for (const match of html.matchAll(/<playing-card data-value="([^"]+)" data-suit="([^"]+)"/g)) {
-        assert.doesNotThrow(() => new Card(match[1], match[2], 0));
+    const cards = elements(html, "playing-card");
+    assert.ok(cards.length > 0);
+    for (const card of cards) {
+        assert.doesNotThrow(() => new Card(card["data-value"], card["data-suit"], 0));
     }
 });
 
@@ -73,7 +76,7 @@ test("Home and Room resolve their local assets and navigation under a subdirecto
     }
     const home = readFileSync(new URL("index.html", root), "utf8");
     assert.equal(home.match(/id="app-footer-navigation"/g)?.length, 1);
-    assert.match(home, /rel="canonical" href="https:\/\/danieltongu.github.io\/pick-2\/"/);
+    assert.equal(linkTarget(home, "canonical"), "https://danieltongu.github.io/pick-2/");
 });
 
 /** Runs the real page entry point with a controlled transport and browser location. */
@@ -197,7 +200,6 @@ test("room exits, failed admissions, and missing intents return Home with mode a
         }
     }
 });
-
 
 test("room session owns admission intent and changes Create to Join on reconnect", async () => {
     for (const mode of ["direct", "hosted"]) {

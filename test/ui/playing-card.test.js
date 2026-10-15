@@ -2,7 +2,8 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Card } from "../core/Card.js";
+
+import { Card } from "../../core/Card.js";
 
 // Only the DOM surface used by PlayingCard; browser layout is checked separately.
 class FakeElement extends EventTarget {
@@ -133,7 +134,7 @@ test("PlayingCard properties and pointer lifecycle", async (t) => {
     };
 
     try {
-        const { PlayingCard } = await import("../ui/PlayingCard.js");
+        const { PlayingCard } = await import("../../ui/PlayingCard.js");
         const model = new Card("a", "spades", 15);
 
         await t.test("shares model properties and keeps derived values read-only", () => {

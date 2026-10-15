@@ -7,16 +7,12 @@ import {Host} from "../host/Host.js";
 
 /** Browser client session with local or hosted connection and navigation state. */
 export class Session {
+
     /** @type {"direct"|"hosted"} Active transport mode. */
     mode = SessionState.getMode();
 
     /** @type {URL} Destination used when leaving this session. */
     url;
-
-    /** @param {URL} url - Destination used when navigating away from the session. */
-    constructor(url) {
-        this.url = url;
-    }
 
     /**
      * @type {string} Card ordering requested for room snapshots.
@@ -56,6 +52,13 @@ export class Session {
      * @type {string} Tab-stable identifier included with every request.
      */
     #tabId = Session.#getTabId();
+
+    // ---- Construction and public transport API ----
+
+    /** @param {URL} url - Destination used when navigating away from the session. */
+    constructor(url) {
+        this.url = url;
+    }
 
     /**
      * @returns {string} Current card sort key.
@@ -164,6 +167,8 @@ export class Session {
         return canSend;
     }
 
+    // ---- Hosted socket lifecycle ----
+
     /** @param {number} generation - Connection generation. */
     #openWebSocket(generation) {
         const isReconnecting = this.#reconnectAttempts > 0;
@@ -221,6 +226,8 @@ export class Session {
         }
     }
 
+    // ---- Hosted reconnection ----
+
     /** @param {number} generation - Connection generation. */
     #scheduleReconnect(generation) {
         if (!this.#isOpen || this.#reconnectTimer !== null) return;
@@ -253,17 +260,14 @@ export class Session {
         }
     }
 
+    // ---- Local transport lifecycle ----
+
     /**
      * @param {number} generation - Local connection generation.
      * @param {Object} request - Cloned local request.
      */
     #deliverLocalRequest(generation, request) {
         if (this.#isOpen && generation === this.#generation) void this.#hostConnection?.receive(request);
-    }
-
-    /** @param {number} generation - Local connection generation. */
-    #disconnectLocal(generation) {
-        if (generation === this.#generation) this.disconnect();
     }
 
     /**
@@ -291,6 +295,13 @@ export class Session {
             this.#handleOpen();
         }
     }
+
+    /** @param {number} generation - Local connection generation. */
+    #disconnectLocal(generation) {
+        if (generation === this.#generation) this.disconnect();
+    }
+
+    // ---- Controller delivery and response parsing ----
 
     /**
      * @param {string} status - Connection status.
@@ -384,40 +395,7 @@ export class Session {
 
 /** Persists transport, navigation, and notification state for one browser tab. */
 export class SessionState {
-    /**
-     * @returns {string} Browser-tab storage key for the selected connection mode.
-     */
-    static get #MODE_KEY() {
-        return `${this.#namespace()}.mode`;
-    }
-
-    /**
-     * @returns {string} Browser-tab storage key for pending Room navigation intent.
-     */
-    static get #INTENT_KEY() {
-        return `${this.#namespace()}.gameIntent`;
-    }
-
-    /**
-     * @returns {string} Browser-tab storage key for a notification carried across navigation.
-     */
-    static get #NOTICE_KEY() {
-        return `${this.#namespace()}.notice`;
-    }
-
-    /**
-     * @returns {string} Browser-tab storage key for the verified Hosted WebSocket URL.
-     */
-    static get #HOSTED_URL_KEY() {
-        return `${this.#namespace()}.hostedUrl`;
-    }
-
-    /**
-     * @returns {string} Storage namespace selected by the document's game identifier.
-     */
-    static #namespace() {
-        return globalThis.document?.body?.dataset.game ?? "game";
-    }
+    // ---- Transport mode ----
 
     /**
      * @returns {"direct"|"hosted"} Selected mode, otherwise Hosted when configured or Direct.
@@ -443,6 +421,8 @@ export class SessionState {
     static setMode(mode) {
         globalThis.sessionStorage?.setItem(this.#MODE_KEY, mode === "hosted" ? "hosted" : "direct");
     }
+
+    // ---- Room admission and navigation notices ----
 
     /**
      * @param {{mode:"direct"|"hosted", command:string, data:Record<string, *>}} intent - Room command and navigation data to persist.
@@ -492,6 +472,8 @@ export class SessionState {
             return null;
         }
     }
+
+    // ---- Hosted address configuration ----
 
     /**
      * @param {string} url - Verified Hosted WebSocket URL to persist.
@@ -567,12 +549,48 @@ export class SessionState {
             return null;
         }
     }
+
+    // ---- Storage keys ----
+
+    /**
+     * @returns {string} Browser-tab storage key for the selected connection mode.
+     */
+    static get #MODE_KEY() {
+        return `${this.#namespace()}.mode`;
+    }
+
+    /**
+     * @returns {string} Browser-tab storage key for pending Room navigation intent.
+     */
+    static get #INTENT_KEY() {
+        return `${this.#namespace()}.gameIntent`;
+    }
+
+    /**
+     * @returns {string} Browser-tab storage key for a notification carried across navigation.
+     */
+    static get #NOTICE_KEY() {
+        return `${this.#namespace()}.notice`;
+    }
+
+    /**
+     * @returns {string} Browser-tab storage key for the verified Hosted WebSocket URL.
+     */
+    static get #HOSTED_URL_KEY() {
+        return `${this.#namespace()}.hostedUrl`;
+    }
+
+    /**
+     * @returns {string} Storage namespace selected by the document's game identifier.
+     */
+    static #namespace() {
+        return globalThis.document?.body?.dataset.game ?? "game";
+    }
 }
 
 
 /** One bounded browser WebSocket availability probe. */
 class WebSocketProbe {
-
     /** @type {string} Endpoint under test. */
     #endpoint;
 
@@ -599,6 +617,11 @@ class WebSocketProbe {
         return new Promise(this.#start.bind(this));
     }
 
+    /** Stops an obsolete or departing-page probe. */
+    cancel() {
+        this.#finish(false, "Canceled.");
+    }
+
     /** @param {function(Object): void} resolve - Probe outcome resolver. */
     #start(resolve) {
         this.#resolve = resolve;
@@ -613,11 +636,6 @@ class WebSocketProbe {
         } catch (error) {
             this.#finish(false, error instanceof Error ? error.message : String(error));
         }
-    }
-
-    /** Stops an obsolete or departing-page probe. */
-    cancel() {
-        this.#finish(false, "Canceled.");
     }
 
     /**
@@ -750,7 +768,6 @@ export class ConnectionSession extends Session {
 }
 /** Coordinates Home controllers, transport selection, and Room navigation. */
 export class HomeSession extends Session {
-
     /**
      * @type {import("./controllers/HomeController.js").HomeController|null} Home interaction controller after startup.
      */
@@ -876,7 +893,6 @@ export class HomeSession extends Session {
 
 /** Coordinates Room admission, controllers, transport, and Home navigation. */
 export class RoomSession extends Session {
-
     /**
      * @type {import("./controllers/RoomController.js").RoomController|null} Room interaction controller after startup.
      */
@@ -997,5 +1013,4 @@ export class RoomSession extends Session {
         if (isFailedAdmission) location.replace(this.#homeUrl());
         else location.assign(this.#homeUrl());
     }
-
 }

@@ -12,7 +12,6 @@ export class ConnectionController extends ViewController {
     /** @type {HTMLElement} Visible header connection status label. */
     #statusLabelOutput;
 
-
     /** @type {HTMLElement} Configured Live server label. */
     #originOutput;
 
@@ -33,6 +32,7 @@ export class ConnectionController extends ViewController {
 
     /** @type {HTMLElement} Timeout diagnostic value. */
     #timeoutOutput;
+
     /** @type {HTMLElement} Failure diagnostic value. */
     #failureOutput;
 
@@ -64,12 +64,6 @@ export class ConnectionController extends ViewController {
         this.#form.addEventListener("submit", this.#handleSubmit.bind(this));
         DomUtils.require("#direct-mode-input", HTMLInputElement).addEventListener("change", function selectLocal() { onMode("direct"); });
         DomUtils.require("#hosted-mode-input", HTMLInputElement).addEventListener("change", function selectLive() { onMode("hosted"); });
-    }
-
-    /** @param {SubmitEvent} event - Retry form submission. */
-    #handleSubmit(event) {
-        event.preventDefault();
-        this.#onSubmit();
     }
 
     /**
@@ -107,5 +101,11 @@ export class ConnectionController extends ViewController {
         const isPending = status === Constants.STATUS.CONNECTING;
         this.#connectButton.disabled = isPending || status === Constants.STATUS.UNCONFIGURED;
         this.#connectButton.textContent = isPending ? "Connecting…" : "Retry Live";
+    }
+
+    /** @param {SubmitEvent} event - Retry form submission. */
+    #handleSubmit(event) {
+        event.preventDefault();
+        this.#onSubmit();
     }
 }

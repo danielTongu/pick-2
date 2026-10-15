@@ -2,7 +2,6 @@
 
 /** Owns deferred Host room-lifecycle work and its timer resources. */
 export class RoomLifecycle {
-
     /**
      * @type {Map<string, number|NodeJS.Timeout>} Pending timers keyed by normalized room identity.
      */

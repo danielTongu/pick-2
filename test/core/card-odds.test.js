@@ -2,8 +2,9 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Card } from "../core/Card.js";
-import { CardOdds } from "../core/CardOdds.js";
+
+import { Card } from "../../core/Card.js";
+import { CardOdds } from "../../core/CardOdds.js";
 
 test("response odds count legal cards without inspecting actual opponent hands", () => {
     const unseen = [new Card("3", "hearts", 0), new Card("5", "clubs", 0), new Card("9", "spades", 0)];

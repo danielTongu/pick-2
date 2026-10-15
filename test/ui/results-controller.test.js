@@ -3,7 +3,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Constants } from "../core/Constants.js";
+import { Constants } from "../../core/Constants.js";
+
 test("results dialog reads normalized knockout status without a nested match", async () => {
     const originalDocument = globalThis.document;
     const originalHTMLElement = globalThis.HTMLElement;
@@ -47,7 +48,7 @@ test("results dialog reads normalized knockout status without a nested match", a
     };
 
     try {
-        const { ResultsController } = await import("../ui/controllers/ResultsController.js");
+        const { ResultsController } = await import("../../ui/controllers/ResultsController.js");
         const controller = new ResultsController("#results-dialog");
         const player = {
             name: "Alice", state: Constants.PLAYER_STATE.QUALIFIED,

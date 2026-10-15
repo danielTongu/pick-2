@@ -129,6 +129,12 @@ The complete request, publication, reconnect, and teardown sequences are traced 
 
 `Host` MUST remain transport-neutral. It MUST NOT import browser globals, Node modules, Express, or WebSocket libraries.
 
+Each Host enforces `Host.MAX_ROOMS` (default 1,000), including default rooms. Registration checks capacity
+synchronously before constructing and reserving the room, so concurrent creates cannot exceed the cap.
+Failed admissions roll back their room reservation; room closure frees capacity. Reaching the limit rejects
+new creation with an actionable notification while existing join/view commands continue normally.
+The cap is independently enforced per Host and is not a measured deployment-capacity guarantee.
+
 ## 4. Names and identity
 
 Player and room names are user-facing identifiers, not arbitrary strings. A valid name MUST:
@@ -337,6 +343,8 @@ legal for the current state.
 
 While playing, turn order, draw penalties, discard legality, skip/reverse effects, and suit declarations are
 authoritative core rules. A suit-changing ace moves the Room to pending until its owner declares a standard suit.
+The command gateway requires the declaring player's identity. Room verifies that identity against the turn owner
+inside its serialized declaration operation, so another seated player cannot resolve the pending decision.
 
 While waiting with no turn owner, the waiting-state permissions apply and playing-only legality checks do not. A match
 finishes when a hand is emptied or the seven of hearts ends the match under its rule. Remaining hand penalties determine
@@ -376,6 +384,12 @@ skip opponent position is queried.
 
 BotPlayer handles turn timing and submits commands. BotStrategy copies its decision information and
 separates penalty shedding, opponent pressure, remaining-hand setup, and special-card conservation.
+Class-owned configuration stays with its owner: BotPlayer owns its delay bounds, Host owns default rooms
+and bot names, Room owns the initial deal count, and UI classes own their local presentation values.
+Constants retains shared configuration, rules, protocol vocabulary, timing, and notification definitions.
+Its decision snapshot stays in direct public fields; the live bot, Match, and mutable collections are not retained.
+The class groups snapshot construction, action evaluation and comparison, ace and draw-attack policies,
+turn projection, opponent threats, tactical scoring, skip-chain search, seven-of-hearts outcomes, and suit declarations.
 It checks actual projected opponents' cards for legal responses, attack defenses, and suit declarations, and
 computes their remaining penalties when considering seven of hearts. For distant opponents it uses
 CardOdds and an unknown-card pool reconstructed from the canonical deck minus its own hand, inspected
@@ -386,8 +400,10 @@ BotStrategy calls these directly on copied collections; Player provides no forwa
 The dominant suit describes frequency, not a strategic decision; predicted declarations check its
 safety before considering other suits.
 
-The decision pipeline collects all rule-legal cards, maps each discard to its first and following
-players and draw allowance, then applies conservation and strategy scoring. Suit-changing candidates
+The decision pipeline collects rule-legal cards, applies the shield-release policy, and maps each allowed discard
+to its first and following players and draw allowance. Each action is evaluated once and compared by finish risk,
+redundant-ace conservation, and tactical score. Unavoidable opponent finishes prioritize penalty shedding over
+redundant-ace conservation. Suit-changing candidates
 carry their selected declaration through scoring; pending declarations use the same evaluation.
 Suit choice prioritizes avoiding a next-player or following-player finish, then the most common held
 suit. Equal counts favor held penalty and then unknown-card scarcity.
@@ -403,13 +419,21 @@ remaining result and knockout qualification chances. Jack and eight targets foll
 rules and the current turn direction.
 
 Selection separates penalty shedding, draw defense, and opponent pressure scoring, with distinct
-offensive and defensive priorities. Attack projects the first responding player's
+offensive and defensive priorities. In two-player matches, the bot searches legal eight/jack chains
+that empty a hand without giving the opponent a turn. It prioritizes its own guaranteed chain finishes
+and recognizes those finishes in reachable opponent hands. These chains never assume a favorable draw
+or override the bot's ace-of-spades conservation policy.
+Attack projects the first responding player's
 legal replies and the next player's finishing opportunity. A forced penalty draw clears the allowance
 but leaves the top discard in place, so an unprovoked joker can expose a following one-card player.
 If a safer play lets the intermediate player block that finish, the bot keeps its attack card. If the
 finish cannot be prevented by any available response, it prioritizes shedding penalty. Defense during
 an active draw attack prioritizes legal counterattacks and shields without vetoing them for a later
 finishing threat. Unknown newly drawn cards remain uncertain; the bot never inspects the draw pile.
+
+When an ace would declare the already active suit, an equally safe ordinary play takes priority over
+spending that ace, regardless of suit. An ace remains available when it is the only legal play or
+prevents an opponent finish that the alternatives allow.
 
 Without an active draw attack, a Bot preserves its ace of spades and draws when it has no other legal card.
 After drawing, it plays a legal non-ace option when available. If the ace of spades is its only legal option,
@@ -574,22 +598,40 @@ finished-to-waiting transition. The discard pile has no drag destination back to
 Run `npm test` before completing a change. Use `npm run test:coverage` when reviewing branch coverage. Focused tests
 belong at the lowest stable layer:
 
-- `card.test.js`: constants, scoring, and card rules;
-- `card-collections.test.js` and `collections.test.js`: deck, hand, sorting, serialization, and TurnOrder behavior;
-- `infrastructure.test.js`: serialization, state mapping, and throttling;
-- `room.test.js`: membership, lifecycle, activity, idle monitoring, game flow, and bot choices;
-- `user-notification.test.js`: expected versus developmental error handling;
-- `local-game.test.js` and `connection.test.js`: page structure, routing, transport, and deployment-facing
-  contracts.
+- `test/core/`: card rules, collections, serialization, validation, Room and Knockout domain behavior;
+- `test/bots/`: card and suit decisions plus BotPlayer execution against controlled scenarios;
+- `test/host/`: command dispatch, memberships, notifications, throttling, and Knockout lifecycle integration;
+- `test/ui/`: sessions, controllers, custom elements, static page contracts, accessibility hooks, styles, and metadata;
+- `test/architecture.test.js`: import boundaries, documentation, and application source conventions;
+- `test/helpers/`: shared room, host, immediate-bot, and static HTML fixtures; excluded from test discovery.
+
+See [the test guide](../test/README.md) for focused commands, fixture ownership, and audit notes.
 
 Any change to activity policy MUST test Player and Room timestamps, monitored human selection by lifecycle state, bot
 exclusion, demotion notification, and empty-room closure. Any change to common markup or CSS MUST be checked against the
 root `index.html` Home and `room.html`, including the mobile and 721px presentations.
 
+Naming follows these conventions:
+
+- Classes use `PascalCase`; methods, ordinary fields, parameters, and local variables use `camelCase`.
+- Constants and enum members use `UPPER_SNAKE_CASE`, including class-owned limits, timing values, and tactical scores.
+- Private members use `#camelCase`; overridable internal hooks use `_camelCase`.
+- Duration names include units such as `_MS` or `_SECONDS`.
+- Static does not imply constant: mutable caches and template metadata retain `camelCase`.
+- Dictionary keys representing external commands or named data groups retain their protocol/data spelling.
+
 Every application class, class field, method, getter, setter, and named function MUST have adjacent JSDoc. Public and
 extension APIs document their behavioral contract, parameters, return value, and important failures where applicable.
 Private declarations may use a concise purpose statement; private fields include a useful `@type`. Test callbacks and
 ordinary local variables are not APIs and do not require JSDoc. The architecture test enforces declaration coverage.
+
+Class members are arranged with fields first, preserving field-initializer order, followed by construction and public
+lifecycle/API methods. Larger classes group related implementation methods by responsibility; extension hooks and
+private helpers stay together. Accessor pairs remain adjacent. Methods belong to the class that owns their data or
+behavior: player display ordering is `PlayerUtils.localFirst`, Home preview rendering belongs to `HomeController`,
+and request throttling is defined in `host/RequestThrottle.js`. Results and Room controllers consume the shared
+player-ordering utility rather than calling another controller's helper. `Room`, `Match`, and `Knockout` retain their
+documented domain boundaries, and browser sessions retain their transport and navigation responsibilities.
 
 ## 14. Extension rules
 

@@ -100,7 +100,7 @@ export class CountdownController extends ViewController {
         let value = Number(seconds);
 
         if (!Number.isFinite(value) || value < 1) {
-            value = Constants.COUNTDOWN_SECONDS;
+            value = Constants.TRANSITION_DELAY_SECONDS;
         }
 
         return ValidationUtils.nonNegativeNumber(value, "Countdown seconds");

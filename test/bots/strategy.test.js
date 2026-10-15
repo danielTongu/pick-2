@@ -2,18 +2,14 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Player } from "../core/Player.js";
-import { BotStrategy } from "../core/BotStrategy.js";
-import { BotPlayer } from "../core/BotPlayer.js";
-import { Card } from "../core/Card.js";
-import { CardCollection } from "../core/CardCollection.js";
-import { Constants } from "../core/Constants.js";
-import { Room } from "../core/Room.js";
 
-/** Runs the production bot decision without its presentation delay. */
-class ImmediateBot extends BotPlayer {
-    async _waitForTurnDelay() {}
-}
+import { Player } from "../../core/Player.js";
+import { BotStrategy } from "../../core/BotStrategy.js";
+import { ImmediateBot } from "../helpers/bot.js";
+import { Card } from "../../core/Card.js";
+import { CardCollection } from "../../core/CardCollection.js";
+import { Constants } from "../../core/Constants.js";
+import { Room } from "../../core/Room.js";
 
 /** Creates deterministic hands, turn neighbors, and match collections. */
 function scenario(t, { hand, play = ["5-hearts"], previous = ["3-clubs", "4-clubs", "6-clubs", "9-clubs"],
@@ -126,7 +122,6 @@ test("bot leaves its hand and play collection untouched after losing turn owners
     assert.deepEqual(room.match.collections.play.items.map(String), ["5-hearts"]);
     assert.equal(room.match.turnOrder.ownerKey, after.key);
 });
-
 
 for (const example of [
     { name: "releases the ace of spades after a nonmatching draw when the next opponent has two cards",
@@ -434,4 +429,90 @@ test("bot hand setup connects higher penalty when legal choices have equal disca
     });
     await bot.takeTurn(room);
     assert.equal(room.match.getTopItem().id, "5-hearts");
+});
+
+for (const suit of Constants.CARD.STANDARD_SUITS) {
+    const ace = `a-${suit}`;
+    const otherSuit = suit === "hearts" ? "diamonds" : "hearts";
+    for (const example of [
+        { name: "keeps an ace when an ordinary card is equally safe", hand: [ace, `3-${suit}`, `4-${suit}`, `6-${suit}`], selected: `6-${suit}` },
+        { name: "plays its ace when no ordinary card is legal", hand: [ace, `3-${otherSuit}`, `4-${otherSuit}`], selected: ace },
+        { name: "keeps an ace when following a declared suit", hand: [ace, `3-${suit}`, `4-${suit}`, `6-${suit}`], play: [`a-${otherSuit}`], declaredSuit: suit, selected: `6-${suit}` }
+    ]) {
+        test(`bot ace conservation (${suit}): ${example.name}`, t => {
+            const { room, bot } = scenario(t, {
+                play: [`5-${suit}`], allowance: suit === "spades" ? 0 : 1,
+                previous: ["9-diamonds", "10-diamonds"], next: ["9-spades", "10-spades"], ...example
+            });
+            const selected = new BotStrategy(bot, room.match).selectCard();
+            if (example.selected === ace) assert.equal(selected.id, ace);
+            else {
+                assert.notEqual(selected.id, ace);
+                assert.equal(selected.suit, suit);
+            }
+        });
+    }
+}
+
+for (const direction of [1, -1]) {
+    test(`bot completes a winning skip chain in direction ${direction}`, async t => {
+        const { room, bot, before } = scenario(t, {
+            hand: ["8-hearts", "j-hearts", "j-clubs", "6-clubs"],
+            next: ["3-diamonds", "4-diamonds"], direction
+        });
+        room.match.turnOrder.remove(before.key);
+        assert.equal(new BotStrategy(bot, room.match).selectCard().id, "8-hearts");
+        for (const id of ["8-hearts", "j-hearts", "j-clubs", "6-clubs"]) {
+            await bot.takeTurn(room);
+            assert.equal(room.match.getTopItem().id, id);
+        }
+        assert.equal(room.match.state, Constants.ROOM_STATE.FINISHED);
+        assert.equal(bot.state, Constants.PLAYER_STATE.WON);
+    });
+}
+
+test("bot blocks an opponent's multi-skip finish instead of shedding the higher card", t => {
+    const { room, bot, before } = scenario(t, {
+        hand: ["q-clubs", "5-hearts", "6-spades"], play: ["5-clubs"],
+        next: ["8-clubs", "8-hearts", "q-hearts"]
+    });
+    room.match.turnOrder.remove(before.key);
+    assert.equal(new BotStrategy(bot, room.match).selectCard().id, "5-hearts");
+});
+
+test("bot does not assume a skip chain is uninterrupted with three players", t => {
+    const { room, bot } = scenario(t, {
+        hand: ["8-hearts", "j-hearts", "j-clubs", "6-clubs"],
+        previous: ["8-clubs"], next: ["3-diamonds", "4-diamonds"]
+    });
+    assert.equal(new BotStrategy(bot, room.match).selectCard().id, "j-hearts");
+});
+
+test("unavoidable finishes prioritize shedding penalty over a same-suit ace", t => {
+    const { room, bot } = scenario(t, {
+        hand: ["a-clubs", "3-clubs", "4-clubs"], play: ["5-clubs"],
+        next: ["a-spades"], previous: ["9-diamonds", "10-diamonds"]
+    });
+    assert.equal(new BotStrategy(bot, room.match).selectCard().id, "a-clubs");
+});
+
+test("strategy fields retain a decision snapshot when the live bot and match change", t => {
+    const { room, bot, after } = scenario(t, { hand: ["q-hearts", "9-clubs"] });
+    const strategy = new BotStrategy(bot, room.match);
+    const penalty = strategy.penalty;
+    bot.collection.clear();
+    bot.drawAllowance = 4;
+    room.match.collections.play.clear();
+    room.match.declaredSuit = "spades";
+    room.match.turnOrder.remove(after.key);
+
+    assert.equal(strategy.key, bot.key);
+    assert.equal(strategy.penalty, penalty);
+    assert.equal(strategy.drawAllowance, 1);
+    assert.equal(strategy.playerCount, 3);
+    assert.equal(strategy.top.id, "5-hearts");
+    assert.deepEqual(strategy.play.map(card => card.id), ["5-hearts"]);
+    assert.equal(strategy.declaredSuit, null);
+    assert.equal(strategy.nextPlayer.key, after.key);
+    assert.equal(strategy.selectCard().id, "q-hearts");
 });

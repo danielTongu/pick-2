@@ -3,8 +3,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Constants } from "../core/Constants.js";
-import { SuitSelectionController } from "../ui/controllers/SuitSelectionController.js";
+import { Constants } from "../../core/Constants.js";
+import { SuitSelectionController } from "../../ui/controllers/SuitSelectionController.js";
 
 test("suit selection timeout dismisses temporarily for the shared countdown duration", () => {
     const originalDocument = globalThis.document;
@@ -77,7 +77,7 @@ test("suit selection timeout dismisses temporarily for the shared countdown dura
 
         timeoutButton.click();
         assert.equal(root.hidden, true);
-        assert.equal(timeoutDelay, Constants.COUNTDOWN_SECONDS * 1000);
+        assert.equal(timeoutDelay, Constants.TRANSITION_DELAY_SECONDS * 1000);
 
         controller.show();
         assert.equal(root.hidden, true);

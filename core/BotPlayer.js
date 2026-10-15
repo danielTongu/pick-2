@@ -1,11 +1,16 @@
 "use strict";
 
-import { Constants } from "./Constants.js";
 import { BotStrategy } from "./BotStrategy.js";
 import { Player } from "./Player.js";
 
 /** Automated player that chooses legal moves from private hand data and public room state. */
 export class BotPlayer extends Player {
+
+    /** @type {number} Minimum delay before an automated action. */
+    DELAY_MIN_MS = 1000;
+
+    /** @type {number} Maximum delay before an automated action. */
+    DELAY_MAX_MS = 3000;
 
     /**
      * Creates a bot player.
@@ -26,10 +31,22 @@ export class BotPlayer extends Player {
         if (room.match.turnOrder.ownerKey === this.key) await this.#performTurnCommand(room);
     }
 
+    /**
+     * Chooses and submits a suit using the same public-information strategy.
+     * @param {import("./Room.js").Room} room - Current room.
+     * @returns {Promise<void>} Completion of the declaration.
+     */
+    async chooseSuit(room) {
+        await this._waitForTurnDelay();
+        if (room.match.turnOrder.ownerKey === this.key) {
+            await room.declareSuit(new BotStrategy(this, room.match).selectSuit(), this.name);
+        }
+    }
+
     /** Waits for a randomized human-like delay. */
     async _waitForTurnDelay() {
-        const range = Constants.AUTOMATED_PLAYER_DELAY_MAX_MS - Constants.AUTOMATED_PLAYER_DELAY_MIN_MS + 1;
-        const delay = Constants.AUTOMATED_PLAYER_DELAY_MIN_MS + Math.floor(Math.random() * range);
+        const range = this.DELAY_MAX_MS - this.DELAY_MIN_MS + 1;
+        const delay = this.DELAY_MIN_MS + Math.floor(Math.random() * range);
         await new Promise(function wait(resolve) {
             setTimeout(resolve, delay);
         });
@@ -50,18 +67,6 @@ export class BotPlayer extends Player {
             await room.passTurn(this.name);
         } else {
             await room.drawItems(this.name);
-        }
-    }
-
-    /**
-     * Chooses and submits a suit using the same public-information strategy.
-     * @param {import("./Room.js").Room} room - Current room.
-     * @returns {Promise<void>} Completion of the declaration.
-     */
-    async chooseSuit(room) {
-        await this._waitForTurnDelay();
-        if (room.match.turnOrder.ownerKey === this.key) {
-            await room.declareSuit(new BotStrategy(this, room.match).selectSuit());
         }
     }
 }

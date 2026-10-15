@@ -65,6 +65,8 @@ export class LocalPlayerController extends ViewController {
      */
     #passButton;
 
+    // ---- Public API ----
+
     /**
      * Creates a player-area controller.
      *
@@ -160,6 +162,8 @@ export class LocalPlayerController extends ViewController {
         this.#clear();
     }
 
+    // ---- Implementation ----
+
     /**
      * Clears local-player UI state.
      */
@@ -251,5 +255,4 @@ export class LocalPlayerController extends ViewController {
 
         CardListUtils.update(this.#handElement, orderedCards.reverse(), destination);
     }
-
 }

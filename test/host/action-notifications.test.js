@@ -2,72 +2,14 @@
 
 import assert from "node:assert/strict";
 import test from "node:test";
-import { Card } from "../core/Card.js";
-import { CardCollection } from "../core/CardCollection.js";
-import { Constants } from "../core/Constants.js";
-import { Player } from "../core/Player.js";
-import { Room } from "../core/Room.js";
-import { UserNotification } from "../core/UserNotification.js";
-import { ValidationUtils } from "../core/ValidationUtils.js";
 
-test("notification constants use uniform names and payloads", () => {
-    for (const group of [Constants.AUTO_NOTIFICATIONS, Constants.ACTION_NOTIFICATIONS]) {
-        for (const [name, notification] of Object.entries(group)) {
-            assert.match(name, /^[A-Z][A-Z_]*$/);
-            assert.deepEqual(Object.keys(notification), ["status", "title", "message"]);
-            assert.ok(Object.isFrozen(notification));
-        }
-    }
-});
-
-test("named strings accept readable names and reject unsupported characters", () => {
-    assert.equal(ValidationUtils.namedString("  Saoirse O'Connor  ", "Player name", 24), "Saoirse O'Connor");
-    assert.equal(ValidationUtils.namedString("Été-2026", "Room name", 48), "Été-2026");
-
-    for (const value of ["", "a", "!!!", "Room__", "two  spaces", "Room/7", "Room."]) {
-        assert.throws(() => ValidationUtils.namedString(value, "Room name", 48), UserNotification);
-    }
-});
-
-test("actionable player and game-rule failures use UserNotification", async () => {
-    assert.throws(() => new Player("", { drawAllowance: 1 }), UserNotification);
-
-    const room = new Room("Expected errors");
-    await room.joinPlayer("Alice");
-    await room.joinPlayer("Bob");
-    await room.startMatch();
-
-    const turnOwner = room.match.turnOrder.owner;
-    const otherPlayer = [...room.match.turnOrder.players.values()].find((player) => player.key !== turnOwner.key);
-
-    await assert.rejects(room.passTurn(otherPlayer.name), UserNotification);
-
-    for (const player of room.match.turnOrder.players.values()) {
-        player.stopIdleMonitoring();
-    }
-});
-
-test("internal contract failures remain ordinary errors", () => {
-    assert.throws(
-        () => CardCollection.createDeck("yes"),
-        (error) => error instanceof Error && !(error instanceof UserNotification)
-    );
-
-    assert.throws(
-        () => new Card("invalid", Constants.CARD.SUIT.CLUBS),
-        (error) => error instanceof Error && !(error instanceof UserNotification)
-    );
-
-    assert.throws(
-        () => new Card(Constants.CARD.VALUE.ACE.id, Constants.CARD.SUIT.SPADES, Number.NaN),
-        (error) => error instanceof Error && !(error instanceof UserNotification)
-    );
-});
+import { Host } from "../../host/Host.js";
+import { NotificationUtils } from "../../ui/utilities/NotificationUtils.js";
+import { createConnection } from "../helpers/host.js";
+import { Constants } from "../../core/Constants.js";
 
 for (const mode of ["direct", "hosted"]) {
     test(`${mode} returns action notifications to the initiating player`, async (t) => {
-        const { Host } = await import("../host/Host.js");
-        const { NotificationUtils } = await import("../ui/utilities/NotificationUtils.js");
         const host = new Host(mode, 0, false);
         t.after(() => host.shutdown());
         const responses = [];
@@ -90,11 +32,13 @@ for (const mode of ["direct", "hosted"]) {
         const left = await request("leave");
         assert.equal(left.status, "success");
         assert.equal(left.title, "Left room");
-        const joined = await request("join", { roomName: Constants.DEFAULT_ROOMS[0].roomName, playerName: "Alice" });
+        const guest = createConnection(host, "guest");
+        await guest.request("create", { roomName: "Joined Room", playerName: "Bob", playerLimit: 2 });
+        const joined = await request("join", { roomName: "Joined Room", playerName: "Alice" });
         assert.deepEqual(joined, { status: "success", title: "Player Joined", message: "Welcome, Alice !!" });
         const viewerResponses = [];
         const viewer = host.accept((response) => viewerResponses.push(response), () => {});
-        await viewer.receive({ command: "view", data: { tabId: "viewer", roomName: Constants.DEFAULT_ROOMS[0].roomName } });
+        await viewer.receive({ command: "view", data: { tabId: "viewer", roomName: "Joined Room" } });
         assert.deepEqual(viewerResponses.findLast((response) => response.message)?.message, {
             status: "success", title: "Viewer Entered", message: "Welcome viewer. See FAQ to learn more."
         });
@@ -110,7 +54,6 @@ for (const mode of ["direct", "hosted"]) {
 }
 
 test("card additions use a count title and reserve emoji for draw effects", async (t) => {
-    const { Host } = await import("../host/Host.js");
     const host = new Host("hosted", 0, false);
     t.after(() => host.shutdown());
     for (const [command, state, count, effect] of [
@@ -133,7 +76,6 @@ test("card additions use a count title and reserve emoji for draw effects", asyn
 });
 
 test("playing a card identifies its value and suit, including plays that draw cards", async (t) => {
-    const { Host } = await import("../host/Host.js");
     const host = new Host("hosted", 0, false);
     t.after(() => host.shutdown());
     for (const drawn of [[], [{}]]) {

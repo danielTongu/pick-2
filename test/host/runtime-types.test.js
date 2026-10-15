@@ -3,13 +3,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { HostRequestContext } from "../host/HostRequestContext.js";
-import { HostRequest } from "../host/HostRequest.js";
-import { Session } from "../ui/Session.js";
-import { HostConnection } from "../host/HostConnection.js";
-import { RoomMembership } from "../host/RoomMembership.js";
-import { ConnectionRegistry } from "../host/ConnectionRegistry.js";
-import { RoomLifecycle } from "../host/RoomLifecycle.js";
+import { HostRequestContext } from "../../host/HostRequestContext.js";
+import { HostRequest } from "../../host/HostRequest.js";
+import { HostConnection } from "../../host/HostConnection.js";
+import { RoomMembership } from "../../host/RoomMembership.js";
+import { ConnectionRegistry } from "../../host/ConnectionRegistry.js";
+import { RoomLifecycle } from "../../host/RoomLifecycle.js";
 
 test("HostRequest validates one canonical command shape", () => {
     const request = HostRequest.parse({ command: "join", data: { tabId: "tab-1" } });
@@ -120,65 +119,3 @@ test("RoomLifecycle replaces, cancels, and clears pending room work", () => {
     assert.equal(lifecycle.hasPending("room-two"), false);
 });
 
-test("Session validates its hosted URL", () => {
-    const view = new Session(new URL("https://example.test/room.html"));
-    assert.throws(() => view.connect("", null), /WebSocket URL/);
-});
-
-test("local and hosted Session connections close explicitly", async (t) => {
-    const originalWebSocket = globalThis.WebSocket;
-    const directRequests = [];
-    const statuses = [];
-    let closes = 0;
-
-    class FakeWebSocket {
-        static OPEN = 1;
-
-        constructor() {
-            this.readyState = 0;
-            this.closeCalls = [];
-        }
-
-        addEventListener() {}
-
-        close(code, reason) {
-            this.closeCalls.push({ code, reason });
-        }
-    }
-
-    globalThis.WebSocket = FakeWebSocket;
-    t.after(() => {
-        if (originalWebSocket === undefined) delete globalThis.WebSocket;
-        else globalThis.WebSocket = originalWebSocket;
-    });
-
-    const direct = new Session(new URL("https://example.test/room.html"));
-    direct.connect({
-        accept() {
-            return {
-                receive(request) {
-                    directRequests.push(request);
-                },
-                close() {}
-            };
-        }
-    }, { handleConnectionStatus(status, label) { statuses.push({ status, label }); } });
-
-    direct.request("list", {});
-    direct.disconnect();
-    await Promise.resolve();
-
-    const hosted = new Session(new URL("https://example.test/room.html"));
-    hosted.connect("ws://example.test", {
-        handleClientClose() { closes += 1; },
-        handleConnectionStatus(status, label) { statuses.push({ status, label }); }
-    });
-    hosted.disconnect();
-
-    assert.deepEqual(directRequests, []);
-    assert.equal(closes, 1);
-    assert.deepEqual(statuses.filter((entry) => entry.status === "disconnected"), [
-        { status: "disconnected", label: "Closed" },
-        { status: "disconnected", label: "Closed" }
-    ]);
-});

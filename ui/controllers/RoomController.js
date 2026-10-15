@@ -16,6 +16,9 @@ import { CardListUtils } from "../utilities/CardListUtils.js";
 
 /** Controls the complete Pick2 Room. */
 export class RoomController extends ViewController {
+    /** Play choice dialog's data-state values. */
+    PLAY_DIALOG_STATE = Object.freeze({ OPEN: "open", CLOSED: "closed" });
+
     /**
      * @type {Object|null} Latest authoritative Room transport snapshot.
      */
@@ -46,29 +49,60 @@ export class RoomController extends ViewController {
      */
     #alertController = new AlertController("#alert-dialog");
 
-    /** Initializes required state and event bindings. */
-    async _initializeRoomSession() {
-        await RoomRowUtils.load();
-        DomUtils.require("#room-leave-button", HTMLButtonElement).addEventListener("click", this.#leave.bind(this));
-        DomUtils.require("#app-home-link", HTMLAnchorElement).addEventListener("click", this.#leave.bind(this));
-        DomUtils.require("#room-join-button", HTMLButtonElement).addEventListener("click", this.#join.bind(this));
-        DomUtils.require("#room-invite-button", HTMLButtonElement).addEventListener("click", this.#handleInvite.bind(this));
-    }
+    /**
+     * @type {string} Previously rendered Room lifecycle state for transition detection.
+     */
+    #previousState = "";
 
     /**
-     * Renders the current authoritative state.
-     * @param {Object|null} room - Room snapshot.
+     * @type {LocalPlayerController} Local player hand and command controller.
      */
-    _renderRoom(room) {
-        if (room === null) return;
-        this.room = room;
-        this.renderRoomInformation(room);
-        this.renderMatchCommands(room.localPlayerName === null ? null : room.localPlayerName);
-    }
+    #playerController = new LocalPlayerController("#local-player-region");
+
+    /**
+     * @type {SuitSelectionController} Pending ace suit-declaration dialog.
+     */
+    #suitController = new SuitSelectionController("#suit-selection-dialog");
+
+    /**
+     * @type {CountdownController} Match-transition countdown overlay.
+     */
+    #countdownController = new CountdownController("#countdown-dialog");
+
+    /**
+     * @type {ResultsController} Finished-match results dialog.
+     */
+    #resultsController = new ResultsController("#results-dialog");
+
+    /** @type {HTMLElement} Play mode choice overlay. */
+    #playDialog = null;
+
+    // ---- Construction and session API ----
 
     /** Resolves Room shell elements and initializes shared subcontrollers. */
     constructor() {
         super("#room-view");
+    }
+
+    /** Initializes required state and event bindings. */
+    async initialize() {
+        await this._initializeRoomSession();
+        await PlayerUtils.load();
+        this.#playerController.initialize();
+        this.#playerController.setCommandHandler(this.#handlePlayerCommand.bind(this));
+        this.#playerController.setSortHandler(this.#handleSortChange.bind(this));
+        this.#suitController.setSubmitHandler(this.#handleSuitSelection.bind(this));
+        this.#playDialog = DomUtils.require("#play-dialog", HTMLElement);
+        DomUtils.require("#play-one-button", HTMLButtonElement).addEventListener("click",
+            this.#chooseKnockout.bind(this, false));
+        DomUtils.require("#play-knockout-button", HTMLButtonElement).addEventListener("click",
+            this.#chooseKnockout.bind(this, true));
+        DomUtils.require("#play-cancel-button", HTMLButtonElement).addEventListener("click",
+            this.#closePlayDialog.bind(this));
+        DomUtils.require("#table-play-area > [data-is-drag-over]", HTMLElement).addEventListener(
+            "card_drop",
+            this.#handleCardDrop.bind(this)
+        );
     }
 
     /**
@@ -95,26 +129,7 @@ export class RoomController extends ViewController {
         this.#readyHandler = handler;
     }
 
-    /**
-     * Prevents duplicate exits and submits the authenticated leave command.
-     * @param {Event} event - Leave-button or link event.
-     */
-    #leave(event) {
-        event.preventDefault();
-        this.#isLeaving = true;
-        const requestAccepted = this.view?.request(Constants.COMMANDS.LEAVE, {}) === true;
-
-        if (requestAccepted) {
-            this.#homeHandler?.(null);
-        } else {
-            this.#isLeaving = false;
-        }
-    }
-
-    /** Copies or shares the current Room URL when Hosted invite capability is available. */
-    #handleInvite() {
-        void this.#copyInvite();
-    }
+    // ---- Transport callbacks ----
 
     /** Requests room admission when the client connection becomes available. */
     handleClientOpen() {
@@ -161,6 +176,69 @@ export class RoomController extends ViewController {
         DomUtils.require("#app-header > aside", HTMLElement).setAttribute("aria-label", `Connection: ${label}`);
     }
 
+    // ---- Public rendering ----
+
+    /**
+     * Renders the current authoritative state.
+     * @param {Object|null} room - Room snapshot.
+     */
+    render(room) {
+        if (room === null) {
+            return;
+        }
+
+        const previousState = this.#previousState;
+        const nextState = ValidationUtils.optionalString(room.match.state, "");
+        const localPlayer = RoomController.#getLocalPlayer(room);
+
+        if (nextState === Constants.ROOM_STATE.ACTIVE && this.#playDialog !== null) {
+            this.#closePlayDialog();
+        }
+
+        this.room = room;
+        this.#previousState = nextState;
+
+        this._renderRoom(room);
+
+        const playerCommands = DomUtils.require("#player-commands", HTMLElement);
+        DomUtils.require("#site-shell", HTMLElement).dataset.connectionMode = room.connectionMode;
+        playerCommands.dataset.matchState = room.match.state;
+
+        this.#renderPlayers(room);
+        this.#renderDiscardPile(room);
+        this.#renderLocalPlayer(localPlayer, room);
+
+        if (
+            localPlayer !== null &&
+            previousState !== Constants.ROOM_STATE.ACTIVE &&
+            nextState === Constants.ROOM_STATE.ACTIVE
+        ) {
+            this.#countdownController.show(Constants.TRANSITION_DELAY_SECONDS, room.match.isKnockout
+                ? "Knockout match starting" : "Game starting");
+        }
+
+        const requiresSuitSelection =
+            room.match.pending?.command === Constants.COMMANDS.DECLARE &&
+            localPlayer !== null &&
+            room.match.turnOrder?.ownerKey === localPlayer.key;
+
+        if (requiresSuitSelection) {
+            this.#suitController.show();
+        } else {
+            this.#suitController.hide();
+        }
+
+        if (
+            localPlayer !== null &&
+            previousState !== Constants.ROOM_STATE.FINISHED &&
+            nextState === Constants.ROOM_STATE.FINISHED
+        ) {
+            this.#resultsController.show(room);
+        } else if (nextState !== Constants.ROOM_STATE.FINISHED) {
+            this.#resultsController.hide();
+        }
+    }
+
     /**
      * Renders room information.
      * @param {Object} room - Room snapshot.
@@ -183,6 +261,47 @@ export class RoomController extends ViewController {
         this.root.dataset.membership = localPlayer === null ? "viewer" : "player";
     }
 
+    // ---- Room shell hooks ----
+
+    /** Initializes required state and event bindings. */
+    async _initializeRoomSession() {
+        await RoomRowUtils.load();
+        DomUtils.require("#room-leave-button", HTMLButtonElement).addEventListener("click", this.#leave.bind(this));
+        DomUtils.require("#app-home-link", HTMLAnchorElement).addEventListener("click", this.#leave.bind(this));
+        DomUtils.require("#room-join-button", HTMLButtonElement).addEventListener("click", this.#join.bind(this));
+        DomUtils.require("#room-invite-button", HTMLButtonElement).addEventListener("click", this.#handleInvite.bind(this));
+    }
+
+    /**
+     * Renders the current authoritative state.
+     * @param {Object|null} room - Room snapshot.
+     */
+    _renderRoom(room) {
+        if (room === null) return;
+        this.room = room;
+        this.renderRoomInformation(room);
+        this.renderMatchCommands(room.localPlayerName === null ? null : room.localPlayerName);
+    }
+
+    // ---- Membership and sharing ----
+
+    /**
+     * Prevents duplicate exits and submits the authenticated leave command.
+     * @param {Event} event - Leave-button or link event.
+     */
+    #leave(event) {
+        event.preventDefault();
+        if (this.#isLeaving) return;
+        this.#isLeaving = true;
+        const requestAccepted = this.view?.request(Constants.COMMANDS.LEAVE, {}) === true;
+
+        if (requestAccepted) {
+            this.#homeHandler?.(null);
+        } else {
+            this.#isLeaving = false;
+        }
+    }
+
     /** Reads the join form and submits a join command for the current Room. */
     #join() {
         if (this.room === null || this.room.localPlayerName !== null || this.capabilities.join !== true) return;
@@ -194,6 +313,11 @@ export class RoomController extends ViewController {
                 playerName
             });
         }
+    }
+
+    /** Copies or shares the current Room URL when Hosted invite capability is available. */
+    #handleInvite() {
+        void this.#copyInvite();
     }
 
     /** Uses native sharing when available, otherwise copies the Room URL. */
@@ -218,54 +342,7 @@ export class RoomController extends ViewController {
         }
     }
 
-    /**
-     * @type {string} Previously rendered Room lifecycle state for transition detection.
-     */
-    #previousState = "";
-
-    /**
-     * @type {LocalPlayerController} Local player hand and command controller.
-     */
-    #playerController = new LocalPlayerController("#local-player-region");
-
-    /**
-     * @type {SuitSelectionController} Pending ace suit-declaration dialog.
-     */
-    #suitController = new SuitSelectionController("#suit-selection-dialog");
-
-    /**
-     * @type {CountdownController} Match-transition countdown overlay.
-     */
-    #countdownController = new CountdownController("#countdown-dialog");
-
-    /**
-     * @type {ResultsController} Finished-match results dialog.
-     */
-    #resultsController = new ResultsController("#results-dialog");
-
-    /** @type {HTMLElement} Play mode choice overlay. */
-    #playDialog = null;
-
-    /** Initializes required state and event bindings. */
-    async initialize() {
-        await this._initializeRoomSession();
-        await PlayerUtils.load();
-        this.#playerController.initialize();
-        this.#playerController.setCommandHandler(this.#handlePlayerCommand.bind(this));
-        this.#playerController.setSortHandler(this.#handleSortChange.bind(this));
-        this.#suitController.setSubmitHandler(this.#handleSuitSelection.bind(this));
-        this.#playDialog = DomUtils.require("#play-dialog", HTMLElement);
-        DomUtils.require("#play-one-button", HTMLButtonElement).addEventListener("click",
-            this.#chooseKnockout.bind(this, false));
-        DomUtils.require("#play-knockout-button", HTMLButtonElement).addEventListener("click",
-            this.#chooseKnockout.bind(this, true));
-        DomUtils.require("#play-cancel-button", HTMLButtonElement).addEventListener("click",
-            this.#closePlayDialog.bind(this));
-        DomUtils.require("#table-play-area > [data-is-drag-over]", HTMLElement).addEventListener(
-            "card_drop",
-            this.#handleCardDrop.bind(this)
-        );
-    }
+    // ---- Player commands and mode choice ----
 
     /**
      * Submits a local player command and clears temporary sort after drawing.
@@ -277,7 +354,7 @@ export class RoomController extends ViewController {
             if (this.room?.match?.nextMatchAvailable === true) {
                 this.view?.request(Constants.COMMANDS.START, {});
             } else {
-                this.#playDialog.dataset.state = Constants.PLAY_DIALOG_STATE.OPEN;
+                this.#playDialog.dataset.state = this.PLAY_DIALOG_STATE.OPEN;
             }
         } else if (RoomController.#isCardMove(command)) {
             this.#sendCardMove(command, {});
@@ -325,7 +402,7 @@ export class RoomController extends ViewController {
 
     /** Closes the Play dialog without starting a match. */
     #closePlayDialog() {
-        this.#playDialog.dataset.state = Constants.PLAY_DIALOG_STATE.CLOSED;
+        this.#playDialog.dataset.state = this.PLAY_DIALOG_STATE.CLOSED;
     }
 
     /**
@@ -356,67 +433,6 @@ export class RoomController extends ViewController {
     }
 
     /**
-     * Renders the current authoritative state.
-     * @param {Object|null} room - Room snapshot.
-     */
-    render(room) {
-        if (room === null) {
-            return;
-        }
-
-        const previousState = this.#previousState;
-        const nextState = ValidationUtils.optionalString(room.match.state, "");
-        const localPlayer = RoomController.#getLocalPlayer(room);
-
-        if (nextState === Constants.ROOM_STATE.ACTIVE && this.#playDialog !== null) {
-            this.#closePlayDialog();
-        }
-
-        this.room = room;
-        this.#previousState = nextState;
-
-        this._renderRoom(room);
-
-        const playerCommands = DomUtils.require("#player-commands", HTMLElement);
-        DomUtils.require("#site-shell", HTMLElement).dataset.connectionMode = room.connectionMode;
-        playerCommands.dataset.matchState = room.match.state;
-
-        this.#renderPlayers(room);
-        this.#renderDiscardPile(room);
-        this.#renderLocalPlayer(localPlayer, room);
-
-        if (
-            localPlayer !== null &&
-            previousState !== Constants.ROOM_STATE.ACTIVE &&
-            nextState === Constants.ROOM_STATE.ACTIVE
-        ) {
-            this.#countdownController.show(Constants.COUNTDOWN_SECONDS, room.match.isKnockout
-                ? "Knockout match starting" : "Game starting");
-        }
-
-        const requiresSuitSelection =
-            room.match.pending?.command === Constants.COMMANDS.DECLARE &&
-            localPlayer !== null &&
-            room.match.turnOrder?.ownerKey === localPlayer.key;
-
-        if (requiresSuitSelection) {
-            this.#suitController.show();
-        } else {
-            this.#suitController.hide();
-        }
-
-        if (
-            localPlayer !== null &&
-            previousState !== Constants.ROOM_STATE.FINISHED &&
-            nextState === Constants.ROOM_STATE.FINISHED
-        ) {
-            this.#resultsController.show(room);
-        } else if (nextState !== Constants.ROOM_STATE.FINISHED) {
-            this.#resultsController.hide();
-        }
-    }
-
-    /**
      * Sends the named card movement command and restores the default sort order.
      * @param {string} command - Card movement command.
      * @param {Object} data - Command payload.
@@ -441,6 +457,8 @@ export class RoomController extends ViewController {
         );
     }
 
+    // ---- Player and card rendering ----
+
     /**
      * Renders remote players.
      * @param {Object} room - Room snapshot.
@@ -449,7 +467,7 @@ export class RoomController extends ViewController {
         const container = DomUtils.require("#players-list", HTMLUListElement);
         const localName = room.localPlayerName ?? null;
 
-        const players = ResultsController.localFirst(RoomController.#getPlayers(room), localName);
+        const players = PlayerUtils.localFirst(RoomController.#getPlayers(room), localName);
         const rows = new Map(Array.from(container.children, function indexRow(element) {
             return [element.dataset.playerKey, element];
         }));
@@ -498,6 +516,8 @@ export class RoomController extends ViewController {
 
         this.#playerController.show(player, room, this.view.sortKey);
     }
+
+    // ---- Snapshot queries ----
 
     /**
      * Returns the authoritative players array or an empty fallback.

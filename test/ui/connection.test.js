@@ -1,12 +1,12 @@
 "use strict";
 
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { runInNewContext } from "node:vm";
 import test from "node:test";
 
-import { Constants } from "../core/Constants.js";
-import { Session, SessionState } from "../ui/Session.js";
+import { readFileSync } from "node:fs";
+import { runInNewContext } from "node:vm";
+import { Constants } from "../../core/Constants.js";
+import { Session, SessionState } from "../../ui/Session.js";
 
 /** Installs the browser values used by SessionState and restores them afterward. */
 function useBrowserState(serverOrigin, callback) {
@@ -106,13 +106,13 @@ test("SessionState stores and clears a verified Hosted host", () => {
 });
 
 test("the standalone Connection page verifies Hosted servers", () => {
-    const homeHtml = readFileSync(new URL("../index.html", import.meta.url), "utf8");
-    const connectionHtml = readFileSync(new URL("../connection.html", import.meta.url), "utf8");
-    const view = readFileSync(new URL("../ui/Session.js", import.meta.url), "utf8");
-    const main = readFileSync(new URL("../main.js", import.meta.url), "utf8");
-    const styles = readFileSync(new URL("../ui/styles/connection.css", import.meta.url), "utf8");
+    const homeHtml = readFileSync(new URL("../../index.html", import.meta.url), "utf8");
+    const connectionHtml = readFileSync(new URL("../../connection.html", import.meta.url), "utf8");
+    const view = readFileSync(new URL("../../ui/Session.js", import.meta.url), "utf8");
+    const main = readFileSync(new URL("../../main.js", import.meta.url), "utf8");
+    const styles = readFileSync(new URL("../../ui/styles/connection.css", import.meta.url), "utf8");
     const controller = readFileSync(
-        new URL("../ui/controllers/ConnectionController.js", import.meta.url), "utf8"
+        new URL("../../ui/controllers/ConnectionController.js", import.meta.url), "utf8"
     );
 
     assert.doesNotMatch(homeHtml, /id="connection-view"/);
@@ -148,7 +148,7 @@ test("the standalone Connection page verifies Hosted servers", () => {
 });
 
 test("Connection page returns Home on success and stays available after failure", async () => {
-    const viewSource = readFileSync(new URL("../ui/Session.js", import.meta.url), "utf8");
+    const viewSource = readFileSync(new URL("../../ui/Session.js", import.meta.url), "utf8");
     const source = viewSource.slice(
         viewSource.indexOf("/** One bounded browser WebSocket availability probe. */"),
         viewSource.indexOf("/** Coordinates Home controllers, transport selection, and Room navigation. */")
@@ -226,7 +226,7 @@ test("Connection page returns Home on success and stays available after failure"
 });
 
 test("ConnectionController scopes status to the shared container and renders diagnostics as text", () => {
-    const source = readFileSync(new URL("../ui/controllers/ConnectionController.js", import.meta.url), "utf8")
+    const source = readFileSync(new URL("../../ui/controllers/ConnectionController.js", import.meta.url), "utf8")
         .replace(/^import .+;\n/gm, "")
         .replaceAll("export ", "");
     class Element {
@@ -263,7 +263,6 @@ test("ConnectionController scopes status to the shared container and renders dia
     assert.equal(elements.get("#connection-connect-button").textContent, "Retry Live");
     assert.equal(elements.get("#connection-endpoint").textContent, "Not configured");
 });
-
 
 test("Live stays on the current page for five retries before opening manual recovery", () => {
     useBrowserState("http://localhost:8080", () => {

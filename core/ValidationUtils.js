@@ -7,63 +7,19 @@ import { UserNotification } from "./UserNotification.js";
  */
 export class ValidationUtils {
     /** Names must contain words separated only by spaces, apostrophes, or hyphens. */
-    static namePattern = /^[\p{L}\p{N}]+(?:[ '\u2019-][\p{L}\p{N}]+)*$/u;
+    static NAME_PATTERN = /^[\p{L}\p{N}]+(?:[ '\u2019-][\p{L}\p{N}]+)*$/u;
 
     /**
      * @type {number} Maximum accepted player display-name length.
      */
-    static playerNameMaxLength = 24;
+    static PLAYER_NAME_MAX_LENGTH = 24;
 
     /**
      * @type {number} Maximum accepted room display-name length.
      */
-    static roomNameMaxLength = 48;
+    static ROOM_NAME_MAX_LENGTH = 48;
 
-    /**
-     * Validates and trims a user-facing player or room display name.
-     *
-     * @param {*} value - Raw name.
-     * @param {string} label - Error label.
-     * @param {number} maxLength - Maximum character length.
-     * @returns {string} Normalized name.
-     * @throws {UserNotification} When the display name is missing, malformed, or outside its length limit.
-     */
-    static namedString(value, label, maxLength) {
-        if (typeof value !== "string") {
-            throw new UserNotification(`${label} must be a string.`);
-        }
-
-        const name = value.trim();
-
-        if (!name) {
-            throw new UserNotification(`${label} cannot be empty.`);
-        }
-
-        if (name.length < 2 || name.length > maxLength || !this.namePattern.test(name)) {
-            throw new UserNotification(
-                `${label} must be 2-${maxLength} characters using letters, numbers, spaces, apostrophes, or hyphens.`
-            );
-        }
-
-        return name;
-    }
-
-    /**
-     * Asserts that a value is an instance of a constructor.
-     *
-     * @param {*} value - Value to validate.
-     * @param {Function} Type - Expected constructor.
-     * @param {string} label - Value label.
-     * @returns {*} The validated value.
-     * @throws {Error} When the value has the wrong type.
-     */
-    static instanceOf(value, Type, label = "Value") {
-        if (!(value instanceof Type)) {
-            throw new Error(`${label} must be an instance of ${Type.name}.`);
-        }
-
-        return value;
-    }
+    // ---- Strings and names ----
 
     /**
      * Normalizes a required non-empty string.
@@ -105,6 +61,37 @@ export class ValidationUtils {
     }
 
     /**
+     * Validates and trims a user-facing player or room display name.
+     *
+     * @param {*} value - Raw name.
+     * @param {string} label - Error label.
+     * @param {number} maxLength - Maximum character length.
+     * @returns {string} Normalized name.
+     * @throws {UserNotification} When the display name is missing, malformed, or outside its length limit.
+     */
+    static namedString(value, label, maxLength) {
+        if (typeof value !== "string") {
+            throw new UserNotification(`${label} must be a string.`);
+        }
+
+        const name = value.trim();
+
+        if (!name) {
+            throw new UserNotification(`${label} cannot be empty.`);
+        }
+
+        if (name.length < 2 || name.length > maxLength || !this.NAME_PATTERN.test(name)) {
+            throw new UserNotification(
+                `${label} must be 2-${maxLength} characters using letters, numbers, spaces, apostrophes, or hyphens.`
+            );
+        }
+
+        return name;
+    }
+
+    // ---- Numbers and flags ----
+
+    /**
      * Normalizes a finite number.
      *
      * @param {*} value - Raw value.
@@ -137,22 +124,6 @@ export class ValidationUtils {
     }
 
     /**
-     * Normalizes a non-negative integer.
-     *
-     * @param {*} value - Raw value.
-     * @param {string} label - Error label.
-     * @returns {number} Normalized non-negative integer.
-     * @throws {Error} When the value is not a non-negative integer.
-     */
-    static nonNegativeInteger(value, label = "Value") {
-        if (!Number.isInteger(value) || value < 0) {
-            throw new Error(`${label} must be a non-negative integer.`);
-        }
-
-        return value;
-    }
-
-    /**
      * Normalizes a non-negative number.
      *
      * @param {*} value - Raw value.
@@ -171,6 +142,22 @@ export class ValidationUtils {
     }
 
     /**
+     * Normalizes a non-negative integer.
+     *
+     * @param {*} value - Raw value.
+     * @param {string} label - Error label.
+     * @returns {number} Normalized non-negative integer.
+     * @throws {Error} When the value is not a non-negative integer.
+     */
+    static nonNegativeInteger(value, label = "Value") {
+        if (!Number.isInteger(value) || value < 0) {
+            throw new Error(`${label} must be a non-negative integer.`);
+        }
+
+        return value;
+    }
+
+    /**
      * Normalizes a boolean.
      *
      * @param {*} value - Raw value.
@@ -185,6 +172,8 @@ export class ValidationUtils {
 
         return value;
     }
+
+    // ---- Objects and contracts ----
 
     /**
      * Normalizes an object.
@@ -213,6 +202,23 @@ export class ValidationUtils {
     static array(value, label = "Value") {
         if (!Array.isArray(value)) {
             throw new Error(`${label} must be an array.`);
+        }
+
+        return value;
+    }
+
+    /**
+     * Asserts that a value is an instance of a constructor.
+     *
+     * @param {*} value - Value to validate.
+     * @param {Function} Type - Expected constructor.
+     * @param {string} label - Value label.
+     * @returns {*} The validated value.
+     * @throws {Error} When the value has the wrong type.
+     */
+    static instanceOf(value, Type, label = "Value") {
+        if (!(value instanceof Type)) {
+            throw new Error(`${label} must be an instance of ${Type.name}.`);
         }
 
         return value;

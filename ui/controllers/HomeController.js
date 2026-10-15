@@ -11,46 +11,6 @@ import { ViewController } from "./ViewController.js";
 import { Card } from "../../core/Card.js";
 import { PlayingCard } from "../PlayingCard.js";
 
-/**
- * Orders preview cards by Pick2 rank.
- * @param {Card} left - First card.
- * @param {Card} right - Second card.
- * @returns {number} Rank difference.
- */
-function compareCardRanks(left, right) {
-    return left.rank - right.rank;
-}
-
-/**
- * Creates one static preview card.
- * @param {Card} card - Card to display.
- * @returns {PlayingCard} Preview element.
- */
-function createFanCard(card) {
-    const element = PlayingCard.create(card);
-    element.rotation = null;
-    return element;
-}
-
-/** Renders the Pick2 Home preview fan. */
-function renderSpecialCardFan() {
-    const fan = document.querySelector("#card-fan");
-    if (!(fan instanceof HTMLElement)) return;
-
-    const { SUIT, VALUE } = Constants.CARD;
-    const cards = [
-        new Card(VALUE.TWO.id, SUIT.CLUBS, 0),
-        new Card(VALUE.EIGHT.id, SUIT.DIAMONDS, 0),
-        new Card(VALUE.JACK.id, SUIT.SPADES, 0),
-        new Card(VALUE.ACE.id, SUIT.HEARTS, 0),
-        new Card(VALUE.SEVEN.id, SUIT.HEARTS, 0),
-        new Card(VALUE.JOKER.id, SUIT.BLACK, 0),
-        new Card(VALUE.ACE.id, SUIT.SPADES, 0)
-    ].sort(compareCardRanks);
-
-    fan.replaceChildren(...cards.map(createFanCard));
-}
-
 /** Controls the shared Direct/Hosted home directory. */
 export class HomeController extends ViewController {
     /**
@@ -113,6 +73,8 @@ export class HomeController extends ViewController {
      */
     #hostedModeInput;
 
+    // ---- Construction and session API ----
+
     /** Creates the shared Home controller. */
     constructor() {
         super("#home-view");
@@ -123,6 +85,25 @@ export class HomeController extends ViewController {
         this.#connectionStatus = DomUtils.require("#app-header > aside", HTMLElement);
         this.#directModeInput = DomUtils.require("#direct-mode-input", HTMLInputElement);
         this.#hostedModeInput = DomUtils.require("#hosted-mode-input", HTMLInputElement);
+    }
+
+    /** Binds Home forms, filters, and mode controls. */
+    async initialize() {
+        this.#renderSpecialCardFan();
+        await RoomRowUtils.load();
+
+        DomUtils.require("#registration-form", HTMLFormElement).addEventListener(
+            "submit",
+            this.#handleRegistrationSubmit.bind(this)
+        );
+        DomUtils.require("#status-filter", HTMLSelectElement).addEventListener(
+            "change",
+            this.#handleStatusFilterChange.bind(this)
+        );
+
+        for (const input of [this.#directModeInput, this.#hostedModeInput]) {
+            input.addEventListener("change", this.#handleModeChange.bind(this));
+        }
     }
 
     /**
@@ -146,51 +127,6 @@ export class HomeController extends ViewController {
         this.#roomHandler = handler;
     }
 
-    /** Binds Home forms, filters, and mode controls. */
-    async initialize() {
-        renderSpecialCardFan();
-        await RoomRowUtils.load();
-
-        DomUtils.require("#registration-form", HTMLFormElement).addEventListener(
-            "submit",
-            this.#handleRegistrationSubmit.bind(this)
-        );
-        DomUtils.require("#status-filter", HTMLSelectElement).addEventListener(
-            "change",
-            this.#handleStatusFilterChange.bind(this)
-        );
-
-        for (const input of [this.#directModeInput, this.#hostedModeInput]) {
-            input.addEventListener("change", this.#handleModeChange.bind(this));
-        }
-    }
-
-    /**
-     * Validates the registration form and submits the selected create, join, or view intent.
-     * @param {SubmitEvent} event - Registration submission.
-     */
-    #handleRegistrationSubmit(event) {
-        event.preventDefault();
-        this.#submitRegistration();
-    }
-
-    /** Reapplies the selected room-status filter. */
-    #handleStatusFilterChange() {
-        this.render(this.#home);
-    }
-
-    /**
-     * Switches mode when a mode radio becomes selected.
-     * @param {Event} event - Mode-input change.
-     */
-    #handleModeChange(event) {
-        const input = event.currentTarget;
-
-        if (input instanceof HTMLInputElement && input.checked) {
-            this.#modeHandler?.(input.value);
-        }
-    }
-
     /**
      * Selects Direct or Hosted mode and refreshes endpoint capabilities.
      * @param {string} mode - Active play mode.
@@ -205,6 +141,8 @@ export class HomeController extends ViewController {
         this.#renderEmptyRoomMessage();
         this.#renderConnectionStatus();
     }
+
+    // ---- Transport callbacks ----
 
     /** Requests the Home directory when the endpoint opens. */
     handleClientOpen() {
@@ -239,6 +177,8 @@ export class HomeController extends ViewController {
         this.#connectionStatus.dataset.connectionStatus = status;
         this.#renderConnectionStatus();
     }
+
+    // ---- Directory and header rendering ----
 
     /**
      * Renders the current Room directory.
@@ -299,6 +239,17 @@ export class HomeController extends ViewController {
         this.#connectionStatus.setAttribute("aria-label", `Connection mode. ${modeLabel} ${statusLabel}.`);
     }
 
+    // ---- Registration and mode events ----
+
+    /**
+     * Validates the registration form and submits the selected create, join, or view intent.
+     * @param {SubmitEvent} event - Registration submission.
+     */
+    #handleRegistrationSubmit(event) {
+        event.preventDefault();
+        this.#submitRegistration();
+    }
+
     /** Submits create or join room intent. */
     #submitRegistration() {
         let playerName;
@@ -308,12 +259,12 @@ export class HomeController extends ViewController {
             playerName = ValidationUtils.namedString(
                 this.#playerNameInput.value,
                 "Player name",
-                ValidationUtils.playerNameMaxLength
+                ValidationUtils.PLAYER_NAME_MAX_LENGTH
             );
             roomName = ValidationUtils.namedString(
                 this.#roomNameInput.value,
                 "Room name",
-                ValidationUtils.roomNameMaxLength
+                ValidationUtils.ROOM_NAME_MAX_LENGTH
             );
         } catch (error) {
             this.handleNotification({
@@ -370,6 +321,25 @@ export class HomeController extends ViewController {
         return false;
     }
 
+    /** Reapplies the selected room-status filter. */
+    #handleStatusFilterChange() {
+        this.render(this.#home);
+    }
+
+    /**
+     * Switches mode when a mode radio becomes selected.
+     * @param {Event} event - Mode-input change.
+     */
+    #handleModeChange(event) {
+        const input = event.currentTarget;
+
+        if (input instanceof HTMLInputElement && input.checked) {
+            this.#modeHandler?.(input.value);
+        }
+    }
+
+    // ---- Room navigation ----
+
     /**
      * Opens a room from a keyboard-activated directory row.
      * @param {Object} room - Selected directory room.
@@ -389,5 +359,35 @@ export class HomeController extends ViewController {
     #openRoom(room) {
         const roomName = ValidationUtils.requiredString(room.name, "Room name");
         this.#roomHandler?.(Constants.COMMANDS.VIEW, { roomName });
+    }
+
+    // ---- Home card preview ----
+
+    /** Renders the Home preview fan using the canonical card comparator. */
+    #renderSpecialCardFan() {
+        const fan = document.querySelector("#card-fan");
+        if (!(fan instanceof HTMLElement)) return;
+        const { SUIT, VALUE } = Constants.CARD;
+        const cards = [
+            new Card(VALUE.TWO.id, SUIT.CLUBS, 0),
+            new Card(VALUE.EIGHT.id, SUIT.DIAMONDS, 0),
+            new Card(VALUE.JACK.id, SUIT.SPADES, 0),
+            new Card(VALUE.ACE.id, SUIT.HEARTS, 0),
+            new Card(VALUE.SEVEN.id, SUIT.HEARTS, 0),
+            new Card(VALUE.JOKER.id, SUIT.BLACK, 0),
+            new Card(VALUE.ACE.id, SUIT.SPADES, 0)
+        ].sort(Card.compareByRank);
+        fan.replaceChildren(...cards.map(HomeController.#createFanCard));
+    }
+
+    /**
+     * Creates one static Home preview card.
+     * @param {Card} card - Card to display.
+     * @returns {PlayingCard} Preview element.
+     */
+    static #createFanCard(card) {
+        const element = PlayingCard.create(card);
+        element.rotation = null;
+        return element;
     }
 }

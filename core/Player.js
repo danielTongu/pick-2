@@ -30,7 +30,7 @@ export class Player extends Serializable {
     constructor(name, initialState = null) {
         super();
 
-        this.name = ValidationUtils.namedString(name, "Player name", ValidationUtils.playerNameMaxLength);
+        this.name = ValidationUtils.namedString(name, "Player name", ValidationUtils.PLAYER_NAME_MAX_LENGTH);
         this.key = Player.normalizeKey(this.name);
         this.state = Constants.PLAYER_STATE.READY;
         this.collection = new CardCollection();
@@ -70,6 +70,26 @@ export class Player extends Serializable {
     }
 
     /**
+     * Cancels the current idle timer and removes its callback.
+     */
+    stopIdleMonitoring() {
+        this.#clearIdleTimeout();
+        this.onIdle = null;
+    }
+
+    /** Restores collection and match-provided state. */
+    reset() {
+        if (this.collection instanceof CardCollection) {
+            this.collection.clear();
+        }
+        if (this.#initialState !== null) {
+            Object.assign(this, this.#initialState);
+        }
+        this.state = Constants.PLAYER_STATE.READY;
+        this.recordActivity();
+    }
+
+    /**
      * Clears the idle timer.
      */
     #clearIdleTimeout() {
@@ -88,25 +108,5 @@ export class Player extends Serializable {
         if (this.onIdle !== null) {
             this.onIdle(this);
         }
-    }
-
-    /**
-     * Cancels the current idle timer and removes its callback.
-     */
-    stopIdleMonitoring() {
-        this.#clearIdleTimeout();
-        this.onIdle = null;
-    }
-
-    /** Restores collection and match-provided state. */
-    reset() {
-        if (this.collection instanceof CardCollection) {
-            this.collection.clear();
-        }
-        if (this.#initialState !== null) {
-            Object.assign(this, this.#initialState);
-        }
-        this.state = Constants.PLAYER_STATE.READY;
-        this.recordActivity();
     }
 }

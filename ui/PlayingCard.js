@@ -10,6 +10,7 @@ import { ValidationUtils } from "../core/ValidationUtils.js";
  * Controllers own destination selection, match legality, and requests to the room host.
  */
 export class PlayingCard extends HTMLElement {
+
     /**
      * @type {HTMLElement|null} Destination that enables card interaction.
      */
@@ -34,24 +35,6 @@ export class PlayingCard extends HTMLElement {
      * @type {number} Pointer travel required before a press becomes a drag.
      */
     static #dragThreshold = 6;
-
-    /**
-     * Creates and initializes a playing card.
-     * @param {Card|Object} card - Card data to display.
-     * @param {HTMLElement|null} destination - Optional interaction target.
-     * @returns {PlayingCard} Created element.
-     */
-    static create(card, destination = null) {
-        const element = document.createElement(this.elementName);
-
-        if (!(element instanceof this)) {
-            throw new Error(`${this.name} is not registered.`);
-        }
-
-        element.destination = destination;
-        element.update(card);
-        return element;
-    }
 
     /**
      * @type {HTMLElement|null} Pointer and keyboard interaction surface.
@@ -124,6 +107,8 @@ export class PlayingCard extends HTMLElement {
         didDrag: false
     };
 
+    // ---- Construction and custom-element lifecycle ----
+
     /** Initializes card internals; the factory supplies data and destination. */
     constructor() {
         super();
@@ -136,21 +121,21 @@ export class PlayingCard extends HTMLElement {
     }
 
     /**
-     * @returns {HTMLElement|null} Interaction destination.
+     * Creates and initializes a playing card.
+     * @param {Card|Object} card - Card data to display.
+     * @param {HTMLElement|null} destination - Optional interaction target.
+     * @returns {PlayingCard} Created element.
      */
-    get destination() {
-        return this.#destination;
-    }
+    static create(card, destination = null) {
+        const element = document.createElement(this.elementName);
 
-    /**
-     * @param {HTMLElement|null} value - Interaction destination.
-     */
-    set destination(value) {
-        if (value !== null && !(value instanceof HTMLElement)) {
-            throw new Error("PlayingCard destination must be an element.");
+        if (!(element instanceof this)) {
+            throw new Error(`${this.name} is not registered.`);
         }
 
-        this.#destination = value;
+        element.destination = destination;
+        element.update(card);
+        return element;
     }
 
     /**
@@ -192,6 +177,26 @@ export class PlayingCard extends HTMLElement {
         }
 
         this.#updateAccessibility();
+    }
+
+    // ---- Public card properties ----
+
+    /**
+     * @returns {HTMLElement|null} Interaction destination.
+     */
+    get destination() {
+        return this.#destination;
+    }
+
+    /**
+     * @param {HTMLElement|null} value - Interaction destination.
+     */
+    set destination(value) {
+        if (value !== null && !(value instanceof HTMLElement)) {
+            throw new Error("PlayingCard destination must be an element.");
+        }
+
+        this.#destination = value;
     }
 
     /**
@@ -278,6 +283,8 @@ export class PlayingCard extends HTMLElement {
         this.#updateAccessibility();
     }
 
+    // ---- Initialization and event binding ----
+
     /**
      * Creates presentation and, when a destination exists, interaction markup.
      */
@@ -331,6 +338,8 @@ export class PlayingCard extends HTMLElement {
 
         this.#areEventsBound = false;
     }
+
+    // ---- Keyboard and pointer input ----
 
     /**
      * Toggles an interactive card unless the click follows a completed drag.
@@ -437,6 +446,8 @@ export class PlayingCard extends HTMLElement {
             this.#resetDrag(false);
         }
     }
+
+    // ---- Drag and drop ----
 
     /**
      * Creates the visual drag clone.
@@ -608,6 +619,8 @@ export class PlayingCard extends HTMLElement {
             this.#dragResetTimeoutId = null;
         }
     }
+
+    // ---- Accessibility and validation ----
 
     /**
      * Updates the accessible card description.

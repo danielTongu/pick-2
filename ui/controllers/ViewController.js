@@ -6,7 +6,6 @@ import { DomUtils } from "../utilities/DomUtils.js";
  * Base class for controllers that own one visible page element.
  */
 export class ViewController {
-
     /**
      * @type {HTMLElement} Required UI element owned by this controller.
      */

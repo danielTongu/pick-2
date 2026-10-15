@@ -3,6 +3,7 @@
 import { Constants } from "../../core/Constants.js";
 import { ValidationUtils } from "../../core/ValidationUtils.js";
 import { DomUtils } from "../utilities/DomUtils.js";
+import { PlayerUtils } from "../utilities/PlayerUtils.js";
 import { PlayingCard } from "../PlayingCard.js";
 import { ViewController } from "./ViewController.js";
 
@@ -33,6 +34,8 @@ export class ResultsController extends ViewController {
     /** @type {HTMLElement} Configurable match context. */
     #context;
 
+    // ---- Construction and overlay lifecycle ----
+
     /**
      * Creates a results overlay controller.
      *
@@ -46,91 +49,6 @@ export class ResultsController extends ViewController {
         this.#selectedPlayerItems = DomUtils.requireChild(this.root, "#selected-player-items", HTMLElement);
         this.#context = DomUtils.requireChild(this.root, "#results-context", HTMLElement);
         this.bindDismissButton("#results-dismiss-button");
-    }
-
-    /**
-     * Rotates player snapshots to begin with the local player without mutating turn order.
-     *
-     * @param {Object[]|null} players - Players in authoritative turn order.
-     * @param {string|null} localPlayerName - Local player name, when present.
-     * @returns {Object[]} Players in local-first display order.
-     */
-    static localFirst(players, localPlayerName) {
-        if (!Array.isArray(players)) return [];
-
-        const localIndex = players.findIndex(function findLocal(player) {
-            return player?.name === localPlayerName;
-        });
-        if (localIndex <= 0) return players;
-
-        return players.slice(localIndex).concat(players.slice(0, localIndex));
-    }
-
-    /**
-     * Normalizes completed-Room data.
-     *
-     * @param {*} room - Room data.
-     * @returns {{players:Object[],playerName:string,isKnockout:boolean,isKnockoutComplete:boolean}} Normalized Room data.
-     */
-    static #normalizeRoom(room) {
-        const source = ValidationUtils.object(room, "Room");
-        const playerName = ValidationUtils.optionalString(source.localPlayerName, "");
-
-        return {
-            players: ResultsController.localFirst(source.match.turnOrder?.players, playerName),
-            playerName,
-            isKnockout: source.match.isKnockout === true,
-            isKnockoutComplete: source.match.isKnockoutComplete === true
-        };
-    }
-
-    /**
-     * Returns display names for every player whose final state is won.
-     *
-     * @param {Object[]} players - Player data objects.
-     * @returns {string[]} Winner names.
-     */
-    static #getWinnerNames(players) {
-        const names = [];
-
-        for (const player of players) {
-            if (player.state === Constants.PLAYER_STATE.WON) {
-                names.push(player.name);
-            }
-        }
-
-        return names;
-    }
-
-    /**
-     * Builds the results message.
-     *
-     * @param {string} playerName - Local player.
-     * @param {string[]} winners - Winner names.
-     * @param {Object} room - Normalized Room data.
-     * @returns {string} Room-end message.
-     */
-    static #buildResultMessage(playerName, winners, room) {
-        let message = "Room finished.";
-
-        if (room.isKnockout && !room.isKnockoutComplete) {
-            const player = room.players.find(function matchesLocal(candidate) { return candidate.name === playerName; });
-            return player?.state === Constants.PLAYER_STATE.QUALIFIED
-                ? "You qualified for the next match."
-                : "You were eliminated.";
-        }
-        if (room.isKnockout && winners.length !== 1) {
-            return "Knockout finished in a tie.";
-        }
-
-        if (winners.length > 1) {
-            message = "It is a tie.";
-        } else if (winners.length === 1) {
-            const isLocalPlayerWinner = winners[0] === playerName;
-            message = isLocalPlayerWinner ? "You won 🎉" : "You lost 😂";
-        }
-
-        return message;
     }
 
     /**
@@ -157,6 +75,8 @@ export class ResultsController extends ViewController {
         this.#selectedPlayerItems.replaceChildren();
         super.hide();
     }
+
+    // ---- Results rendering ----
 
     /**
      * Renders the overlay.
@@ -216,6 +136,33 @@ export class ResultsController extends ViewController {
 
         return row;
     }
+
+    /**
+     * Creates one table cell.
+     *
+     * @param {string} text - Cell text.
+     * @returns {HTMLTableCellElement} Table cell.
+     */
+    #createStatsCell(text) {
+        const cell = document.createElement("td");
+        cell.textContent = text;
+        return cell;
+    }
+
+    /**
+     * Renders one player's items.
+     *
+     * @param {Object[]} items - Item data objects.
+     */
+    #renderPlayerItems(items) {
+        this.#selectedPlayerItems.replaceChildren();
+
+        for (const item of items) {
+            this.#selectedPlayerItems.appendChild(PlayingCard.create(item));
+        }
+    }
+
+    // ---- Player selection ----
 
     /**
      * Selects a statistics row through its keyboard interaction.
@@ -279,28 +226,72 @@ export class ResultsController extends ViewController {
         }
     }
 
-    /**
-     * Renders one player's items.
-     *
-     * @param {Object[]} items - Item data objects.
-     */
-    #renderPlayerItems(items) {
-        this.#selectedPlayerItems.replaceChildren();
+    // ---- Result interpretation ----
 
-        for (const item of items) {
-            this.#selectedPlayerItems.appendChild(PlayingCard.create(item));
-        }
+    /**
+     * Normalizes completed-Room data.
+     *
+     * @param {*} room - Room data.
+     * @returns {{players:Object[],playerName:string,isKnockout:boolean,isKnockoutComplete:boolean}} Normalized Room data.
+     */
+    static #normalizeRoom(room) {
+        const source = ValidationUtils.object(room, "Room");
+        const playerName = ValidationUtils.optionalString(source.localPlayerName, "");
+
+        return {
+            players: PlayerUtils.localFirst(source.match.turnOrder?.players, playerName),
+            playerName,
+            isKnockout: source.match.isKnockout === true,
+            isKnockoutComplete: source.match.isKnockoutComplete === true
+        };
     }
 
     /**
-     * Creates one table cell.
+     * Returns display names for every player whose final state is won.
      *
-     * @param {string} text - Cell text.
-     * @returns {HTMLTableCellElement} Table cell.
+     * @param {Object[]} players - Player data objects.
+     * @returns {string[]} Winner names.
      */
-    #createStatsCell(text) {
-        const cell = document.createElement("td");
-        cell.textContent = text;
-        return cell;
+    static #getWinnerNames(players) {
+        const names = [];
+
+        for (const player of players) {
+            if (player.state === Constants.PLAYER_STATE.WON) {
+                names.push(player.name);
+            }
+        }
+
+        return names;
+    }
+
+    /**
+     * Builds the results message.
+     *
+     * @param {string} playerName - Local player.
+     * @param {string[]} winners - Winner names.
+     * @param {Object} room - Normalized Room data.
+     * @returns {string} Room-end message.
+     */
+    static #buildResultMessage(playerName, winners, room) {
+        let message = "Room finished.";
+
+        if (room.isKnockout && !room.isKnockoutComplete) {
+            const player = room.players.find(function matchesLocal(candidate) { return candidate.name === playerName; });
+            return player?.state === Constants.PLAYER_STATE.QUALIFIED
+                ? "You qualified for the next match."
+                : "You were eliminated.";
+        }
+        if (room.isKnockout && winners.length !== 1) {
+            return "Knockout finished in a tie.";
+        }
+
+        if (winners.length > 1) {
+            message = "It is a tie.";
+        } else if (winners.length === 1) {
+            const isLocalPlayerWinner = winners[0] === playerName;
+            message = isLocalPlayerWinner ? "You won 🎉" : "You lost 😂";
+        }
+
+        return message;
     }
 }
