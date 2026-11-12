@@ -1,8 +1,8 @@
 "use strict";
 
-import { Constants } from "../core/Constants.js";
-import { Card } from "../core/Card.js";
-import { ValidationUtils } from "../core/ValidationUtils.js";
+import { Constants } from "../shared/Constants.js";
+import { Card } from "../model/Card.js";
+import { ValidationUtils } from "../shared/ValidationUtils.js";
 
 /**
  * Card presentation with optional flipping and pointer dragging.

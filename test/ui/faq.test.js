@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { readFileSync } from "node:fs";
-import { Constants } from "../../core/Constants.js";
+import { Constants } from "../../shared/Constants.js";
 
 const INDEX_HTML = readFileSync(new URL("../../room.html", import.meta.url), "utf8");
 

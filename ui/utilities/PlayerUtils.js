@@ -1,5 +1,5 @@
 import { TemplateUtils } from "./TemplateUtils.js";
-import { Constants } from "../../core/Constants.js";
+import { Constants } from "../../shared/Constants.js";
 
 /** Creates the shared player view. */
 export class PlayerUtils extends TemplateUtils {

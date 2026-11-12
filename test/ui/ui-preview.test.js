@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
-import { Constants } from "../../core/Constants.js";
+import { Constants } from "../../shared/Constants.js";
 
 const mainSource = readFileSync(new URL("../../main.js", import.meta.url), "utf8")
     .replace(/^import .+;\n/gm, "");

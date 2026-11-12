@@ -1,7 +1,7 @@
 "use strict";
 
-import { UserNotification } from "../core/UserNotification.js";
-import { ValidationUtils } from "../core/ValidationUtils.js";
+import { UserNotification } from "../shared/UserNotification.js";
+import { ValidationUtils } from "../shared/ValidationUtils.js";
 
 /** Lightweight in-memory request throttle shared by direct and hosted Host. */
 export class RequestThrottle {

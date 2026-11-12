@@ -1,7 +1,7 @@
 "use strict";
 
-import { Constants } from "../../core/Constants.js";
-import { ValidationUtils } from "../../core/ValidationUtils.js";
+import { Constants } from "../../shared/Constants.js";
+import { ValidationUtils } from "../../shared/ValidationUtils.js";
 import { ViewController } from "./ViewController.js";
 import { AlertController } from "./AlertController.js";
 import { CountdownController } from "./CountdownController.js";
@@ -106,11 +106,11 @@ export class RoomController extends ViewController {
     }
 
     /**
-     * Sets the active endpoint view.
-     * @param {import("../Session.js").Session} view - Active Room session.
+     * Sets the owning browser session.
+     * @param {import("../Session.js").Session} session - Active Room session.
      */
-    setView(view) {
-        this.view = view;
+    setSession(session) {
+        this.session = session;
     }
 
     /**
@@ -133,7 +133,7 @@ export class RoomController extends ViewController {
 
     /** Requests room admission when the client connection becomes available. */
     handleClientOpen() {
-        this.view?.openRoom();
+        this.session?.openRoom();
     }
 
     /**
@@ -172,7 +172,7 @@ export class RoomController extends ViewController {
      */
     handleConnectionStatus(status, label) {
         DomUtils.require("#app-header > aside", HTMLElement).dataset.connectionStatus = status;
-        DomUtils.require("#site-shell", HTMLElement).dataset.connectionMode = this.view?.mode ?? "direct";
+        DomUtils.require("#site-shell", HTMLElement).dataset.connectionMode = this.session?.mode ?? "direct";
         DomUtils.require("#app-header > aside", HTMLElement).setAttribute("aria-label", `Connection: ${label}`);
     }
 
@@ -293,7 +293,7 @@ export class RoomController extends ViewController {
         event.preventDefault();
         if (this.#isLeaving) return;
         this.#isLeaving = true;
-        const requestAccepted = this.view?.request(Constants.COMMANDS.LEAVE, {}) === true;
+        const requestAccepted = this.session?.request(Constants.COMMANDS.LEAVE, {}) === true;
 
         if (requestAccepted) {
             this.#homeHandler?.(null);
@@ -308,7 +308,7 @@ export class RoomController extends ViewController {
         const playerName = window.prompt("Enter your name:");
 
         if (playerName?.trim() && this.room?.name) {
-            this.view?.request(Constants.COMMANDS.JOIN, {
+            this.session?.request(Constants.COMMANDS.JOIN, {
                 roomName: this.room.name,
                 playerName
             });
@@ -352,14 +352,14 @@ export class RoomController extends ViewController {
         if (!this.#canSubmitPlayerCommand(command)) return;
         if (command === Constants.COMMANDS.START) {
             if (this.room?.match?.nextMatchAvailable === true) {
-                this.view?.request(Constants.COMMANDS.START, {});
+                this.session?.request(Constants.COMMANDS.START, {});
             } else {
                 this.#playDialog.dataset.state = this.PLAY_DIALOG_STATE.OPEN;
             }
         } else if (RoomController.#isCardMove(command)) {
             this.#sendCardMove(command, {});
         } else {
-            this.view?.request(command, {});
+            this.session?.request(command, {});
         }
     }
 
@@ -397,7 +397,7 @@ export class RoomController extends ViewController {
     #chooseKnockout(knockout) {
         this.#closePlayDialog();
         if (!this.#canSubmitPlayerCommand(Constants.COMMANDS.START)) return;
-        this.view?.request(Constants.COMMANDS.START, { knockout });
+        this.session?.request(Constants.COMMANDS.START, { knockout });
     }
 
     /** Closes the Play dialog without starting a match. */
@@ -410,7 +410,7 @@ export class RoomController extends ViewController {
      * @param {string} sortKey - Selected hand sort order.
      */
     #handleSortChange(sortKey) {
-        this.view.sortKey = ValidationUtils.requiredString(sortKey, "Sort key");
+        this.session.sortKey = ValidationUtils.requiredString(sortKey, "Sort key");
         this.#renderLocalPlayer(RoomController.#getLocalPlayer(this.room), this.room);
     }
 
@@ -419,7 +419,7 @@ export class RoomController extends ViewController {
      * @param {string} suit - Declared suit.
      */
     #handleSuitSelection(suit) {
-        this.view?.request(Constants.COMMANDS.DECLARE, { suit });
+        this.session?.request(Constants.COMMANDS.DECLARE, { suit });
     }
 
     /**
@@ -438,8 +438,8 @@ export class RoomController extends ViewController {
      * @param {Object} data - Command payload.
      */
     #sendCardMove(command, data) {
-        if (this.view?.request(command, data)) {
-            this.view.sortKey = Constants.CARD.SORT_OPTIONS[0];
+        if (this.session?.request(command, data)) {
+            this.session.sortKey = Constants.CARD.SORT_OPTIONS[0];
             this.#renderLocalPlayer(RoomController.#getLocalPlayer(this.room), this.room);
         }
     }
@@ -514,7 +514,7 @@ export class RoomController extends ViewController {
             return;
         }
 
-        this.#playerController.show(player, room, this.view.sortKey);
+        this.#playerController.show(player, room, this.session.sortKey);
     }
 
     // ---- Snapshot queries ----

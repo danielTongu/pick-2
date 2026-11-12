@@ -1,0 +1,239 @@
+"use strict";
+
+import { Serializable } from "./Serializable.js";
+import { Constants } from "../shared/Constants.js";
+import { ValidationUtils } from "../shared/ValidationUtils.js";
+import { Card } from "./Card.js";
+
+/** Stores normalized cards for a deck, hand, or play pile. */
+export class CardCollection extends Serializable {
+    // ---- Construction and queries ----
+
+    /**
+
+     * Creates card storage and normalizes every initial card.
+     * @param {Array<Card|Object>} [cards] - Initial cards.
+     */
+    constructor(cards = []) {
+        super();
+        ValidationUtils.array(cards, "CardCollection cards");
+        this.items = [];
+        this.addMany(cards);
+    }
+
+    /**
+     * Creates the canonical 54-card Pick 2 deck in deterministic or shuffled order.
+     * @param {boolean} [isShuffled] - Whether to randomize the deck.
+     * @returns {CardCollection} New deck.
+     */
+    static createDeck(isShuffled = true) {
+        ValidationUtils.boolean(isShuffled, "Deck shuffle flag");
+        const cards = [];
+
+        for (const suit of Constants.CARD.STANDARD_SUITS) {
+            for (const value of Constants.CARD.STANDARD_VALUES) {
+                cards.push(new Card(value, suit));
+            }
+        }
+
+        cards.push(new Card(Constants.CARD.VALUE.JOKER.id, Constants.CARD.SUIT.BLACK));
+        cards.push(new Card(Constants.CARD.VALUE.JOKER.id, Constants.CARD.SUIT.RED));
+
+        const deck = new CardCollection(cards);
+        return isShuffled ? deck.shuffle() : deck;
+    }
+
+    /**
+     * @returns {number} Number of cards currently held.
+     */
+    get size() {
+        return this.items.length;
+    }
+
+    /**
+     * @returns {number} Sum of finite card ranks owed as a penalty.
+     */
+    get penalty() {
+        return this.items.reduce(function totalPenalty(total, item) {
+            return total + (Number.isFinite(item.rank) ? item.rank : 0);
+        }, 0);
+    }
+
+    /** Returns the last item without removing it. */
+    peek() {
+        return this.items[this.items.length - 1] ?? null;
+    }
+
+    /**
+     * Finds legal discards without changing hand order or applying strategy.
+     * @param {Card|null} topCard - Public top discard.
+     * @param {string|null} declaredSuit - Active declared suit.
+     * @param {number} drawAllowance - Active draw penalty or ordinary allowance.
+     * @returns {Card[]} Legal cards in held order.
+     */
+    getLegalCards(topCard, declaredSuit = null, drawAllowance = 1) {
+        return this.items.filter(function legal(card) {
+            return card.isLegalOn(topCard, declaredSuit, drawAllowance);
+        });
+    }
+
+    /**
+     * Counts each standard suit, optionally excluding a proposed discard.
+     * @param {Card|null} excludedCard - Card to omit by identity.
+     * @returns {Object<string,number>} Standard suit counts.
+     */
+    getSuitCounts(excludedCard = null) {
+        const counts = {};
+        for (const suit of Constants.CARD.STANDARD_SUITS) counts[suit] = 0;
+        for (const card of this.items) {
+            if (card.id !== excludedCard?.id && counts[card.suit] !== undefined) counts[card.suit] += 1;
+        }
+        return counts;
+    }
+
+    /**
+     * Finds the most represented standard suit; tied suits use canonical suit order.
+     * @param {Card|null} excludedCard - Proposed discard to omit.
+     * @returns {string|null} Dominant suit, or null if no standard-suit card remains.
+     */
+    getDominantSuit(excludedCard = null) {
+        let selected = null;
+        let highestCount = 0;
+        for (const [suit, count] of Object.entries(this.getSuitCounts(excludedCard))) {
+            if (count > highestCount) {
+                selected = suit;
+                highestCount = count;
+            }
+        }
+        return selected;
+    }
+
+    // ---- Mutation and ordering ----
+
+    /**
+
+     * Appends one normalized item and returns it.
+     * @param {Card|Object} item - Card to append.
+     * @returns {Card} Stored card.
+     */
+    add(item) {
+        const value = Card.from(item);
+        this.items.push(value);
+        return value;
+    }
+
+    /**
+
+     * Appends normalized items in supplied order.
+     * @param {Array<Card|Object>} items - Cards to append.
+     * @returns {Card[]} Stored cards.
+     */
+    addMany(items) {
+        ValidationUtils.array(items, "CardCollection cards");
+        const added = [];
+        for (const item of items) {
+            added.push(this.add(item));
+        }
+        return added;
+    }
+
+    /** Removes and returns the last item, or null when empty. */
+    take() {
+        return this.items.pop() ?? null;
+    }
+
+    /**
+
+     * Removes the matching item identity, or returns null when absent.
+     * @param {Card|Object|string} item - Card identity to remove.
+     * @returns {Card|null} Removed card.
+     */
+    remove(item) {
+        const index = this.#findIndex(item);
+        return index < 0 ? null : this.items.splice(index, 1)[0];
+    }
+
+    /** Removes and returns every stored item. */
+    clear() {
+        const removed = [...this.items];
+        this.items.length = 0;
+        return removed;
+    }
+
+    /**
+     * Sorts this collection in place by a supported card order.
+     * @param {string} [sortKey] - Card order, or "none" to keep the current order.
+     * @returns {CardCollection} This collection.
+     */
+    sort(sortKey = "none") {
+        if (sortKey !== "none") this.items.sort(this.#comparator(sortKey));
+        return this;
+    }
+
+    /**
+     * Returns sorted card references without changing this collection.
+     * @param {string} [sortKey] - Card order, or "none" to keep the current order.
+     * @returns {Card[]} Ordered copy.
+     */
+    sorted(sortKey = "none") {
+        const cards = [...this.items];
+        if (sortKey !== "none") cards.sort(this.#comparator(sortKey));
+        return cards;
+    }
+
+    /** Randomizes this collection in place and returns it. */
+    shuffle() {
+        for (let index = this.items.length - 1; index > 0; index -= 1) {
+            const other = Math.floor(Math.random() * (index + 1));
+            [this.items[index], this.items[other]] = [this.items[other], this.items[index]];
+        }
+        return this;
+    }
+
+    // ---- Iteration and serialization ----
+
+    /** Iterates cards in their current collection order. */
+    *[Symbol.iterator]() {
+        yield* this.items;
+    }
+
+    /** Serializes items and their current penalty total. */
+    toJSON() {
+        return {
+            items: this.items.map(function serialize(item) {
+                return item.toJSON();
+            }),
+            penalty: this.penalty
+        };
+    }
+
+    // ---- Identity and sorting helpers ----
+
+    /**
+
+     * Returns the index of a card with the same canonical identity, or -1 when absent.
+     * @param {Card|Object|string} item - Card identity to find.
+     * @returns {number} Matching index or -1.
+     */
+    #findIndex(item) {
+        const target = typeof item === "string" ? item : Card.from(item).id;
+        return this.items.findIndex(function matches(entry) {
+            return entry.id === target;
+        });
+    }
+
+    /**
+     * Resolves a comparator for a supported card order.
+     * @param {string} sortKey - Requested card order.
+     * @returns {function(Card, Card): number} Comparator.
+     */
+    #comparator(sortKey) {
+        const comparators = {
+            rank: Card.compareByRank,
+            suit: Card.compareBySuit
+        };
+        const compare = comparators[sortKey];
+        if (typeof compare !== "function") throw new Error(`Invalid card sort key: ${sortKey}`);
+        return compare;
+    }
+}

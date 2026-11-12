@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { readFileSync } from "node:fs";
-import { Constants } from "../../core/Constants.js";
+import { Constants } from "../../shared/Constants.js";
 
 test("room button actions check current membership, turn, pending action, and restart permission", () => {
     const source = readFileSync(new URL("../../ui/controllers/RoomController.js", import.meta.url), "utf8");
@@ -59,7 +59,7 @@ test("Room leave ignores repeat submissions and allows retry after a rejected re
     const Controller = new Function("Constants", `return class {
         #isLeaving = false;
         #homeHandler;
-        constructor(view, home) { this.view = view; this.#homeHandler = home; }
+        constructor(view, home) { this.session = view; this.#homeHandler = home; }
         ${method}
     }`)(Constants);
     let requests = 0;

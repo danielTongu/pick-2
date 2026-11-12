@@ -2,216 +2,219 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import http from "node:http";
 import { once } from "node:events";
+import { setImmediate as settle } from "node:timers/promises";
 import WebSocket from "ws";
+
 import { Host } from "../../host/Host.js";
+import { HostedGateway } from "../../server/HostedGateway.js";
 import { WebSocketGateway } from "../../server/WebSocketGateway.js";
+import { memorySockets } from "../helpers/memory-sockets.js";
 
 const ORIGIN = "https://game.example.test";
 
-async function fixture(t, limits = {}, policy = {}, applicationHost = null) {
-    const host = applicationHost ?? {
-        clients: [], requests: [], closed: 0, waiters: [],
-        async handle() {},
-        accept(publish) {
-            const client = {
-                publish,
-                receive: async request => { host.requests.push(request); await host.handle(request); publish({ ack: request }); },
-                async close() {
-                    host.closed++;
-                    for (const waiter of host.waiters) if (host.closed >= waiter.count) waiter.resolve();
-                }
-            };
-            host.clients.push(client);
-            return client;
+/** Builds real HTTP upgrade and socket parsers over connected memory streams. */
+function harness(t, limits = {}) {
+    const host = new Host("hosted", 0, false);
+    const sessions = new HostedGateway(host, { allowedOrigins: [ORIGIN] });
+    const server = http.createServer();
+    const gateway = new WebSocketGateway(server, sessions, { limits });
+    const sockets = [];
+    t.after(async function cleanup() {
+        for (const socket of sockets) socket.destroy();
+        await gateway.close();
+        await sessions.close();
+        await host.shutdown();
+    });
+    return {
+        gateway, sessions,
+        async command(token, command, data) {
+            const frames = [];
+            const opened = sessions.openStream(token, 0, function send(value) { frames.push(value); }, function disconnect() {});
+            opened.stream.receive({ command, data });
+            await settle();
+            opened.stream.close();
         },
-        waitForClosed(count) {
-            return host.closed >= count ? Promise.resolve() : new Promise(resolve => host.waiters.push({ count, resolve }));
+        async credential() {
+            let token;
+            const opened = sessions.createStream("127.0.0.1", function send(frame) {
+                if (frame.type === "ready") token = frame.token;
+            }, function disconnect() {});
+            opened.stream.close();
+            return token;
+        },
+        socket(options = {}, path = "/live") {
+            const [clientSocket, serverSocket] = memorySockets();
+            sockets.push(clientSocket, serverSocket);
+            server.emit("connection", serverSocket);
+            const client = new WebSocket(`ws://localhost${path}`, {
+                origin: ORIGIN, ...options, createConnection() { return clientSocket; }
+            });
+            client.frames = [];
+            client.on("error", function ignoreTransportError() {});
+            client.on("message", function retainFrame(data) { client.frames.push(JSON.parse(data.toString())); });
+            return client;
         }
     };
-    const server = http.createServer((_request, response) => response.end("OK"));
-    const gateway = new WebSocketGateway(server, host, { allowedOrigins: [ORIGIN], limits, ...policy });
-    t.after(async () => {
-        await gateway.close();
-        if (server.listening) await new Promise(resolve => server.close(resolve));
-    });
-    const listening = once(server, "listening");
-    server.listen(0, "127.0.0.1");
-    await listening;
-    const url = `ws://127.0.0.1:${server.address().port}/`;
-    async function open(settings = {}) {
-        const socket = new WebSocket(url, { origin: ORIGIN, ...settings });
-        socket.on("error", () => {});
-        await once(socket, "open");
-        return socket;
-    }
-    async function rejected(settings = {}) {
-        const socket = new WebSocket(url, { origin: ORIGIN, ...settings });
-        socket.on("error", () => {});
-        return new Promise((resolve, reject) => {
-            socket.once("open", () => { socket.terminate(); reject(new Error("Upgrade unexpectedly accepted")); });
-            socket.once("unexpected-response", (_request, response) => {
-                response.resume();
-                socket.terminate();
-                resolve(response.statusCode);
-            });
-            socket.once("error", reject);
-        });
-    }
-    return { host, gateway, open, rejected };
 }
 
-test("only explicitly allowed origins can open a game connection", { timeout: 5000 }, async t => {
-    const f = await fixture(t);
-    for (const origin of [undefined, "null", "https://evil.example.test", "https://game.example.test.evil.test"]) {
-        assert.equal(await f.rejected({ origin }), 403);
+/** Waits for one matching already-delivered or future server frame. */
+async function frame(client, predicate) {
+    let result = client.frames.find(predicate);
+    while (result === undefined) {
+        await once(client, "message");
+        result = client.frames.find(predicate);
     }
-    assert.equal(f.host.clients.length, 0);
-    const socket = await f.open();
-    const reply = once(socket, "message");
-    socket.send(JSON.stringify({ command: "list" }));
-    assert.deepEqual(JSON.parse((await reply)[0].toString()), { ack: { command: "list" } });
-});
-
-test("global capacity rejects competing upgrades and is released on disconnect", { timeout: 5000 }, async t => {
-    const f = await fixture(t, { maxConnections: 2, maxConnectionsPerIp: 5 });
-    const sockets = await Promise.all([f.open(), f.open()]);
-    assert.equal(await f.rejected(), 503);
-    sockets[0].close();
-    await f.host.waitForClosed(1);
-    await f.open();
-    assert.equal(f.host.clients.length, 3);
-});
-
-test("IP limits ignore spoofed forwarded headers from untrusted peers", { timeout: 5000 }, async t => {
-    const f = await fixture(t, { maxConnectionsPerIp: 1 });
-    await f.open({ headers: { "X-Forwarded-For": "198.51.100.1" } });
-    assert.equal(await f.rejected({ headers: { "X-Forwarded-For": "198.51.100.2" } }), 429);
-});
-
-test("explicitly trusted proxies use the nearest untrusted forwarded address", { timeout: 5000 }, async t => {
-    const f = await fixture(t, { maxConnectionsPerIp: 1 }, { trustedProxyIps: ["127.0.0.1"] });
-    await f.open({ headers: { "X-Forwarded-For": "203.0.113.1, 198.51.100.1" } });
-    await f.open({ headers: { "X-Forwarded-For": "198.51.100.2" } });
-    assert.equal(await f.rejected({ headers: { "X-Forwarded-For": "203.0.113.99, 198.51.100.1" } }), 429);
-    assert.equal(await f.rejected({ headers: { "X-Forwarded-For": "::ffff:198.51.100.1" } }), 429);
-});
-
-test("handshake rate limits survive reconnecting with fresh sockets", { timeout: 5000 }, async t => {
-    const f = await fixture(t, { maxUpgradesPerIp: 2 });
-    for (let count = 1; count <= 2; count++) {
-        const socket = await f.open();
-        socket.close();
-        await f.host.waitForClosed(count);
-    }
-    assert.equal(await f.rejected(), 429);
-});
-
-for (const example of [
-    { name: "oversized messages", limits: { maxPayloadBytes: 128 }, payload: JSON.stringify({ data: "x".repeat(512) }), code: 1009 },
-    { name: "binary frames", limits: {}, payload: Buffer.from('{}'), code: 1003 },
-    { name: "malformed JSON", limits: {}, payload: '{', code: 1007 }
-]) {
-    test(`rejects ${example.name} before dispatching application work`, { timeout: 5000 }, async t => {
-        const f = await fixture(t, example.limits);
-        const socket = await f.open();
-        const closed = once(socket, "close");
-        socket.send(example.payload);
-        assert.equal((await closed)[0], example.code);
-        assert.deepEqual(f.host.requests, []);
-        await f.host.waitForClosed(1);
-    });
+    return result;
 }
 
-test("message bursts are bounded before Host dispatch", { timeout: 5000 }, async t => {
-    const f = await fixture(t, { maxMessagesPerWindow: 2 });
-    const socket = await f.open();
-    const closed = once(socket, "close");
-    for (let index = 0; index < 3; index++) socket.send(JSON.stringify({ index }));
-    assert.equal((await closed)[0], 1008);
-    assert.equal(f.host.requests.length, 2);
+/** Authenticates a real socket without placing credentials in its URL. */
+async function connect(api, token, options = {}) {
+    const client = api.socket(options);
+    await once(client, "open");
+    client.send(JSON.stringify({ type: "authenticate", token, after: 0 }));
+    await frame(client, function ready(value) { return value.type === "ready"; });
+    return client;
+}
+
+/** Resolves a refused HTTP upgrade while consuming its response. */
+async function refused(api, options, path) {
+    const client = api.socket(options, path);
+    const [_request, response] = await once(client, "unexpected-response");
+    response.resume();
+    client.terminate();
+    return response.statusCode;
+}
+
+test("real upgrades enforce endpoint and exact browser origins", { timeout: 2000 }, async (t) => {
+    const api = harness(t);
+    assert.equal(await refused(api, { origin: "https://evil.example.test" }), 403);
+    assert.equal(await refused(api, { origin: undefined }), 403);
+    assert.equal(await refused(api, {}, "/live?token=secret"), 404);
 });
 
-test("unfinished Host work is bounded per connection", { timeout: 5000 }, async t => {
-    const f = await fixture(t, { maxInFlightRequests: 1 });
-    let release;
-    f.host.handle = () => new Promise(resolve => { release = resolve; });
-    t.after(() => release?.());
-    const socket = await f.open();
-    const closed = once(socket, "close");
-    socket.send('{}');
-    socket.send('{}');
-    assert.equal((await closed)[0], 1008);
-    assert.equal(f.host.requests.length, 1);
-});
-
-test("an excessive outbound buffer budget disconnects the client", { timeout: 5000 }, async t => {
-    const f = await fixture(t, { maxBufferedBytes: 32 });
-    const socket = await f.open();
-    const closed = once(socket, "close");
-    f.host.clients[0].publish({ data: "x".repeat(100) });
-    assert.equal((await closed)[0], 1006);
-    await f.host.waitForClosed(1);
-});
-
-test("missed pong terminates a stale socket and releases its membership", { timeout: 5000 }, async t => {
-    const f = await fixture(t);
-    const socket = await f.open({ autoPong: false });
-    const ping = once(socket, "ping");
-    f.gateway.maintain();
-    await ping;
-    const closed = once(socket, "close");
-    f.gateway.maintain();
-    assert.equal((await closed)[0], 1006);
-    await f.host.waitForClosed(1);
-});
-
-test("responsive clients remain connected across heartbeat checks", { timeout: 5000 }, async t => {
-    const f = await fixture(t);
-    const socket = await f.open();
-    for (let index = 0; index < 2; index++) {
-        const ping = once(socket, "ping");
-        f.gateway.maintain();
-        await ping;
-        const response = once(socket, "message");
-        socket.send(JSON.stringify({ index }));
-        await response;
+test("real socket authentication rejects invalid credentials and non-authentication first frames", { timeout: 2000 }, async (t) => {
+    const api = harness(t);
+    for (const [message, code] of [[{ type: "authenticate", token: "invalid", after: 0 }, 4001], [{ command: "draw", data: {} }, 1008]]) {
+        const client = api.socket();
+        await once(client, "open");
+        const closed = once(client, "close");
+        client.send(JSON.stringify(message));
+        assert.equal((await closed)[0], code);
     }
-    assert.equal(f.host.closed, 0);
 });
 
-test("real hosted clients receive their own hands while spectators receive counts only", { timeout: 5000 }, async t => {
-    const host = new Host("hosted", 0, false);
-    const f = await fixture(t, {}, {}, host);
-    t.after(() => host.shutdown());
-    const [alice, bob, spectator] = await Promise.all([f.open(), f.open(), f.open()]);
-    function waitForRoom(socket, state = null) {
-        return new Promise(resolve => {
-            function receive(data) {
-                const response = JSON.parse(data.toString());
-                if (response.view === "room" && (state === null || response.data.match.state === state)) {
-                    socket.off("message", receive);
-                    resolve(response.data);
-                }
-            }
-            socket.on("message", receive);
-        });
-    }
-    let response = waitForRoom(alice);
-    alice.send(JSON.stringify({ command: "create", data: { tabId: "wire-alice", roomName: "Wire Privacy", playerName: "Alice", playerLimit: 2 } }));
-    await response;
-    response = waitForRoom(bob);
-    bob.send(JSON.stringify({ command: "join", data: { tabId: "wire-bob", roomName: "Wire Privacy", playerName: "Bob" } }));
-    await response;
-    response = waitForRoom(spectator);
-    spectator.send(JSON.stringify({ command: "view", data: { tabId: "wire-viewer", roomName: "Wire Privacy" } }));
-    await response;
-    const started = [alice, bob, spectator].map(socket => waitForRoom(socket, "active"));
-    alice.send(JSON.stringify({ command: "start", data: { tabId: "wire-alice" } }));
-    for (const snapshot of await Promise.all(started)) {
+test("real gameplay frames push private room snapshots to players and spectators", { timeout: 2000 }, async (t) => {
+    const api = harness(t);
+    const alice = await api.credential();
+    const bob = await api.credential();
+    const viewer = await api.credential();
+    await api.command(alice, "create", { roomName: "Socket Room", playerName: "Alice", playerLimit: 2 });
+    await settle();
+    await api.command(bob, "join", { roomName: "Socket Room", playerName: "Bob" });
+    await settle();
+    await api.command(viewer, "view", { roomName: "Socket Room" });
+    await settle();
+    const sockets = [await connect(api, alice), await connect(api, bob), await connect(api, viewer)];
+    sockets[0].send(JSON.stringify({ command: "start", data: { roomName: "Socket Room", knockout: false } }));
+    for (const [socket, local] of [[sockets[0], "Alice"], [sockets[1], "Bob"], [sockets[2], null]]) {
+        const active = await frame(socket, function activeRoom(value) { return value.response?.data?.match?.state === "active"; });
+        const snapshot = active.response.data;
+        assert.equal(snapshot.localPlayerName, local);
         for (const player of snapshot.match.turnOrder.players) {
-            assert.equal(player.collection.itemCount, 7);
-            assert.equal(player.collection.items.length, player.name === snapshot.localPlayerName ? 7 : 0);
-            if (player.name !== snapshot.localPlayerName) assert.equal(player.collection.penalty, null);
+            assert.equal(player.collection.items.length, player.name === local ? 7 : 0);
+            if (player.name !== local) assert.equal(player.collection.penalty, null);
         }
+        assert.deepEqual(Object.keys(snapshot.match.collections.draw), ["itemCount"]);
+        assert.doesNotMatch(JSON.stringify(active), new RegExp(alice));
     }
+});
+
+test("socket loss retains the Hosted session and replays only events after the client cursor", { timeout: 2000 }, async (t) => {
+    const api = harness(t);
+    const token = await api.credential();
+    const first = await connect(api, token);
+    const initial = await frame(first, function home(value) { return value.response?.view === "home"; });
+    first.send(JSON.stringify({ type: "acknowledge", after: initial.sequence }));
+    const closed = once(first, "close");
+    first.close();
+    await closed;
+    const second = api.socket();
+    await once(second, "open");
+    second.send(JSON.stringify({ type: "authenticate", token, after: initial.sequence }));
+    await frame(second, function ready(value) { return value.type === "ready"; });
+    await settle();
+    assert.equal(second.frames.filter(function event(value) { return value.type === "event"; }).length, 0);
+});
+
+test("socket message parsers reject binary, malformed JSON, and oversized frames", { timeout: 2000 }, async (t) => {
+    const api = harness(t, { maxPayloadBytes: 256 });
+    for (const [payload, code] of [[Buffer.from("binary"), 1003], ["{", 1007], ["x".repeat(1024), 1009]]) {
+        const client = api.socket();
+        await once(client, "open");
+        const closed = once(client, "close");
+        client.send(payload);
+        assert.equal((await closed)[0], code);
+    }
+});
+
+test("upgrade capacity is released on close and handshake counters survive reconnection", { timeout: 2000 }, async (t) => {
+    const api = harness(t, { maxConnections: 1, maxConnectionsPerIp: 1, maxUpgradesPerIp: 3 });
+    const first = await connect(api, await api.credential());
+    assert.equal(await refused(api, {}), 503);
+    const closed = once(first, "close");
+    first.close();
+    await closed;
+    const second = await connect(api, await api.credential());
+    assert.equal(await refused(api, {}), 429);
+    second.close();
+});
+
+test("heartbeat cleanup removes stale sockets while responsive streams stay open", { timeout: 2000 }, async (t) => {
+    const api = harness(t);
+    const stale = await connect(api, await api.credential(), { autoPong: false });
+    const responsive = await connect(api, await api.credential());
+    const pong = once(responsive, "ping");
+    api.gateway.maintain();
+    await pong;
+    await settle();
+    const closed = once(stale, "close");
+    api.gateway.maintain();
+    await closed;
+    assert.equal(responsive.readyState, WebSocket.OPEN);
+});
+
+
+test("unauthenticated sockets time out and slow outgoing consumers stay bounded", { timeout: 2000 }, async (t) => {
+    t.mock.timers.enable({ apis: ["setTimeout"] });
+    const api = harness(t);
+    const unauthenticated = api.socket();
+    await once(unauthenticated, "open");
+    const expired = once(unauthenticated, "close");
+    t.mock.timers.tick(WebSocketGateway.AUTHENTICATION_TIMEOUT_MS);
+    assert.equal((await expired)[0], 1008);
+
+    const bounded = harness(t, { maxBufferedBytes: 64 });
+    const client = bounded.socket();
+    await once(client, "open");
+    const terminated = once(client, "close");
+    client.send(JSON.stringify({ type: "authenticate", token: await bounded.credential(), after: 0 }));
+    assert.equal((await terminated)[0], 1006);
+});
+
+test("a fresh socket creates its credential, runs admission commands, and explicitly releases its seat", { timeout: 2000 }, async (t) => {
+    const api = harness(t);
+    const client = api.socket();
+    await once(client, "open");
+    client.send(JSON.stringify({ type: "create" }));
+    const ready = await frame(client, function ready(value) { return value.type === "ready"; });
+    assert.equal(ready.version, 2);
+    assert.equal(ready.service, "pick-2");
+    assert.match(ready.token, /^[A-Za-z0-9_-]{43}$/);
+    client.send(JSON.stringify({ command: "create", data: { roomName: "Fresh Room", playerName: "Alice", playerLimit: 2 } }));
+    const room = await frame(client, function joined(value) { return value.response?.data?.name === "Fresh Room"; });
+    assert.equal(room.response.data.localPlayerName, "Alice");
+    const closed = once(client, "close");
+    client.send(JSON.stringify({ type: "release" }));
+    assert.equal((await closed)[0], 4001);
+    assert.equal(api.sessions.openStream(ready.token, 0, function send() {}, function close() {}).closeCode, 4001);
 });

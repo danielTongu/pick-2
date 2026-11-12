@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { readFileSync } from "node:fs";
-import { Constants } from "../../core/Constants.js";
-import { ValidationUtils } from "../../core/ValidationUtils.js";
+import { Constants } from "../../shared/Constants.js";
+import { ValidationUtils } from "../../shared/ValidationUtils.js";
 
 test("final knockout results open once despite later player roster updates", () => {
     const source = readFileSync(new URL("../../ui/controllers/RoomController.js", import.meta.url), "utf8");

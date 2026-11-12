@@ -1,7 +1,14 @@
 "use strict";
 
 import { HostConnection } from "./HostConnection.js";
-import { RoomMembership } from "./RoomMembership.js";
+
+/**
+ * @typedef {Object} RoomMembership
+ * @property {string} tabId - Authenticated tab identity.
+ * @property {HostConnection} connection - Current transport.
+ * @property {string} roomKey - Registered room key.
+ * @property {string|null} playerName - Seated identity or null for a viewer.
+ */
 
 /** Owns Host connections and their authenticated room-membership indexes. */
 export class ConnectionRegistry {
@@ -85,7 +92,7 @@ export class ConnectionRegistry {
      * @returns {RoomMembership}
      */
     register(tabId, connection, roomKey, playerName) {
-        const membership = new RoomMembership(tabId, connection, roomKey, playerName);
+        const membership = { tabId, connection, roomKey, playerName };
         this.#memberships.set(tabId, membership);
         connection.authenticate(tabId);
 

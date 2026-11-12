@@ -5,6 +5,7 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 
 const root = new URL("../", import.meta.url);
 
+/** Collects JavaScript modules recursively below one source directory. */
 function sources(directory) {
     const result = [];
     for (const entry of readdirSync(directory, { withFileTypes: true })) {
@@ -13,6 +14,15 @@ function sources(directory) {
         else if (entry.name.endsWith(".js")) result.push(url);
     }
     return result;
+}
+
+/** Returns all shipped JavaScript modules across the application layers. */
+function applicationSources() {
+    const files = [new URL("main.js", root), new URL("config.js", root)];
+    for (const directory of ["model", "service", "shared", "host", "server", "ui"]) {
+        files.push(...sources(new URL(`${directory}/`, root)));
+    }
+    return files;
 }
 
 /** Returns application declarations that do not have adjacent JSDoc. */
@@ -47,14 +57,7 @@ function undocumentedDeclarations(source) {
 }
 
 test("all application imports resolve from the Pick2 root", () => {
-    const files = [
-        ...sources(new URL("core/", root)),
-        ...sources(new URL("host/", root)),
-        ...sources(new URL("server/", root)),
-        ...sources(new URL("ui/", root)),
-        new URL("main.js", root),
-        new URL("server.js", root)
-    ];
+    const files = applicationSources();
     for (const file of files) {
         const source = readFileSync(file, "utf8");
         for (const match of source.matchAll(/(?:from\s*|import\s*\()?["'](\.[^"']+\.js)["']/g)) {
@@ -65,16 +68,7 @@ test("all application imports resolve from the Pick2 root", () => {
 });
 
 test("application classes, fields, methods, and functions have adjacent JSDoc", () => {
-    const files = [
-        ...sources(new URL("core/", root)),
-        ...sources(new URL("host/", root)),
-        ...sources(new URL("server/", root)),
-        ...sources(new URL("ui/", root)),
-        new URL("main.js", root),
-        new URL("server.js", root)
-    ].filter(function excludeTests(file) {
-        return !file.pathname.includes("/test/");
-    });
+    const files = applicationSources();
 
     for (const file of files) {
         const missing = undocumentedDeclarations(readFileSync(file, "utf8"));
@@ -82,26 +76,21 @@ test("application classes, fields, methods, and functions have adjacent JSDoc", 
     }
 });
 
-/** Reads all application source files below a directory. */
-function sourceContents(directory) {
-    return sources(directory).map(file => readFileSync(file, "utf8"));
-}
-
 test("browser and Node runtime import graphs stay separate", () => {
     const host = readFileSync(new URL("../host/Host.js", import.meta.url), "utf8");
     const transport = readFileSync(new URL("../ui/Session.js", import.meta.url), "utf8");
     const view = readFileSync(new URL("../ui/Session.js", import.meta.url), "utf8");
-    const hostedServer = readFileSync(new URL("../server.js", import.meta.url), "utf8");
+    const hostedServer = readFileSync(new URL("../server/main.js", import.meta.url), "utf8");
 
     assert.doesNotMatch(host, /from ["'](?:node:|express|ws)/);
     assert.doesNotMatch(host, /\b(?:document|localStorage|sessionStorage|WebSocket)\b/);
     assert.doesNotMatch(transport, /from ["'](?:node:|express|ws)/);
     assert.match(view, /from "\.\.\/host\/Host\.js"/);
-    assert.match(hostedServer, /from "\.\/host\/Host\.js"/);
+    assert.match(hostedServer, /from "\.\.\/host\/Host\.js"/);
     assert.match(hostedServer, /from "node:/);
-    assert.match(hostedServer, /WebSocketGateway/);
-    const gateway = readFileSync(new URL("../server/WebSocketGateway.js", import.meta.url), "utf8");
-    assert.match(gateway, /from "ws"/);
+    assert.match(hostedServer, /HostedGateway/);
+    const gateway = readFileSync(new URL("../server/HostedGateway.js", import.meta.url), "utf8");
+    assert.match(gateway, /from "node:crypto"/);
     assert.doesNotMatch(hostedServer, /class HostedServer/);
     assert.match(hostedServer, /function startServer\(port\)/);
     assert.match(hostedServer, /async function stopServer\(\)/);
@@ -109,14 +98,9 @@ test("browser and Node runtime import graphs stay separate", () => {
 });
 
 test("application source uses explicit, named control flow", () => {
-    const source = [
-        readFileSync(new URL("../ui/Session.js", import.meta.url), "utf8"),
-        readFileSync(new URL("../main.js", import.meta.url), "utf8"),
-        sourceContents(new URL("../core/", import.meta.url)).join("\n"),
-        sourceContents(new URL("../host/", import.meta.url)).join("\n"),
-        sourceContents(new URL("../server/", import.meta.url)).join("\n"),
-        sourceContents(new URL("../ui/", import.meta.url)).join("\n")
-    ].join("\n");
+    const source = applicationSources().map(function readSource(file) {
+        return readFileSync(file, "utf8");
+    }).join("\n");
 
     assert.doesNotMatch(source, /=>/);
     assert.doesNotMatch(source, /\boptions\s*=\s*\{\}/);
@@ -128,7 +112,7 @@ test("page controllers depend on Session rather than runtime services", () => {
 
     for (const source of [homeController, gameController]) {
         assert.doesNotMatch(source, /Static|ConnectionService|LocalGameService|ServerSessionController/);
-        assert.match(source, /this\.view/);
+        assert.match(source, /this\.session/);
     }
 
     assert.match(homeController, /row\.addEventListener\("click"/);
@@ -142,4 +126,38 @@ test("page controllers depend on Session rather than runtime services", () => {
     assert.match(homeController, /registrationMode === "join" && !isRoomListed/);
     assert.match(homeController, /Constants\.ACTION_NOTIFICATIONS\.ROOM_NOT_FOUND/);
     assert.match(gameController, /this\.room === null && !this\.#isLeaving/);
+});
+
+
+test("model and service dependencies preserve inward-only ownership", () => {
+    const allowed = {
+        model: new Set(["model", "shared"]),
+        shared: new Set(["shared"]),
+        service: new Set(["service", "model", "shared"])
+    };
+    for (const [layer, dependencies] of Object.entries(allowed)) {
+        for (const file of sources(new URL(`${layer}/`, root))) {
+            const source = readFileSync(file, "utf8");
+            for (const match of source.matchAll(/from\s+["']([^"']+)["']/g)) {
+                assert.ok(match[1].startsWith("."), `${file.pathname}: external dependency ${match[1]}`);
+                const target = new URL(match[1], file).pathname.slice(root.pathname.length).split("/")[0];
+                assert.ok(dependencies.has(target), `${layer} must not import ${target}: ${file.pathname}`);
+            }
+            if (layer === "model") {
+                assert.doesNotMatch(source, /\b(?:setTimeout|setInterval|clearTimeout|clearInterval|document|WebSocket)\b/);
+            }
+        }
+    }
+    assert.equal(existsSync(new URL("core/", root)), false);
+});
+
+
+test("Hosted transport uses one WebSocket command channel without HTTP admission or polling", () => {
+    const client = readFileSync(new URL("../ui/HostedClient.js", import.meta.url), "utf8");
+    const socketGateway = readFileSync(new URL("../server/WebSocketGateway.js", import.meta.url), "utf8");
+    assert.match(client, /HostedProtocol\.COMMANDS/);
+    assert.match(client, /new WebSocket/);
+    assert.doesNotMatch(client, /fetch\(|POLL_INTERVAL|#poll|\/api\//);
+    assert.match(socketGateway, /from "ws"/);
+    assert.match(socketGateway, /this\.#gateway\.clientAddress/);
 });

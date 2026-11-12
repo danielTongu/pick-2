@@ -14,7 +14,7 @@ export class ViewController {
     /**
      * @type {import("../Session.js").Session|null} Owning browser session.
      */
-    view;
+    session;
 
     /**
      * Creates a controller for one view root.
@@ -24,7 +24,7 @@ export class ViewController {
      */
     constructor(target) {
         this.root = DomUtils.require(target, HTMLElement);
-        this.view = null;
+        this.session = null;
     }
 
     /** Updates the shared copyright date on the current page. */

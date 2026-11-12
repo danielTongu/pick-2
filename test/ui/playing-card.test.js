@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Card } from "../../core/Card.js";
+import { Card } from "../../model/Card.js";
 
 // Only the DOM surface used by PlayingCard; browser layout is checked separately.
 class FakeElement extends EventTarget {

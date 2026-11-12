@@ -7,15 +7,17 @@
         "node": "22.x"
     },
     "scripts": {
-        "start": "node server.js",
-        "dev": "node --watch server.js",
+        "start": "node server/main.js",
+        "dev": "node --watch server/main.js",
         "test": "node --test \"test/**/*.test.js\"",
         "test:coverage": "node --test --experimental-test-coverage \"test/**/*.test.js\"",
-        "test:core": "node --test \"test/core/*.test.js\"",
         "test:bots": "node --test \"test/bots/*.test.js\"",
         "test:host": "node --test \"test/host/*.test.js\"",
         "test:ui": "node --test \"test/ui/*.test.js\"",
-        "test:server": "node --test \"test/server/*.test.js\""
+        "test:server": "node --test \"test/server/*.test.js\"",
+        "test:model": "node --test \"test/model/*.test.js\"",
+        "test:service": "node --test \"test/service/*.test.js\"",
+        "test:shared": "node --test \"test/shared/*.test.js\""
     },
     "dependencies": {
         "express": "^5.x",

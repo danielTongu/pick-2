@@ -1,4 +1,4 @@
-import { Constants } from "../../core/Constants.js";
+import { Constants } from "../../shared/Constants.js";
 
 /** Connects one tab and returns only responses emitted during each request. */
 export function createConnection(host, tabId = "test-tab") {

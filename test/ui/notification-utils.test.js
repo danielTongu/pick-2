@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Constants } from "../../core/Constants.js";
+import { Constants } from "../../shared/Constants.js";
 import { NotificationUtils } from "../../ui/utilities/NotificationUtils.js";
 
 test("NotificationUtils produces one canonical notification shape", () => {

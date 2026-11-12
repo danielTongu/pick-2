@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { Constants } from "../../core/Constants.js";
+import { Constants } from "../../shared/Constants.js";
 
 test("results dialog reads normalized knockout status without a nested match", async () => {
     const originalDocument = globalThis.document;

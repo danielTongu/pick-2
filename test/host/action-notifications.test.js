@@ -3,10 +3,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { StateMapper } from "../../host/StateMapper.js";
 import { Host } from "../../host/Host.js";
 import { NotificationUtils } from "../../ui/utilities/NotificationUtils.js";
 import { createConnection } from "../helpers/host.js";
-import { Constants } from "../../core/Constants.js";
+import { Constants } from "../../shared/Constants.js";
 
 for (const mode of ["direct", "hosted"]) {
     test(`${mode} returns action notifications to the initiating player`, async (t) => {
@@ -53,17 +54,14 @@ for (const mode of ["direct", "hosted"]) {
     });
 }
 
-test("card additions use a count title and reserve emoji for draw effects", async (t) => {
-    const host = new Host("hosted", 0, false);
-    t.after(() => host.shutdown());
+test("card additions use a count title and reserve emoji for draw effects", () => {
     for (const [command, state, count, effect] of [
         ["draw", Constants.ROOM_STATE.WAITING, 1, false],
         ["draw", Constants.ROOM_STATE.ACTIVE, 1, false],
         ["draw", Constants.ROOM_STATE.ACTIVE, 2, true],
         ["pass", Constants.ROOM_STATE.ACTIVE, 2, true]
     ]) {
-        const room = { match: { state }, perform: async () => Array(count).fill({}) };
-        const notice = await host.executeMatchCommand(room, "Alice", command, {});
+        const notice = StateMapper.toActionMessage(command, {}, Array(count).fill({}), state);
         assert.equal(notice.status, "success");
         assert.equal(notice.title, `+ ${count}`);
         const detail = `${count === 1 ? "Card" : "Cards"} added`;
@@ -75,12 +73,9 @@ test("card additions use a count title and reserve emoji for draw effects", asyn
     }
 });
 
-test("playing a card identifies its value and suit, including plays that draw cards", async (t) => {
-    const host = new Host("hosted", 0, false);
-    t.after(() => host.shutdown());
+test("playing a card identifies its value and suit, including plays that draw cards", () => {
     for (const drawn of [[], [{}]]) {
-        const room = { match: { state: Constants.ROOM_STATE.ACTIVE }, perform: async () => drawn };
-        const notice = await host.executeMatchCommand(room, "Alice", "discard", { card: { value: "7", suit: "hearts" } });
+        const notice = StateMapper.toActionMessage("discard", { card: { value: "7", suit: "hearts" } }, drawn, Constants.ROOM_STATE.ACTIVE);
         assert.deepEqual(notice, { status: "success", title: "Card played", message: "7-hearts" });
     }
 });

@@ -5,13 +5,18 @@ import test from "node:test";
 
 import { readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
-import { Constants } from "../../core/Constants.js";
-import { Session, SessionState } from "../../ui/Session.js";
+import { configuration } from "../../config.js";
+import { Constants } from "../../shared/Constants.js";
+import { HostedClient } from "../../ui/HostedClient.js";
+import { HostedProtocol } from "../../shared/HostedProtocol.js";
+import { installLiveSockets } from "../helpers/live-socket.js";
+import { Session } from "../../ui/Session.js";
+import { SessionState } from "../../ui/SessionState.js";
 
 /** Installs the browser values used by SessionState and restores them afterward. */
 function useBrowserState(serverOrigin, callback) {
-    const originalOrigin = Constants.GAME_SERVER_ORIGIN;
-    Constants.GAME_SERVER_ORIGIN = serverOrigin;
+    const originalOrigin = configuration.hostedOrigin;
+    configuration.hostedOrigin = serverOrigin;
     const originals = new Map();
     const storage = new Map();
     const values = {
@@ -38,7 +43,7 @@ function useBrowserState(serverOrigin, callback) {
     try {
         return callback();
     } finally {
-        Constants.GAME_SERVER_ORIGIN = originalOrigin;
+        configuration.hostedOrigin = originalOrigin;
         for (const [key, descriptor] of originals) {
             if (descriptor === undefined) {
                 delete globalThis[key];
@@ -58,10 +63,9 @@ test("SessionState resolves only the configured Hosted host", () => {
     });
 
     const cases = new Map([
-        ["http://server.test:8080/game?old=1#part", "ws://server.test:8080/"],
-        ["https://server.test/game", "wss://server.test/"],
-        ["ws://server.test/socket", "ws://server.test/"],
-        ["wss://server.test/socket", "wss://server.test/"]
+        ["http://server.test:8080/game?old=1#part", "http://server.test:8080/"],
+        ["https://server.test/game", "https://server.test/"],
+        ["https://server.test:8080/", "https://server.test:8080/"]
     ]);
 
     for (const [origin, expectedUrl] of cases) {
@@ -92,16 +96,10 @@ test("SessionState uses Direct for blank configuration and preserves explicit mo
     });
 });
 
-test("SessionState stores and clears a verified Hosted host", () => {
+test("SessionState resolves deployment configuration without storing a verified endpoint", () => {
     useBrowserState("https://server.test", () => {
-        SessionState.setHostedUrl("wss://direct.test/");
-        assert.equal(SessionState.getHostedUrl(), "wss://server.test/");
-        assert.equal(SessionState.getVerifiedHostedUrl(), null);
-        SessionState.setHostedUrl("wss://server.test/");
-        assert.equal(SessionState.getVerifiedHostedUrl(), "wss://server.test/");
+        assert.equal(SessionState.getHostedUrl(), "https://server.test/");
         assert.throws(() => SessionState.resolveHostedUrl("/socket"), /Invalid URL/);
-        SessionState.clearHostedUrl();
-        assert.equal(SessionState.getHostedUrl(), "wss://server.test/");
     });
 });
 
@@ -128,18 +126,18 @@ test("the standalone Connection page verifies Hosted servers", () => {
     assert.match(connectionHtml, /id="connection-actions">[\s\S]*?id="connection-connect-button"[\s\S]*?id="connection-direct-link"[\s\S]*?<\/div>[\s\S]*?<\/form>/);
     assert.match(connectionHtml, /href="\.\/ui\/styles\/connection\.css"/);
     assert.match(main, /new ConnectionSession\(homeUrl\)\.start\(\)/);
-    assert.match(view, /SessionState\.setHostedUrl\(endpoint\)/);
+    assert.match(view, /new HostedClient\(endpoint/);
     assert.match(view, /location\.replace\(this\.#homeUrl\("hosted"\)\)/);
     assert.match(view, /url\.searchParams\.set\("failed", "1"\)/);
     assert.match(view, /new URL\("\.\/connection\.html", location\.href\)/);
     assert.doesNotMatch(view, /getCurrentHostUrl/);
-    assert.match(view, /new WebSocket\(this\.#endpoint\)/);
-    assert.match(view, /Constants\.CONNECTION_PROBE_TIMEOUT_MS/);
+    assert.doesNotMatch(view, /fetch\(|RestProbe/);
+    assert.match(controller, /HostedProtocol\.CONNECTION_TIMEOUT_MS/);
     assert.match(controller, /this\.#durationOutput\.textContent/);
     assert.match(connectionHtml, /id="connection-diagnostics"/);
     assert.match(connectionHtml, /id="connection-endpoint"/);
     assert.match(connectionHtml, /id="connection-duration"/);
-    assert.match(view, /#scheduleReconnect\(generation\)/);
+    assert.match(view, /#handleHostedExhausted\(\)/);
     assert.match(styles, /#connection-title\s*\{[\s\S]*?color:\s*var\(--connection-accent\)/);
     assert.match(styles, /\[data-connection-status="error"\] \.connection-state\.connection-error/);
     assert.match(styles, /grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 180px\), 1fr\)\)/);
@@ -147,82 +145,44 @@ test("the standalone Connection page verifies Hosted servers", () => {
     assert.doesNotMatch(styles, /#connection-view\[data-status="connecting"\],\s*#connection-indicator/);
 });
 
-test("Connection page returns Home on success and stays available after failure", async () => {
-    const viewSource = readFileSync(new URL("../../ui/Session.js", import.meta.url), "utf8");
-    const source = viewSource.slice(
-        viewSource.indexOf("/** One bounded browser WebSocket availability probe. */"),
-        viewSource.indexOf("/** Coordinates Home controllers, transport selection, and Room navigation. */")
-    ).replaceAll("export ", "")
+test("Connection page verifies a real socket session and keeps failures available for retry", async (t) => {
+    const authority = { createStream(_address, send) {
+        send({ type: "ready", service: "pick-2", version: 2, token: "a".repeat(43) });
+        return { stream: { release() {}, close() {}, receive() {}, acknowledge() {} } };
+    } };
+    const network = installLiveSockets(t, authority);
+    const view = readFileSync(new URL("../../ui/Session.js", import.meta.url), "utf8");
+    const source = view.slice(view.indexOf("/** Coordinates the standalone Hosted Connection page. */"),
+        view.indexOf("/** Coordinates Home controllers, transport selection, and Room navigation. */"))
+        .replaceAll("export ", "")
         .replace('await import("./controllers/ConnectionController.js")', '{ConnectionController: FakeController}');
-
-    async function run(outcome, search) {
-        const state = { redirects: [], mode: null, hostedUrl: null, renders: [] };
-        class FakeView { constructor(url) { this.url = url; } }
+    for (const available of [true, false]) {
+        network.available = available;
+        const state = { redirects: [], renders: [], mode: null };
         class FakeController {
             initialize() {}
             renderYear() {}
-            render(status, metrics) { state.renders.push({status, metrics}); }
+            render(status, metrics) { state.renders.push({ status, metrics }); }
         }
-        class FakeWebSocket {
-            constructor() { this.handlers = new Map(); }
-            addEventListener(name, handler) {
-                this.handlers.set(name, handler);
-                if (name === "error" && (outcome === true || outcome === false)) {
-                    queueMicrotask(() => this.handlers.get(outcome ? "open" : "error")());
-                }
-            }
-            close() {}
-        }
-        const context = {
-            URL, URLSearchParams,
-            setTimeout, clearTimeout,
-            Session: FakeView,
-            FakeController,
-            WebSocket: FakeWebSocket,
-            Constants: {
-                CONNECTION_PROBE_TIMEOUT_MS: 5,
-                STATUS: {CONNECTING: "connecting", CONNECTED: "connected", ERROR: "error", UNCONFIGURED: "unconfigured"}
-            },
-            SessionState: {
-                setMode(mode) { state.mode = mode; },
-                setHostedUrl(url) { state.hostedUrl = url; },
-                getHostedUrl() { return "ws://server.test/"; },
-                getConfiguredServerOrigin() { return "ws://server.test/"; },
-                resolveHostedUrl(url) { return url; }
-            },
-            location: { search, replace(url) { state.redirects.push(url); } },
-            window: { addEventListener(_name, handler) { if (outcome === null) queueMicrotask(handler); } }
+        class FakeSession { constructor(url) { this.url = url; } }
+        const context = { URL, URLSearchParams, Constants, HostedClient, FakeController, Session: FakeSession,
+            SessionState: { getHostedUrl() { return "https://server.test/"; }, setMode(mode) { state.mode = mode; } },
+            location: { search: "", replace(url) { state.redirects.push(url); } },
+            window: { addEventListener() {} }
         };
-        await runInNewContext(
-            `(async function () { ${source}; await new ConnectionSession(new URL("https://example.test/index.html")).start(); })()`,
-            context
-        );
-        return state;
+        await runInNewContext(`(async function () { ${source};
+            await new ConnectionSession(new URL("https://example.test/index.html")).start(); })()`, context);
+        await new Promise(function flush(resolve) { setImmediate(resolve); });
+        if (available) {
+            assert.equal(state.mode, "hosted");
+            assert.deepEqual(state.redirects, ["https://example.test/index.html?mode=hosted"]);
+            assert.equal(state.renders.at(-1).status, "connected");
+        } else {
+            assert.deepEqual(state.redirects, []);
+            assert.equal(state.renders.at(-1).status, "error");
+            assert.equal(state.renders.at(-1).metrics.failure, "Live WebSocket connection failed.");
+        }
     }
-
-    const success = await run(true, "?auto=1");
-    assert.equal(success.hostedUrl, "ws://server.test/");
-    assert.equal(success.mode, "hosted");
-    assert.deepEqual(success.redirects, ["https://example.test/index.html?mode=hosted"]);
-    assert.equal(success.renders.at(-1).status, "connected");
-    assert.equal(success.renders.at(-1).metrics.endpoint, "ws://server.test/");
-    assert.equal(typeof success.renders.at(-1).metrics.elapsedMs, "number");
-
-    const failed = await run(false, "?auto=1");
-    assert.equal(failed.mode, null);
-    assert.deepEqual(failed.redirects, []);
-    assert.equal(failed.renders.at(-1).metrics.failure, "WebSocket handshake failed.");
-
-    const exhausted = await run(true, "?failed=1");
-    assert.deepEqual(exhausted.redirects, []);
-    assert.equal(exhausted.renders.at(-1).status, "error");
-    assert.match(exhausted.renders.at(-1).metrics.failure, /reconnection attempts failed/);
-
-    const timedOut = await run("timeout", "");
-    assert.match(timedOut.renders.at(-1).metrics.failure, /Timed out after 5 ms/);
-
-    assert.deepEqual((await run(null, "?auto=1")).redirects, []);
-    assert.deepEqual((await run(false, "")).redirects, []);
 });
 
 test("ConnectionController scopes status to the shared container and renders diagnostics as text", () => {
@@ -236,8 +196,8 @@ test("ConnectionController scopes status to the shared container and renders dia
     }
     const elements = new Map();
     const context = {
+        HostedProtocol,
         Constants: {
-            CONNECTION_PROBE_TIMEOUT_MS: 3000,
             STATUS: {CONNECTING: "connecting", CONNECTED: "connected", ERROR: "error", UNCONFIGURED: "unconfigured"}
         },
         DomUtils: {require(selector) {
@@ -248,14 +208,14 @@ test("ConnectionController scopes status to the shared container and renders dia
         HTMLElement: Element, HTMLInputElement: Element, HTMLButtonElement: Element, HTMLFormElement: Element
     };
     runInNewContext(`${source}; new ConnectionController().render("error", {
-        endpoint: "wss://example.test/", attempt: 3, candidate: 2, candidateCount: 2,
-        elapsedMs: 42, failure: "WebSocket handshake failed."
+        endpoint: "https://example.test/", attempt: 3, candidate: 2, candidateCount: 2,
+        elapsedMs: 42, failure: "Live WebSocket connection failed."
     });`, context);
 
     assert.equal(elements.get("#site-shell").dataset.connectionStatus, "error");
     assert.equal(elements.get("#connection-attempt").textContent, "#3 · candidate 2 of 2");
     assert.equal(elements.get("#connection-duration").textContent, "42 ms");
-    assert.equal(elements.get("#connection-failure").textContent, "WebSocket handshake failed.");
+    assert.equal(elements.get("#connection-failure").textContent, "Live WebSocket connection failed.");
     runInNewContext(`new ConnectionController().render("unconfigured");`, context);
     assert.equal(elements.get("#hosted-mode-input").checked, true);
     assert.equal(elements.get("#direct-mode-input").checked, false);
@@ -264,51 +224,54 @@ test("ConnectionController scopes status to the shared container and renders dia
     assert.equal(elements.get("#connection-endpoint").textContent, "Not configured");
 });
 
-test("Live stays on the current page for five retries before opening manual recovery", () => {
-    useBrowserState("http://localhost:8080", () => {
-        const originals = new Map();
-        const sockets = [];
-        const timers = [];
-        const redirects = [];
-        const statuses = [];
-        class FakeWebSocket {
-            constructor() { this.handlers = new Map(); sockets.push(this); }
-            addEventListener(name, handler) { this.handlers.set(name, handler); }
-            close() {}
-        }
-        const replacements = {
-            WebSocket: FakeWebSocket,
-            setTimeout(callback, delay) { timers.push({callback, delay}); return timers.length; },
-            clearTimeout() {}
-        };
-        for (const [key, value] of Object.entries(replacements)) {
-            originals.set(key, Object.getOwnPropertyDescriptor(globalThis, key));
-            Object.defineProperty(globalThis, key, {configurable: true, writable: true, value});
-        }
-        globalThis.location.replace = url => redirects.push(url);
-        try {
-            const session = new Session(new URL("https://example.test/index.html"));
-            session.connect("ws://localhost:8080/", {
-                handleConnectionStatus(status) { statuses.push(status); }
-            });
-            sockets[0].handlers.get("open")();
-            for (let attempt = 0; attempt < 5; attempt += 1) {
-                sockets.at(-1).handlers.get("close")();
-                assert.equal(redirects.length, 0);
-                assert.equal(statuses.at(-1), "reconnecting");
-                assert.equal(timers[attempt].delay, 1000 * 2 ** attempt);
-                timers[attempt].callback();
+for (const departure of ["local", "pagehide"]) {
+    for (const outcome of ["success", "failure"]) {
+        test(`Home cancels a pending socket on ${departure} and ignores late ${outcome}`, async (t) => {
+            const state = { redirects: [], mode: null, modeHandler: null, pagehide: null };
+            class FakeHomeController {
+                async initialize() {}
+                renderYear() {}
+                setModeHandler(handler) { state.modeHandler = handler; }
+                setRoomHandler() {}
+                selectMode(mode) { state.mode = mode; }
+                setSession() {}
             }
-            sockets.at(-1).handlers.get("close")();
-            assert.equal(sockets.length, 6);
-            assert.deepEqual(redirects, ["https://example.test/pick-2/network/connection.html?failed=1"]);
-            assert.equal(SessionState.getIntent(), null);
-            assert.equal(SessionState.getVerifiedHostedUrl(), null);
-        } finally {
-            for (const [key, descriptor] of originals) {
-                if (descriptor === undefined) delete globalThis[key];
-                else Object.defineProperty(globalThis, key, descriptor);
+            class LocalHost {
+                accept() { return { close() {} }; }
+                shutdown() {}
             }
-        }
-    });
-});
+            const network = installLiveSockets(t, {});
+            const source = readFileSync(new URL("../../ui/Session.js", import.meta.url), "utf8")
+                .replace(/^import .+;\n/gm, "")
+                .replace('await import("./controllers/HomeController.js")', '{HomeController: FakeHomeController}')
+                .replaceAll("export ", "");
+            const context = {
+                URL, URLSearchParams, AbortController, structuredClone, queueMicrotask, setTimeout, clearTimeout,
+                Constants, HostedClient, FakeHomeController, Host: LocalHost,
+                ValidationUtils: { requiredString(value) { return value; } },
+                SessionState: {
+                    getMode() { return "direct"; }, takeNotice() { return null; },
+                    setMode() {}, getHostedUrl() { return "https://server.test/"; }
+                },
+                location: { href: "https://example.test/pick-2/index.html", assign(url) { state.redirects.push(url); } },
+                history: { replaceState() {} },
+                window: { addEventListener(_name, handler) { state.pagehide = handler; } },
+            };
+            await runInNewContext(`(async function () { ${source};
+                await new HomeSession(new URL("https://example.test/pick-2/room.html")).start(); })()`, context);
+            state.modeHandler("hosted");
+            const socket = network.sockets[0];
+            assert.equal(socket.readyState, 0);
+            if (departure === "local") state.modeHandler("direct");
+            else state.pagehide();
+            assert.equal(socket.readyState, 3);
+            if (outcome === "success") {
+                socket.emit("message", { data: JSON.stringify({ type: "ready", service: "pick-2", version: 2, token: "a".repeat(43) }) });
+            } else socket.emit("error", {});
+            await new Promise(function flush(resolve) { setImmediate(resolve); });
+            assert.deepEqual(state.redirects, []);
+            if (departure === "local") assert.equal(state.mode, "direct");
+            state.pagehide();
+        });
+    }
+}

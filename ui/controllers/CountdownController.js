@@ -1,7 +1,7 @@
 "use strict";
 
-import { Constants } from "../../core/Constants.js";
-import { ValidationUtils } from "../../core/ValidationUtils.js";
+import { Constants } from "../../shared/Constants.js";
+import { ValidationUtils } from "../../shared/ValidationUtils.js";
 import { DomUtils } from "../utilities/DomUtils.js";
 import { ViewController } from "./ViewController.js";
 

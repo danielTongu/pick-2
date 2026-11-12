@@ -3,7 +3,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { UserNotification } from "../../core/UserNotification.js";
+import { UserNotification } from "../../shared/UserNotification.js";
 import { RequestThrottle } from "../../host/RequestThrottle.js";
 
 test("RequestThrottle isolates scopes and supports reset, pruning, and validation", () => {

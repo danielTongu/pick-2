@@ -1,7 +1,7 @@
 "use strict";
 
 import { HomeSession, RoomSession, ConnectionSession } from "./ui/Session.js";
-import { Constants } from "./core/Constants.js";
+import { Constants } from "./shared/Constants.js";
 
 
 /**

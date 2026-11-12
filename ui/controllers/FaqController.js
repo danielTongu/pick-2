@@ -1,6 +1,6 @@
 "use strict";
 
-import { Constants } from "../../core/Constants.js";
+import { Constants } from "../../shared/Constants.js";
 import { DomUtils } from "../utilities/DomUtils.js";
 import { PlayingCard } from "../PlayingCard.js";
 

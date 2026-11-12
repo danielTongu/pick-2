@@ -5,8 +5,8 @@ import test from "node:test";
 
 import { existsSync, readFileSync } from "node:fs";
 import { runInNewContext } from "node:vm";
-import { Card } from "../../core/Card.js";
-import { Constants } from "../../core/Constants.js";
+import { Card } from "../../model/Card.js";
+import { Constants } from "../../shared/Constants.js";
 
 import { elements, elementById } from "../helpers/html.js";
 
@@ -84,7 +84,7 @@ async function startRoomSession(basePath, mode, validIntent, command = Constants
     const state = { redirects: [], errors: [], cleared: false, closed: false, notice: null, requests: [] };
     const storedValues = new Map([
         ["game.mode", mode],
-        ["game.hostedUrl", "ws://example.test"],
+        ["game.apiOrigin", "https://example.test"],
         [
             "game.gameIntent",
             validIntent ? JSON.stringify({ mode, command, data: { roomName: "Test" } }) : "null"
@@ -92,7 +92,7 @@ async function startRoomSession(basePath, mode, validIntent, command = Constants
     ]);
     let homeHandler;
     class FakeRoomController {
-        setView() {}
+        setSession() {}
         setReadyHandler() {}
         setHomeHandler(handler) {
             homeHandler = handler;
@@ -101,7 +101,8 @@ async function startRoomSession(basePath, mode, validIntent, command = Constants
         async initialize() {}
     }
     const context = {
-        Constants: { ...Constants, GAME_SERVER_ORIGIN: "https://server.test" },
+        Constants,
+        configuration: { hostedOrigin: "https://server.test" },
         URL,
         URLSearchParams,
         document: { body: { dataset: { page: "room" } }, querySelector() { return null; } },
@@ -149,7 +150,8 @@ async function startRoomSession(basePath, mode, validIntent, command = Constants
     };
     context.FakeRoomController = FakeRoomController;
     context.RoomController = FakeRoomController;
-    const source = readFileSync(new URL("ui/Session.js", root), "utf8")
+    const source = (readFileSync(new URL("ui/SessionState.js", root), "utf8") +
+        readFileSync(new URL("ui/Session.js", root), "utf8"))
         .replace(/^import .+;\n/gm, "")
         .replace(
             'const {RoomController} = await import("./controllers/RoomController.js");',

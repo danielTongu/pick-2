@@ -3,51 +3,23 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { HostRequestContext } from "../../host/HostRequestContext.js";
-import { HostRequest } from "../../host/HostRequest.js";
 import { HostConnection } from "../../host/HostConnection.js";
-import { RoomMembership } from "../../host/RoomMembership.js";
 import { ConnectionRegistry } from "../../host/ConnectionRegistry.js";
 import { RoomLifecycle } from "../../host/RoomLifecycle.js";
 
-test("HostRequest validates one canonical command shape", () => {
-    const request = HostRequest.parse({ command: "join", data: { tabId: "tab-1" } });
-
-    assert.equal(request.command, "join");
-    assert.deepEqual(request.data, { tabId: "tab-1" });
-    assert.throws(() => HostRequest.parse(null), /Request/);
-    assert.throws(() => HostRequest.parse({ command: "" }), /Command/);
-});
-
-test("HostRequestContext accumulates typed authentication and room state", () => {
-    const connection = new HostConnection("connection-1", () => {}, () => {}, async function receive() {}, async function close() {});
-    const request = HostRequest.parse({ command: "start", data: { tabId: "tab-1" } });
-    const membership = new RoomMembership("tab-1", connection, "test-room", "Daniel");
-    const room = { name: "Test Room" };
-    const context = new HostRequestContext(connection, request)
-        .identifyTab()
-        .attachMembership(membership)
-        .attachRoom("test-room", room);
-
-    assert.equal(context.request.command, "start");
-    assert.equal(context.tabId, "tab-1");
-    assert.equal(context.membership, membership);
-    assert.equal(context.room, room);
-    assert.equal(context.membership.playerName, "Daniel");
-});
-
-test("HostConnection owns transport state and RoomMembership owns membership state", () => {
+test("connection registry owns membership records separately from transport state", () => {
     const published = [];
     const terminated = [];
     const connection = new HostConnection("connection-1",
         (response) => published.push(response),
         (code, reason) => terminated.push({ code, reason }),
         async function receive() {}, async function close() {});
-    const membership = new RoomMembership("tab-1", connection, "test-room", null);
+    const registry = new ConnectionRegistry();
+    const membership = registry.register("tab-1", connection, "test-room", null);
 
     connection.authenticate("tab-1");
     connection.publish({ view: "home" });
-    membership.join("Daniel");
+    membership.playerName = "Daniel";
 
     assert.equal(connection.tabId, "tab-1");
     assert.deepEqual(published, [{ view: "home" }]);
@@ -55,7 +27,7 @@ test("HostConnection owns transport state and RoomMembership owns membership sta
     assert.equal(membership.roomKey, "test-room");
     assert.equal(membership.playerName, "Daniel");
 
-    membership.view();
+    membership.playerName = null;
     connection.markClosed();
     connection.publish({ view: "room" });
     connection.terminate(1001, "Done");
@@ -80,7 +52,7 @@ test("ConnectionRegistry owns Home subscriptions and room membership indexes", (
     assert.deepEqual(registry.inRoom("test-room"), [membership]);
     assert.equal(registry.findConnection(connection), membership);
 
-    membership.join("Daniel");
+    membership.playerName = "Daniel";
     assert.equal(registry.findPlayer("test-room", "Daniel"), membership);
     assert.equal(registry.isCurrent(membership), true);
 
@@ -119,3 +91,17 @@ test("RoomLifecycle replaces, cancels, and clears pending room work", () => {
     assert.equal(lifecycle.hasPending("room-two"), false);
 });
 
+
+test("Host rejects malformed command contexts without creating rooms or exposing runtime errors", async (t) => {
+    const { Host } = await import("../../host/Host.js");
+    const host = new Host("direct", 0, false);
+    t.after(function cleanup() { return host.shutdown(); });
+    const responses = [];
+    const connection = host.accept(function receive(response) { responses.push(response); }, function close() {});
+    for (const request of [null, { command: "" }, { command: "join", data: [] }, { command: "create", data: {} }]) {
+        await connection.receive(request);
+        assert.equal(responses.at(-1).message.status, "error");
+    }
+    await connection.receive({ command: "list" });
+    assert.equal(responses.at(-1).data.rooms.length, Host.DEFAULT_ROOMS.length);
+});

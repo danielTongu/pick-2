@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createConnection, latestGame } from "../helpers/host.js";
-import { Constants } from "../../core/Constants.js";
+import { Constants } from "../../shared/Constants.js";
 import { Host } from "../../host/Host.js";
 import { HostConnection } from "../../host/HostConnection.js";
 

@@ -1,14 +1,14 @@
 "use strict";
 
-import { Constants } from "../../core/Constants.js";
-import { ValidationUtils } from "../../core/ValidationUtils.js";
-import { Player } from "../../core/Player.js";
+import { Constants } from "../../shared/Constants.js";
+import { ValidationUtils } from "../../shared/ValidationUtils.js";
+import { Player } from "../../model/Player.js";
 import { AlertController } from "./AlertController.js";
 import { DomUtils } from "../utilities/DomUtils.js";
 import { NotificationUtils } from "../utilities/NotificationUtils.js";
 import { RoomRowUtils } from "../utilities/RoomRowUtils.js";
 import { ViewController } from "./ViewController.js";
-import { Card } from "../../core/Card.js";
+import { Card } from "../../model/Card.js";
 import { PlayingCard } from "../PlayingCard.js";
 
 /** Controls the shared Direct/Hosted home directory. */
@@ -107,10 +107,10 @@ export class HomeController extends ViewController {
     }
 
     /**
-     * @param {import("../Session.js").Session} view - Active Home session.
+     * @param {import("../Session.js").Session} session - Active Home session.
      */
-    setView(view) {
-        this.view = view;
+    setSession(session) {
+        this.session = session;
     }
 
     /**
@@ -146,7 +146,7 @@ export class HomeController extends ViewController {
 
     /** Requests the Home directory when the endpoint opens. */
     handleClientOpen() {
-        this.view?.request(Constants.COMMANDS.LIST, {});
+        this.session?.request(Constants.COMMANDS.LIST, {});
     }
 
     /**

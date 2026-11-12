@@ -5,7 +5,7 @@ import test from "node:test";
 
 import { elements, elementById } from "../helpers/html.js";
 import { readFileSync } from "node:fs";
-import { Constants } from "../../core/Constants.js";
+import { Constants } from "../../shared/Constants.js";
 import { Session } from "../../ui/Session.js";
 import { Host } from "../../host/Host.js";
 

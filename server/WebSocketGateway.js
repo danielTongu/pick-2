@@ -1,9 +1,9 @@
 "use strict";
 
-import { isIP } from "node:net";
+import { HostedProtocol } from "../shared/HostedProtocol.js";
 import WebSocket, { WebSocketServer } from "ws";
 
-/** Bounds hosted WebSocket resources and adapts accepted clients to the transport-neutral Host. */
+/** Bounds live WebSocket resources and authenticates streams through HostedGateway. */
 export class WebSocketGateway {
     /** @type {number} Default maximum established sockets. */
     static MAX_CONNECTIONS = 5000;
@@ -23,9 +23,6 @@ export class WebSocketGateway {
     /** @type {number} Maximum messages per socket per accounting window. */
     static MAX_MESSAGES_PER_WINDOW = 60;
 
-    /** @type {number} Maximum unfinished Host requests per socket. */
-    static MAX_IN_FLIGHT_REQUESTS = 8;
-
     /** @type {number} Maximum handshake attempts per IP per accounting window. */
     static MAX_UPGRADES_PER_IP = 120;
 
@@ -36,27 +33,24 @@ export class WebSocketGateway {
     static MAX_TRACKED_IPS = 10_000;
 
     /** @type {number} Time between ping/pong checks. */
-    static HEARTBEAT_INTERVAL_MS = 30_000;
+    static HEARTBEAT_INTERVAL_MS = 10_000;
+
+    /** @type {number} Deadline for authenticating an admitted upgrade. */
+    static AUTHENTICATION_TIMEOUT_MS = HostedProtocol.CONNECTION_TIMEOUT_MS;
 
     /** @type {number} Grace period before forcibly closing a rejected socket. */
     static CLOSE_TIMEOUT_MS = 1000;
 
-    /** @type {import("../host/Host.js").Host} Authoritative application Host. */
-    #host;
+    /** @type {import("./HostedGateway.js").HostedGateway} Authenticated Hosted session owner. */
+    #gateway;
 
     /** @type {WebSocketServer} Server that owns accepted sockets and upgrades. */
     #server;
 
-    /** @type {Set<string>} Exact allowed browser origins. */
-    #allowedOrigins;
-
-    /** @type {Set<string>} Explicitly trusted proxy peer addresses. */
-    #trustedProxyIps;
-
     /** @type {Object} Validated resource limits for this gateway. */
     #limits;
 
-    /** @type {Map<WebSocket, Object>} State and Host connection for each socket. */
+    /** @type {Map<WebSocket, Object>} Authentication, heartbeat, and stream state for each socket. */
     #clients = new Map();
 
     /** @type {Map<string, number>} Active socket counts by client IP. */
@@ -65,9 +59,6 @@ export class WebSocketGateway {
     /** @type {Map<string, Object>} Bounded handshake-rate counters. */
     #upgradeAttempts = new Map();
 
-    /** @type {Set<Promise>} Host disconnect operations awaiting completion. */
-    #disconnects = new Set();
-
     /** @type {Promise<void>|null} Idempotent shutdown operation. */
     #closing = null;
 
@@ -75,26 +66,11 @@ export class WebSocketGateway {
      * Creates a gateway with synchronous admission checks before the WebSocket handshake completes.
      * Compression is disabled, so admission and connection accounting do not yield between checks.
      * @param {import("node:http").Server} server - Owning HTTP server.
-     * @param {import("../host/Host.js").Host} host - Application Host.
-     * @param {Object} policy - Allowed origins, trusted proxy IPs, and optional resource limits.
+     * @param {import("./HostedGateway.js").HostedGateway} gateway - Shared authenticated Hosted sessions.
+     * @param {Object} policy - Optional socket resource limits; shared origin/proxy policy belongs to HostedGateway.
      */
-    constructor(server, host, policy) {
-        this.#host = host;
-        this.#allowedOrigins = new Set();
-        for (const origin of policy.allowedOrigins) {
-            const url = new URL(origin);
-            if (!["http:", "https:"].includes(url.protocol) || url.username || url.password || url.search || url.hash || url.pathname !== "/") {
-                throw new Error(`Invalid allowed WebSocket origin: ${origin}`);
-            }
-            this.#allowedOrigins.add(url.origin);
-        }
-        if (this.#allowedOrigins.size === 0) throw new Error("WebSocket allowed origins must not be empty.");
-        this.#trustedProxyIps = new Set();
-        for (const address of policy.trustedProxyIps ?? []) {
-            const normalized = WebSocketGateway.#normalizeAddress(address);
-            if (!normalized) throw new Error(`Invalid trusted proxy IP: ${address}`);
-            this.#trustedProxyIps.add(normalized);
-        }
+    constructor(server, gateway, policy) {
+        this.#gateway = gateway;
         this.#limits = Object.freeze({
             maxConnections: WebSocketGateway.MAX_CONNECTIONS,
             maxConnectionsPerIp: WebSocketGateway.MAX_CONNECTIONS_PER_IP,
@@ -102,7 +78,6 @@ export class WebSocketGateway {
             maxBufferedBytes: WebSocketGateway.MAX_BUFFERED_BYTES,
             messageWindowMs: WebSocketGateway.MESSAGE_WINDOW_MS,
             maxMessagesPerWindow: WebSocketGateway.MAX_MESSAGES_PER_WINDOW,
-            maxInFlightRequests: WebSocketGateway.MAX_IN_FLIGHT_REQUESTS,
             maxUpgradesPerIp: WebSocketGateway.MAX_UPGRADES_PER_IP,
             upgradeWindowMs: WebSocketGateway.UPGRADE_WINDOW_MS,
             maxTrackedIps: WebSocketGateway.MAX_TRACKED_IPS,
@@ -136,17 +111,16 @@ export class WebSocketGateway {
         }
     }
 
-    /** Closes sockets and waits for Host memberships to be released. */
+    /** Closes sockets and detaches their authenticated streams. HostedGateway owns membership cleanup. */
     close() {
         if (this.#closing === null) this.#closing = this.#shutdown();
         return this.#closing;
     }
 
-    /** @returns {Promise<void>} Socket and membership cleanup completion. */
+    /** @returns {Promise<void>} Socket cleanup completion. */
     async #shutdown() {
         for (const socket of this.#server.clients) socket.terminate();
         await new Promise(this.#closeServer.bind(this));
-        await Promise.allSettled(this.#disconnects);
         this.#server.removeAllListeners();
         this.#upgradeAttempts.clear();
     }
@@ -162,7 +136,11 @@ export class WebSocketGateway {
      * @param {Function} done - Synchronous admission result callback.
      */
     #verifyUpgrade(info, done) {
-        if (!this.#allowedOrigins.has(info.origin)) {
+        if (info.req.url !== HostedProtocol.PATH) {
+            done(false, 404, "Live endpoint not found");
+            return;
+        }
+        if (typeof info.origin !== "string" || !this.#gateway.allowsOrigin(info.origin)) {
             done(false, 403, "Origin not allowed");
             return;
         }
@@ -205,36 +183,7 @@ export class WebSocketGateway {
      * @returns {string} Normalized client address, or empty text for an invalid peer.
      */
     #clientAddress(request) {
-        let address = WebSocketGateway.#normalizeAddress(request.socket.remoteAddress);
-        const forwarded = request.headers["x-forwarded-for"];
-        if (this.#trustedProxyIps.has(address) && typeof forwarded === "string") {
-            const chain = forwarded.split(",");
-            for (let index = chain.length - 1; index >= 0 && this.#trustedProxyIps.has(address); index -= 1) {
-                const next = WebSocketGateway.#normalizeAddress(chain[index].trim());
-                if (!next) return WebSocketGateway.#normalizeAddress(request.socket.remoteAddress);
-                address = next;
-            }
-        }
-        return address;
-    }
-
-    /**
-     * Normalizes IPv4, IPv6, and IPv4-mapped IPv6 without trusting caller-controlled labels.
-     * @param {*} address - Address to normalize.
-     * @returns {string} Canonical IP address, or empty text when invalid.
-     */
-    static #normalizeAddress(address) {
-        if (typeof address !== "string") return "";
-        address = address.split("%")[0];
-        const family = isIP(address);
-        if (family === 4) return address;
-        if (family !== 6) return "";
-        const normalized = new URL(`http://[${address}]/`).hostname.slice(1, -1);
-        if (!normalized.startsWith("::ffff:")) return normalized;
-        const parts = normalized.slice(7).split(":");
-        const high = Number.parseInt(parts[0], 16);
-        const low = Number.parseInt(parts[1], 16);
-        return `${high >> 8}.${high & 255}.${low >> 8}.${low & 255}`;
+        return this.#gateway.clientAddress({ remoteAddress: request.socket.remoteAddress, headers: request.headers });
     }
 
     /**
@@ -245,18 +194,14 @@ export class WebSocketGateway {
     #connect(socket, request) {
         const address = this.#clientAddress(request);
         this.#connectionsByIp.set(address, (this.#connectionsByIp.get(address) ?? 0) + 1);
-        const state = { address, connection: null, alive: true, startedAt: Date.now(), messages: 0, inFlight: 0 };
+        const state = { address, stream: null, authTimer: null, alive: true, startedAt: Date.now(), messages: 0 };
         this.#clients.set(socket, state);
         socket.on("close", this.#disconnect.bind(this, socket));
         socket.on("error", WebSocketGateway.#ignoreSocketError);
         socket.on("pong", this.#handlePong.bind(this, state));
         socket.on("message", this.#receive.bind(this, socket, state));
-        try {
-            state.connection = this.#host.accept(this.#publish.bind(this, socket), this.#closeSocket.bind(this, socket));
-        } catch (error) {
-            console.error("WebSocket admission failed:", error);
-            this.#closeSocket(socket, 1011, "Server error");
-        }
+        state.authTimer = globalThis.setTimeout(this.#closeSocket.bind(this, socket, 1008, "Authentication required"), WebSocketGateway.AUTHENTICATION_TIMEOUT_MS);
+        state.authTimer.unref?.();
     }
 
     /**
@@ -270,27 +215,18 @@ export class WebSocketGateway {
         const count = (this.#connectionsByIp.get(state.address) ?? 1) - 1;
         if (count > 0) this.#connectionsByIp.set(state.address, count);
         else this.#connectionsByIp.delete(state.address);
-        const cleanup = Promise.resolve().then(WebSocketGateway.#closeConnection.bind(null, state.connection));
-        this.#disconnects.add(cleanup);
-        void cleanup.catch(WebSocketGateway.#reportCleanupError).finally(this.#disconnects.delete.bind(this.#disconnects, cleanup));
+        globalThis.clearTimeout(state.authTimer);
+        state.stream?.close();
     }
 
-    /** @param {Object|null} connection - Host-side connection to release. */
-    static async #closeConnection(connection) {
-        await connection?.close();
-    }
-
-    /** @param {*} error - Unexpected membership cleanup error. */
-    static #reportCleanupError(error) {
-        console.error("WebSocket cleanup failed:", error);
-    }
-
-    /** Absorbs transport errors; close owns capacity and membership cleanup. */
+    /** Absorbs transport errors; close owns capacity and stream cleanup. */
     static #ignoreSocketError() {}
+
 
     /** @param {Object} state - Client whose heartbeat was answered. */
     #handlePong(state) {
         state.alive = true;
+        state.stream?.touch();
     }
 
     /**
@@ -308,12 +244,12 @@ export class WebSocketGateway {
             state.messages = 0;
         }
         state.messages += 1;
-        if (state.messages > this.#limits.maxMessagesPerWindow || state.inFlight >= this.#limits.maxInFlightRequests) {
+        if (state.messages > this.#limits.maxMessagesPerWindow) {
             this.#closeSocket(socket, 1008, "Request limit reached");
             return;
         }
         if (isBinary) {
-            this.#closeSocket(socket, 1003, "Text messages required");
+            this.#closeSocket(socket, 1003, "JSON text messages required");
             return;
         }
         let request;
@@ -323,32 +259,47 @@ export class WebSocketGateway {
             this.#closeSocket(socket, 1007, "Invalid JSON");
             return;
         }
-        state.inFlight += 1;
-        void Promise.resolve().then(WebSocketGateway.#dispatch.bind(null, state.connection, request))
-            .catch(this.#requestFailed.bind(this, socket))
-            .finally(WebSocketGateway.#completeRequest.bind(null, state));
+        if (state.stream === null) {
+            this.#admit(socket, state, request);
+        } else if (request?.type === "acknowledge") {
+            state.stream.acknowledge(request.after);
+        } else if (request?.type === "release") {
+            state.stream.release();
+        } else {
+            state.stream.receive(request);
+        }
     }
 
     /**
-     * @param {Object} connection - Host connection.
-     * @param {*} request - Parsed application request.
+     * Creates or resumes a session from the first frame; credentials never enter upgrade headers.
+     * @param {WebSocket} socket - Socket waiting for admission.
+     * @param {Object} state - Socket accounting and resolved address.
+     * @param {Object} request - Parsed first frame.
      */
-    static async #dispatch(connection, request) {
-        await connection.receive(request);
-    }
-
-    /** @param {Object} state - Client whose Host request has completed. */
-    static #completeRequest(state) {
-        state.inFlight -= 1;
-    }
-
-    /**
-     * @param {WebSocket} socket - Client whose request failed unexpectedly.
-     * @param {*} error - Unexpected Host error.
-     */
-    #requestFailed(socket, error) {
-        console.error("WebSocket request failed:", error);
-        this.#closeSocket(socket, 1011, "Server error");
+    #admit(socket, state, request) {
+        try {
+            const send = this.#publish.bind(this, socket);
+            const disconnect = this.#closeSocket.bind(this, socket);
+            let admitted;
+            if (request?.type === "create") {
+                admitted = this.#gateway.createStream(state.address, send, disconnect);
+            } else if (request?.type === "authenticate") {
+                admitted = this.#gateway.openStream(request.token, request.after, send, disconnect);
+            } else {
+                this.#closeSocket(socket, 1008, "Create or authenticate first");
+                return;
+            }
+            if (admitted.stream !== null) {
+                globalThis.clearTimeout(state.authTimer);
+                state.authTimer = null;
+                state.stream = admitted.stream;
+            } else {
+                this.#closeSocket(socket, admitted.closeCode, "Session admission rejected");
+            }
+        } catch (error) {
+            console.error("Hosted admission failed:", error);
+            this.#closeSocket(socket, 1011, "Session admission failed");
+        }
     }
 
     /**

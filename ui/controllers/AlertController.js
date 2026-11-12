@@ -1,7 +1,7 @@
 "use strict";
 
 import { DomUtils } from "../utilities/DomUtils.js";
-import { ValidationUtils } from "../../core/ValidationUtils.js";
+import { ValidationUtils } from "../../shared/ValidationUtils.js";
 import { ViewController } from "./ViewController.js";
 
 /** Controls the singleton alert overlay. */

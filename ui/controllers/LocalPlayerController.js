@@ -1,7 +1,7 @@
 "use strict";
 
-import { CardCollection } from "../../core/CardCollection.js";
-import { Constants } from "../../core/Constants.js";
+import { CardCollection } from "../../model/CardCollection.js";
+import { Constants } from "../../shared/Constants.js";
 import { DomUtils } from "../utilities/DomUtils.js";
 import { CardListUtils } from "../utilities/CardListUtils.js";
 import { ViewController } from "./ViewController.js";

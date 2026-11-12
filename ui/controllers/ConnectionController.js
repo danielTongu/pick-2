@@ -1,10 +1,11 @@
 "use strict";
 
-import { Constants } from "../../core/Constants.js";
+import { HostedProtocol } from "../../shared/HostedProtocol.js";
+import { Constants } from "../../shared/Constants.js";
 import { DomUtils } from "../utilities/DomUtils.js";
 import { ViewController } from "./ViewController.js";
 
-/** Owns the Connection page form, status, and probe diagnostics. */
+/** Owns the Connection page form, status, and connection diagnostics. */
 export class ConnectionController extends ViewController {
     /** @type {HTMLElement} Shared header connection status. */
     #connectionStatus;
@@ -15,7 +16,7 @@ export class ConnectionController extends ViewController {
     /** @type {HTMLElement} Configured Live server label. */
     #originOutput;
 
-    /** @type {HTMLButtonElement} Host probe command. */
+    /** @type {HTMLButtonElement} Host connection command. */
     #connectButton;
 
     /** @type {HTMLFormElement} Host address form. */
@@ -67,7 +68,7 @@ export class ConnectionController extends ViewController {
     }
 
     /**
-     * Renders one probe status and the diagnostics actually available in the browser.
+     * Renders one connection status and the diagnostics actually available in the browser.
      * @param {string} status - Connection status from Constants.STATUS.
      * @param {{endpoint?:string, attempt?:number, candidate?:number, candidateCount?:number, elapsedMs?:number|null, failure?:string}} [metrics={}] - Probe diagnostics.
      */
@@ -92,7 +93,7 @@ export class ConnectionController extends ViewController {
         this.#attemptOutput.textContent = attempt === 0 ? "—" :
             `#${attempt}${candidateCount > 1 ? ` · candidate ${candidate} of ${candidateCount}` : ""}`;
         this.#durationOutput.textContent = elapsedMs === null ? "—" : `${elapsedMs} ms`;
-        this.#timeoutOutput.textContent = `${Constants.CONNECTION_PROBE_TIMEOUT_MS} ms`;
+        this.#timeoutOutput.textContent = `${HostedProtocol.CONNECTION_TIMEOUT_MS} ms`;
         this.#failureOutput.textContent = failure || "None";
         this.#originOutput.textContent = endpoint || "Not configured";
         DomUtils.require("#hosted-mode-input", HTMLInputElement).checked = true;

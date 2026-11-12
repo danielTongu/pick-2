@@ -1,6 +1,6 @@
 "use strict";
 
-import { ValidationUtils } from "../../core/ValidationUtils.js";
+import { ValidationUtils } from "../../shared/ValidationUtils.js";
 
 /**
  * DOM utility helpers.
